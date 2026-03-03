@@ -16,6 +16,7 @@ const db = firebase.firestore();
 // ===== DATA =====
 let locations = [];
 let pendingLat = null, pendingLng = null;
+let editLat = null, editLng = null;
 let map, markers = {};
 let editingId = null;
 let currentUser = null;
@@ -129,25 +130,47 @@ function initMap() {
 let tempMarker = null;
 
 function onMapClick(e) {
-    pendingLat = e.latlng.lat;
-    pendingLng = e.latlng.lng;
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
 
+    if (editingId) {
+        // Mode: Edit existing location
+        editLat = lat; editLng = lng;
+        if (tempMarker) map.removeLayer(tempMarker);
+        tempMarker = L.marker([lat, lng], { icon: makeTempIcon() }).addTo(map);
+
+        document.getElementById('eCoordDisplay').style.display = 'block';
+        document.getElementById('eCoordTxt').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+        document.getElementById('eAddress').value = '⏳ Pobieranie adresu...';
+
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=pl`)
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('eAddress').value = data.display_name || '';
+            })
+            .catch(() => {
+                document.getElementById('eAddress').value = lat.toFixed(5) + ', ' + lng.toFixed(5);
+            });
+        return;
+    }
+
+    // Mode: Add new location
+    pendingLat = lat; pendingLng = lng;
     if (tempMarker) map.removeLayer(tempMarker);
-    tempMarker = L.marker([pendingLat, pendingLng], { icon: makeTempIcon() }).addTo(map);
+    tempMarker = L.marker([lat, lng], { icon: makeTempIcon() }).addTo(map);
 
     document.getElementById('coordDisplay').style.display = 'block';
-    document.getElementById('coordTxt').textContent = pendingLat.toFixed(5) + ', ' + pendingLng.toFixed(5);
+    document.getElementById('coordTxt').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
     document.getElementById('fAddress').value = '⏳ Pobieranie adresu...';
     switchTab('add');
 
-    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pendingLat}&lon=${pendingLng}&format=json&accept-language=pl`)
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=pl`)
         .then(r => r.json())
         .then(data => {
-            const addr = data.display_name || '';
-            document.getElementById('fAddress').value = addr;
+            document.getElementById('fAddress').value = data.display_name || '';
         })
         .catch(() => {
-            document.getElementById('fAddress').value = pendingLat.toFixed(5) + ', ' + pendingLng.toFixed(5);
+            document.getElementById('fAddress').value = lat.toFixed(5) + ', ' + lng.toFixed(5);
         });
 }
 
@@ -227,14 +250,23 @@ function selectSearchResult(lat, lon, addr) {
     const resultsDiv = document.getElementById('searchResults');
     resultsDiv.classList.remove('active');
     document.getElementById('addressSearch').value = '';
-    pendingLat = lat; pendingLng = lon;
+
     map.setView([lat, lon], 16);
     if (tempMarker) map.removeLayer(tempMarker);
     tempMarker = L.marker([lat, lon], { icon: makeTempIcon() }).addTo(map);
-    document.getElementById('fAddress').value = addr;
-    document.getElementById('coordDisplay').style.display = 'block';
-    document.getElementById('coordTxt').textContent = lat.toFixed(5) + ', ' + lon.toFixed(5);
-    switchTab('add');
+
+    if (editingId) {
+        editLat = lat; editLng = lon;
+        document.getElementById('eAddress').value = addr;
+        document.getElementById('eCoordDisplay').style.display = 'block';
+        document.getElementById('eCoordTxt').textContent = lat.toFixed(5) + ', ' + lon.toFixed(5);
+    } else {
+        pendingLat = lat; pendingLng = lon;
+        document.getElementById('fAddress').value = addr;
+        document.getElementById('coordDisplay').style.display = 'block';
+        document.getElementById('coordTxt').textContent = lat.toFixed(5) + ', ' + lon.toFixed(5);
+        switchTab('add');
+    }
 }
 
 document.addEventListener('click', (e) => {
@@ -521,7 +553,10 @@ let editPeople = [];
 function openEdit(id, e) {
     e?.stopPropagation(); const loc = locations.find(l => l.id === id); if (!loc) return;
     editingId = id;
+    map.setView([loc.lat, loc.lng], 15);
+    if (markers[id]) markers[id].openPopup();
     document.getElementById('eName').value = loc.name;
+    document.getElementById('eAddress').value = loc.address || '';
     document.getElementById('eCapacity').value = loc.capacity;
     document.getElementById('ePrice').value = loc.price || 0;
     document.getElementById('eCaregiver').value = loc.caregiver || '';
@@ -530,6 +565,11 @@ function openEdit(id, e) {
     const isIndef = !!loc.isIndefinite;
     document.getElementById('eIndefinite').checked = isIndef;
     document.getElementById('eDateTo').disabled = isIndef;
+    editLat = loc.lat;
+    editLng = loc.lng;
+    document.getElementById('eCoordDisplay').style.display = 'block';
+    document.getElementById('eCoordTxt').textContent = editLat.toFixed(5) + ', ' + editLng.toFixed(5);
+
     editPeople = [...(loc.people || [])];
     renderPeopleInputs('editPeopleList', editPeople, 'edit');
     updateEditTotalCost();
@@ -540,12 +580,14 @@ function addEditPerson() { editPeople.push(''); renderPeopleInputs('editPeopleLi
 
 function saveEdit() {
     const name = document.getElementById('eName').value.trim();
+    const address = document.getElementById('eAddress').value.trim();
     const capacity = parseInt(document.getElementById('eCapacity').value);
     const price = parseFloat(document.getElementById('ePrice').value);
     if (!name || !capacity || isNaN(price)) { alert('Wypełnij wszystkie wymagane pola.'); return; }
 
     const updatedData = {
-        name, capacity, price,
+        name, address, capacity, price,
+        lat: editLat, lng: editLng,
         caregiver: document.getElementById('eCaregiver').value,
         dateFrom: document.getElementById('eDateFrom').value,
         dateTo: document.getElementById('eDateTo').value,
@@ -561,7 +603,11 @@ function saveEdit() {
         .catch(err => alert("Błąd edycji: " + err.message));
 }
 
-function closeEdit() { editingId = null; document.getElementById('editModal').classList.remove('open'); }
+function closeEdit() {
+    editingId = null;
+    document.getElementById('editModal').classList.remove('open');
+    if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+}
 
 // ===== STATS =====
 function renderStats() {

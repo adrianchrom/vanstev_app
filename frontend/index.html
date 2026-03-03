@@ -54,6 +54,13 @@
                 <label>Nazwa miejsca</label>
                 <input type="text" id="eName" placeholder="np. Dom Eindhoven A" />
             </div>
+            <div id="eCoordDisplay" style="font-size:11px;color:var(--muted);margin-bottom:10px;display:none;">
+                📌 <span id="eCoordTxt"></span>
+            </div>
+            <div class="form-group">
+                <label>Adres</label>
+                <textarea id="eAddress" rows="2" placeholder="Adres lokalizacji..."></textarea>
+            </div>
             <div class="form-group">
                 <label>Liczba miejsc (osób)</label>
                 <input type="number" id="eCapacity" min="1" max="50" placeholder="np. 8" />
@@ -75,7 +82,8 @@
                         <div class="date-lbl" style="display:flex; justify-content:space-between; align-items:center;">
                             <span>📅 Do</span>
                             <label style="font-size:9px; text-transform:none; cursor:pointer;">
-                                <input type="checkbox" id="eIndefinite" onchange="toggleIndefinite('edit')" /> Nieokreślony
+                                <input type="checkbox" id="eIndefinite" onchange="toggleIndefinite('edit')" />
+                                Nieokreślony
                             </label>
                         </div>
                         <input type="date" id="eDateTo" onchange="updateEditTotalCost()" />
@@ -194,10 +202,12 @@
                             </div>
                             <div class="date-sep">→</div>
                             <div class="date-col">
-                                <div class="date-lbl" style="display:flex; justify-content:space-between; align-items:center;">
+                                <div class="date-lbl"
+                                    style="display:flex; justify-content:space-between; align-items:center;">
                                     <span>📅 Do</span>
                                     <label style="font-size:9px; text-transform:none; cursor:pointer;">
-                                        <input type="checkbox" id="fIndefinite" onchange="toggleIndefinite('add')" /> Nieokreślony
+                                        <input type="checkbox" id="fIndefinite" onchange="toggleIndefinite('add')" />
+                                        Nieokreślony
                                     </label>
                                 </div>
                                 <input type="date" id="fDateTo" onchange="updateTotalCost()" />
