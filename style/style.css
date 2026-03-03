@@ -42,7 +42,7 @@ body {
     height: 100vh;
 }
 
-/* ===== LOGIN ===== */
+
 #loginScreen {
     position: fixed;
     inset: 0;
@@ -159,7 +159,6 @@ body {
     display: none;
 }
 
-/* ===== APP LAYOUT ===== */
 #app {
     display: none;
     height: 100vh;
@@ -222,7 +221,7 @@ body {
     overflow: hidden;
 }
 
-/* ===== MAP ===== */
+
 #map {
     flex: 1;
     position: relative;
@@ -232,7 +231,7 @@ body {
     background: #070b14 !important;
 }
 
-/* ===== SIDEBAR ===== */
+
 .sidebar {
     width: 370px;
     background: var(--card);
@@ -586,7 +585,7 @@ body {
     font-size: 13px;
 }
 
-/* ===== MAP POPUP overrides ===== */
+
 .leaflet-popup-content-wrapper {
     background: var(--card) !important;
     border: 1px solid var(--border) !important;
@@ -629,7 +628,6 @@ body {
     color: var(--muted) !important;
 }
 
-/* Date fields */
 .date-row {
     display: flex;
     align-items: center;
@@ -737,7 +735,6 @@ body.light-mode .caregiver-badge {
     border: 1px solid rgba(147, 51, 234, 0.2);
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar {
     width: 5px;
 }
@@ -751,7 +748,6 @@ body.light-mode .caregiver-badge {
     border-radius: 10px;
 }
 
-/* Edit modal */
 #editModal {
     display: none;
     position: fixed;
@@ -799,9 +795,8 @@ body.light-mode .caregiver-badge {
     color: var(--text);
 }
 
-/* Search */
 .search-container {
-    position: center;
+    position: relative;
     margin-bottom: 16px;
 }
 
@@ -883,7 +878,6 @@ body.light-mode .caregiver-badge {
     color: var(--accent);
 }
 
-/* Stats */
 .stat-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
