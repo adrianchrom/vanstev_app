@@ -1002,6 +1002,39 @@ body.light-mode .caregiver-badge {
         display: none;
     }
 
+    /* Modern Address Section Styles */
+    .address-section {
+        background: rgba(255, 255, 255, 0.03);
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        margin-bottom: 20px;
+    }
+
+    .sub-label {
+        font-size: 10px !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 4px !important;
+        display: block;
+    }
+
+    .field-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .field-col {
+        flex: 1;
+    }
+
+    .address-section input {
+        height: 38px;
+        font-size: 13px !important;
+    }
+
     #tbUserEmail {
         max-width: 80px;
         overflow: hidden;

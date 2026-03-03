@@ -57,16 +57,33 @@
             <div id="eCoordDisplay" style="font-size:11px;color:var(--muted);margin-bottom:10px;display:none;">
                 📌 <span id="eCoordTxt"></span>
             </div>
-            <div class="form-group">
-                <label>Adres</label>
-                <div class="address-grid">
-                    <input type="text" id="eZip" placeholder="Kod pocztowy" style="grid-column: span 1;" />
-                    <input type="text" id="eCity" placeholder="Miasto" style="grid-column: span 2;" />
-                    <input type="text" id="eStreet" placeholder="Ulica" style="grid-column: span 2;" />
-                    <input type="text" id="eHouseNum" placeholder="Nr lokalu/domu" style="grid-column: span 1;" />
+            <div class="form-group address-section">
+                <label>📍 Adres lokalizacji</label>
+                <div class="field-row">
+                    <div class="field-col">
+                        <label class="sub-label">Miejscowość</label>
+                        <input type="text" id="eCity" placeholder="np. Rotterdam" />
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field-col">
+                        <label class="sub-label">Kod pocztowy</label>
+                        <input type="text" id="eZip" placeholder="00-000" />
+                    </div>
+                    <div class="field-col">
+                        <label class="sub-label">Nr lokalu/domu</label>
+                        <input type="text" id="eHouseNum" placeholder="np. 12A" />
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field-col">
+                        <label class="sub-label">Ulica</label>
+                        <input type="text" id="eStreet" placeholder="np. Main Street" />
+                    </div>
                 </div>
                 <button class="small-map-btn" onclick="geocodeManual('edit')"
-                    style="position:static; width:100%; margin-top:5px; height:28px;">📍 Sprawdź adres na mapie</button>
+                    style="position:static; width:100%; margin-top:8px; height:32px;">📍 Pobierz współrzędne z
+                    adresu</button>
             </div>
             <div class="form-group">
                 <label>Liczba miejsc (osób)</label>
@@ -182,19 +199,35 @@
                     <div id="coordDisplay" style="font-size:11px;color:var(--muted);margin-bottom:10px;display:none;">
                         📌 <span id="coordTxt"></span>
                     </div>
-                    <div class="form-group">
-                        <label>Adres *</label>
-                        <div class="address-grid">
-                            <input type="text" id="fZip" placeholder="Kod pocztowy" style="grid-column: span 1;" />
-                            <input type="text" id="fCity" placeholder="Miasto" style="grid-column: span 2;" />
-                            <input type="text" id="fStreet" placeholder="Ulica" style="grid-column: span 2;" />
-                            <input type="text" id="fHouseNum" placeholder="Nr lokalu/domu"
-                                style="grid-column: span 1;" />
+                    <div class="form-group address-section">
+                        <label>📍 Adres lokalizacji *</label>
+                        <div class="field-row">
+                            <div class="field-col">
+                                <label class="sub-label">Miejscowość</label>
+                                <input type="text" id="fCity" placeholder="np. Amsterdam" />
+                            </div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-col">
+                                <label class="sub-label">Kod pocztowy</label>
+                                <input type="text" id="fZip" placeholder="00-000" />
+                            </div>
+                            <div class="field-col">
+                                <label class="sub-label">Nr lokalu/domu</label>
+                                <input type="text" id="fHouseNum" placeholder="np. 5" />
+                            </div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-col">
+                                <label class="sub-label">Ulica</label>
+                                <input type="text" id="fStreet" placeholder="np. Damrak" />
+                            </div>
                         </div>
                         <button class="small-map-btn" onclick="geocodeManual('add')"
-                            style="position:static; width:100%; margin-top:5px; height:28px;">📍 Sprawdź adres na
-                            mapie</button>
-                        <div class="hint-txt">✏️ Możesz ręcznie poprawić pola przed zapisem</div>
+                            style="position:static; width:100%; margin-top:8px; height:32px;">📍 Pobierz współrzędne z
+                            adresu</button>
+                        <div class="hint-txt" style="margin-top:6px;">✏️ Pola wypełniają się automatycznie po kliknięciu
+                            na mapę</div>
                     </div>
                     <div class="form-group">
                         <label>Nazwa miejsca *</label>

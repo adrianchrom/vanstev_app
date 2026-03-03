@@ -723,3 +723,4 @@ function switchTab(tab) {
     if (activePanel) activePanel.classList.add('active');
     if (activeTab) activeTab.classList.add('active');
 }
+
