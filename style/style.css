@@ -298,6 +298,18 @@ body {
     color: var(--text);
 }
 
+/* Address Grid */
+.address-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.address-grid input {
+    width: 100% !important;
+}
+
 .form-group {
     margin-bottom: 14px;
 }

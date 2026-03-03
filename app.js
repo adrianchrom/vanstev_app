@@ -134,27 +134,17 @@ function onMapClick(e) {
     const lng = e.latlng.lng;
 
     if (editingId) {
-        // Mode: Edit existing location
         editLat = lat; editLng = lng;
         if (tempMarker) map.removeLayer(tempMarker);
-        tempMarker = L.marker([lat, lng], { icon: makeTempIcon() }).addTo(map);
+        tempMarker = L.marker([lat, lng], { icon: makeTempIcon(), draggable: true }).addTo(map);
+        tempMarker.on('dragend', onTempMarkerDrag);
 
         document.getElementById('eCoordDisplay').style.display = 'block';
         document.getElementById('eCoordTxt').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
-        document.getElementById('eAddress').value = '⏳ Pobieranie adresu...';
-
-        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=pl`)
-            .then(r => r.json())
-            .then(data => {
-                document.getElementById('eAddress').value = data.display_name || '';
-            })
-            .catch(() => {
-                document.getElementById('eAddress').value = lat.toFixed(5) + ', ' + lng.toFixed(5);
-            });
+        fillAddressFields('edit', lat, lng);
         return;
     }
 
-    // Mode: Add new location
     pendingLat = lat; pendingLng = lng;
     if (tempMarker) map.removeLayer(tempMarker);
     tempMarker = L.marker([lat, lng], { icon: makeTempIcon(), draggable: true }).addTo(map);
@@ -162,16 +152,23 @@ function onMapClick(e) {
 
     document.getElementById('coordDisplay').style.display = 'block';
     document.getElementById('coordTxt').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
-    document.getElementById('fAddress').value = '⏳ Pobieranie adresu...';
+    fillAddressFields('add', lat, lng);
     switchTab('add');
+}
 
+function fillAddressFields(mode, lat, lng) {
+    const prefix = mode === 'add' ? 'f' : 'e';
     fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=pl`)
         .then(r => r.json())
         .then(data => {
-            document.getElementById('fAddress').value = data.display_name || '';
+            const a = data.address || {};
+            document.getElementById(prefix + 'Zip').value = a.postcode || '';
+            document.getElementById(prefix + 'City').value = a.city || a.town || a.village || '';
+            document.getElementById(prefix + 'Street').value = a.road || a.pedestrian || '';
+            document.getElementById(prefix + 'HouseNum').value = a.house_number || '';
         })
         .catch(() => {
-            document.getElementById('fAddress').value = lat.toFixed(5) + ', ' + lng.toFixed(5);
+            console.error("Błąd pobierania adresu");
         });
 }
 
@@ -184,18 +181,26 @@ function onTempMarkerDrag(e) {
         editLat = lat; editLng = lng;
         document.getElementById('eCoordDisplay').style.display = 'block';
         document.getElementById('eCoordTxt').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+        fillAddressFields('edit', lat, lng);
     } else {
         pendingLat = lat; pendingLng = lng;
         document.getElementById('coordDisplay').style.display = 'block';
         document.getElementById('coordTxt').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+        fillAddressFields('add', lat, lng);
     }
 }
 
 function geocodeManual(mode) {
-    const addr = document.getElementById(mode === 'add' ? 'fAddress' : 'eAddress').value.trim();
-    if (addr.length < 3) return;
+    const prefix = mode === 'add' ? 'f' : 'e';
+    const zip = document.getElementById(prefix + 'Zip').value.trim();
+    const city = document.getElementById(prefix + 'City').value.trim();
+    const street = document.getElementById(prefix + 'Street').value.trim();
+    const num = document.getElementById(prefix + 'HouseNum').value.trim();
 
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1`)
+    const query = `${street} ${num}, ${zip} ${city}`.trim();
+    if (query.length < 5) return;
+
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`)
         .then(r => r.json())
         .then(data => {
             if (data.length > 0) {
@@ -307,14 +312,14 @@ function selectSearchResult(lat, lon, addr) {
 
     if (editingId) {
         editLat = lat; editLng = lon;
-        document.getElementById('eAddress').value = addr;
         document.getElementById('eCoordDisplay').style.display = 'block';
         document.getElementById('eCoordTxt').textContent = lat.toFixed(5) + ', ' + lon.toFixed(5);
+        fillAddressFields('edit', lat, lng);
     } else {
         pendingLat = lat; pendingLng = lon;
-        document.getElementById('fAddress').value = addr;
         document.getElementById('coordDisplay').style.display = 'block';
         document.getElementById('coordTxt').textContent = lat.toFixed(5) + ', ' + lon.toFixed(5);
+        fillAddressFields('add', lat, lng);
         switchTab('add');
     }
 }
@@ -341,7 +346,9 @@ function makePopupHtml(loc) {
     const peopleHtml = loc.people && loc.people.length > 0
         ? loc.people.map(p => `<span class="person-chip">${p}</span>`).join('')
         : '<span style="color:var(--muted);font-size:12px;">Brak osób</span>';
-    const addrHtml = loc.address ? `<div class="popup-row">🏡 <span style="font-size:11px;">${loc.address}</span></div>` : '';
+
+    const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
+    const addrHtml = fullAddr ? `<div class="popup-row">🏡 <span style="font-size:11px;">${fullAddr}</span></div>` : '';
     const days = calcDays(loc.dateFrom, loc.dateTo);
     const months = days ? (days / 30).toFixed(1) : null;
     const totalCost = months ? (parseFloat(months) * parseFloat(loc.price || 0)) : null;
@@ -502,15 +509,20 @@ function removePerson(mode, idx) {
 
 function saveLocation() {
     const name = document.getElementById('fName').value.trim();
-    const address = document.getElementById('fAddress').value.trim();
+    const zip = document.getElementById('fZip').value.trim();
+    const city = document.getElementById('fCity').value.trim();
+    const street = document.getElementById('fStreet').value.trim();
+    const houseNum = document.getElementById('fHouseNum').value.trim();
     const capacity = parseInt(document.getElementById('fCapacity').value);
     const price = parseFloat(document.getElementById('fPrice').value);
+
     if (pendingLat === null) { showFormErr('Kliknij na mapę aby wybrać lokalizację.'); return; }
     if (!name) { showFormErr('Podaj nazwę miejsca.'); return; }
     if (!capacity || capacity < 1) { showFormErr('Podaj liczbę miejsc.'); return; }
     if (isNaN(price) || price < 0) { showFormErr('Podaj prawidłową cenę.'); return; }
+
     const locData = {
-        name, address, capacity, price,
+        name, zip, city, street, houseNum, capacity, price,
         caregiver: document.getElementById('fCaregiver').value,
         dateFrom: document.getElementById('fDateFrom').value,
         dateTo: document.getElementById('fDateTo').value,
@@ -536,7 +548,7 @@ function showFormErr(msg) {
 }
 
 function resetForm() {
-    ['fName', 'fAddress', 'addressSearch', 'fCapacity', 'fPrice', 'fCaregiver', 'fDateFrom', 'fDateTo'].forEach(id => {
+    ['fName', 'fZip', 'fCity', 'fStreet', 'fHouseNum', 'addressSearch', 'fCapacity', 'fPrice', 'fCaregiver', 'fDateFrom', 'fDateTo'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -566,9 +578,10 @@ function renderList() {
         const totalCost = months ? (months * parseFloat(loc.price || 0)) : null;
         const dateToFmt = loc.isIndefinite ? 'Nieokreślony' : fmtDate(loc.dateTo);
         const occ = loc.people ? loc.people.length : 0;
+        const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
         return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')">
             <div class="loc-card-head"><div class="loc-name">${houseIcon} ${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
-            ${loc.address ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${loc.address}</div>` : ''}
+            ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
             ${(loc.dateFrom || loc.dateTo || loc.isIndefinite) ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;">📅 ${fmtDate(loc.dateFrom)} → ${dateToFmt}${months ? ` &bull; ${months} m-cy &bull; <strong style="color:var(--accent);">€${totalCost.toFixed(2)}</strong>` : ''}</div>` : ''}
             <div class="loc-badges" style="margin-top:8px;"><span class="rental-badge ${rs.cls}">${rs.label}</span>${loc.caregiver ? `<span class="caregiver-badge">👤 ${loc.caregiver}</span>` : ''}<span class="badge badge-amber">👥 ${loc.capacity} miejsc</span><span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)} za miesiąc</span><span class="badge badge-blue">${occ}/${loc.capacity} zajętych</span></div>
             <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
@@ -606,7 +619,10 @@ function openEdit(id, e) {
     map.setView([loc.lat, loc.lng], 15);
     if (markers[id]) markers[id].openPopup();
     document.getElementById('eName').value = loc.name;
-    document.getElementById('eAddress').value = loc.address || '';
+    document.getElementById('eZip').value = loc.zip || '';
+    document.getElementById('eCity').value = loc.city || '';
+    document.getElementById('eStreet').value = loc.street || '';
+    document.getElementById('eHouseNum').value = loc.houseNum || '';
     document.getElementById('eCapacity').value = loc.capacity;
     document.getElementById('ePrice').value = loc.price || 0;
     document.getElementById('eCaregiver').value = loc.caregiver || '';
@@ -630,13 +646,17 @@ function addEditPerson() { editPeople.push(''); renderPeopleInputs('editPeopleLi
 
 function saveEdit() {
     const name = document.getElementById('eName').value.trim();
-    const address = document.getElementById('eAddress').value.trim();
+    const zip = document.getElementById('eZip').value.trim();
+    const city = document.getElementById('eCity').value.trim();
+    const street = document.getElementById('eStreet').value.trim();
+    const houseNum = document.getElementById('eHouseNum').value.trim();
     const capacity = parseInt(document.getElementById('eCapacity').value);
     const price = parseFloat(document.getElementById('ePrice').value);
+
     if (!name || !capacity || isNaN(price)) { alert('Wypełnij wszystkie wymagane pola.'); return; }
 
     const updatedData = {
-        name, address, capacity, price,
+        name, zip, city, street, houseNum, capacity, price,
         lat: editLat, lng: editLng,
         caregiver: document.getElementById('eCaregiver').value,
         dateFrom: document.getElementById('eDateFrom').value,
