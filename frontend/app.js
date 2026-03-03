@@ -41,8 +41,14 @@ function doLogin() {
         err.style.display = 'block';
         return;
     }
-    currentUser = user.charAt(0).toUpperCase() + user.slice(1);
-    err.style.display = 'none';
+    const userName = user.charAt(0).toUpperCase() + user.slice(1);
+    localStorage.setItem('vs_user', userName);
+    setupApp(userName);
+}
+
+function setupApp(userName) {
+    currentUser = userName;
+    document.getElementById('loginErr').style.display = 'none';
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('tbUserEmail').textContent = currentUser;
@@ -56,6 +62,7 @@ document.getElementById('loginEmail')?.addEventListener('keydown', e => { if (e.
 
 function doLogout() {
     currentUser = null;
+    localStorage.removeItem('vs_user');
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
     document.getElementById('loginEmail').value = '';
@@ -100,6 +107,14 @@ function updateMapTheme() {
 if (localStorage.getItem('vs_theme') === 'light') {
     document.body.classList.add('light-mode');
 }
+
+// Apply session on load
+window.addEventListener('DOMContentLoaded', () => {
+    const savedUser = localStorage.getItem('vs_user');
+    if (savedUser) {
+        setupApp(savedUser);
+    }
+});
 
 // ===== MAP =====
 function initMap() {
