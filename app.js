@@ -314,12 +314,12 @@ function selectSearchResult(lat, lon, addr) {
         editLat = lat; editLng = lon;
         document.getElementById('eCoordDisplay').style.display = 'block';
         document.getElementById('eCoordTxt').textContent = lat.toFixed(5) + ', ' + lon.toFixed(5);
-        fillAddressFields('edit', lat, lng);
+        fillAddressFields('edit', lat, lon);
     } else {
         pendingLat = lat; pendingLng = lon;
         document.getElementById('coordDisplay').style.display = 'block';
         document.getElementById('coordTxt').textContent = lat.toFixed(5) + ', ' + lon.toFixed(5);
-        fillAddressFields('add', lat, lng);
+        fillAddressFields('add', lat, lon);
         switchTab('add');
     }
 }
