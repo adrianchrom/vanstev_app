@@ -1,0 +1,511 @@
+// ===== DATA =====
+let locations = JSON.parse(localStorage.getItem('vs_locations') || '[]');
+let pendingLat = null, pendingLng = null;
+let map, markers = {};
+let editingId = null;
+let currentUser = null;
+
+// ===== LOGIN =====
+const VALID_USERS = ['radek', 'jola', 'kasia', 'tomek', 'przemek', 'mirek'];
+const SYSTEM_PASS = 'qazwsx';
+
+function doLogin() {
+    const user = document.getElementById('loginEmail').value.trim().toLowerCase();
+    const pass = document.getElementById('loginPass').value.trim();
+    const err = document.getElementById('loginErr');
+
+    let isAuthorized = false;
+    // Sprawdź Admina lub standardowych użytkowników
+    if (user === 'admin' && pass === 'system02') {
+        isAuthorized = true;
+    } else if (VALID_USERS.includes(user) && pass === SYSTEM_PASS) {
+        isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
+        err.style.display = 'block';
+        return;
+    }
+    currentUser = user.charAt(0).toUpperCase() + user.slice(1);
+    err.style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('tbUserEmail').textContent = currentUser;
+    initMap();
+    renderList();
+    renderStats();
+}
+
+document.getElementById('loginPass')?.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('loginEmail')?.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function doLogout() {
+    currentUser = null;
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPass').value = '';
+}
+
+// ===== THEME =====
+function toggleTheme() {
+    const isLight = document.body.classList.toggle('light-mode');
+    localStorage.setItem('vs_theme', isLight ? 'light' : 'dark');
+    updateThemeUI();
+    updateMapTheme();
+}
+
+function updateThemeUI() {
+    const isLight = document.body.classList.contains('light-mode');
+    const btn = document.getElementById('themeToggle');
+    if (btn) {
+        btn.innerHTML = isLight ? '☀️ Tryb Jasny' : '🌙 Tryb Ciemny';
+    }
+}
+
+function updateMapTheme() {
+    if (!map) return;
+    const isLight = document.body.classList.contains('light-mode');
+    // Remove existing tile layers
+    map.eachLayer(layer => {
+        if (layer instanceof L.TileLayer) map.removeLayer(layer);
+    });
+
+    const url = isLight
+        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+
+    L.tileLayer(url, {
+        attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd', maxZoom: 19
+    }).addTo(map);
+}
+
+// Apply theme on load
+if (localStorage.getItem('vs_theme') === 'light') {
+    document.body.classList.add('light-mode');
+}
+
+// ===== MAP =====
+function initMap() {
+    if (map) return;
+    map = L.map('map', { center: [52.5, 5.0], zoom: 7, zoomControl: true });
+    updateMapTheme();
+    updateThemeUI();
+    map.on('click', onMapClick);
+    reloadMarkers();
+}
+
+let tempMarker = null;
+
+function onMapClick(e) {
+    pendingLat = e.latlng.lat;
+    pendingLng = e.latlng.lng;
+
+    if (tempMarker) map.removeLayer(tempMarker);
+    tempMarker = L.marker([pendingLat, pendingLng], { icon: makeTempIcon() }).addTo(map);
+
+    document.getElementById('coordDisplay').style.display = 'block';
+    document.getElementById('coordTxt').textContent = pendingLat.toFixed(5) + ', ' + pendingLng.toFixed(5);
+    document.getElementById('fAddress').value = '⏳ Pobieranie adresu...';
+    switchTab('add');
+
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pendingLat}&lon=${pendingLng}&format=json&accept-language=pl`)
+        .then(r => r.json())
+        .then(data => {
+            const addr = data.display_name || '';
+            document.getElementById('fAddress').value = addr;
+        })
+        .catch(() => {
+            document.getElementById('fAddress').value = pendingLat.toFixed(5) + ', ' + pendingLng.toFixed(5);
+        });
+}
+
+function makeTempIcon() {
+    return L.divIcon({
+        className: '',
+        html: `<div style="position:relative;width:32px;height:38px;">
+            <div style="width:32px;height:32px;border-radius:6px;background:#E8621A;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(232,98,26,0.5);border:2px solid #fff;">
+                <span style="color:#fff;font-family:'Barlow Condensed',Impact,sans-serif;font-weight:900;font-size:20px;line-height:1;">V</span>
+            </div>
+            <div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:10px solid #E8621A;margin:0 auto;"></div>
+        </div>`,
+        iconSize: [32, 42],
+        iconAnchor: [16, 42],
+        popupAnchor: [0, -44]
+    });
+}
+
+function makeIcon() {
+    return L.divIcon({
+        className: '',
+        html: `<div style="position:relative;width:34px;height:42px;">
+            <div style="width:34px;height:34px;border-radius:7px;background:#E8621A;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(232,98,26,0.55);border:2.5px solid #fff;">
+                <span style="color:#fff;font-family:'Barlow Condensed',Impact,sans-serif;font-weight:900;font-size:22px;line-height:1;">V</span>
+            </div>
+            <div style="width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:11px solid #E8621A;margin:0 auto;"></div>
+        </div>`,
+        iconSize: [34, 45],
+        iconAnchor: [17, 45],
+        popupAnchor: [0, -47]
+    });
+}
+
+function reloadMarkers() {
+    Object.values(markers).forEach(m => map.removeLayer(m));
+    markers = {};
+    locations.forEach(loc => addMarker(loc));
+}
+
+// ===== SEARCH =====
+async function performSearch() {
+    const query = document.getElementById('addressSearch').value.trim();
+    if (query.length < 3) return;
+
+    const resultsDiv = document.getElementById('searchResults');
+    resultsDiv.innerHTML = '<div style="padding:10px; font-size:12px; color:var(--muted);">Szukanie...</div>';
+    resultsDiv.classList.add('active');
+
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`);
+        const data = await response.json();
+
+        if (data.length === 0) {
+            resultsDiv.innerHTML = '<div style="padding:10px; font-size:12px; color:var(--muted);">Nie znaleziono adresu.</div>';
+            return;
+        }
+
+        resultsDiv.innerHTML = data.map(item => {
+            const cleanAddr = item.display_name.replace(/'/g, "\\'");
+            return `<div class="search-item" onclick="selectSearchResult(${item.lat}, ${item.lon}, '${cleanAddr}')">
+                ${item.display_name}
+            </div>`;
+        }).join('');
+    } catch (err) {
+        resultsDiv.innerHTML = '<div style="padding:10px; font-size:12px; color:var(--danger);">Błąd połączenia.</div>';
+    }
+}
+
+function handleSearchKey(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        performSearch();
+    }
+}
+
+function selectSearchResult(lat, lon, addr) {
+    const resultsDiv = document.getElementById('searchResults');
+    resultsDiv.classList.remove('active');
+    document.getElementById('addressSearch').value = '';
+    pendingLat = lat; pendingLng = lon;
+    map.setView([lat, lon], 16);
+    if (tempMarker) map.removeLayer(tempMarker);
+    tempMarker = L.marker([lat, lon], { icon: makeTempIcon() }).addTo(map);
+    document.getElementById('fAddress').value = addr;
+    document.getElementById('coordDisplay').style.display = 'block';
+    document.getElementById('coordTxt').textContent = lat.toFixed(5) + ', ' + lon.toFixed(5);
+    switchTab('add');
+}
+
+document.addEventListener('click', (e) => {
+    const container = document.querySelector('.search-container');
+    const resultsDiv = document.getElementById('searchResults');
+    if (container && !container.contains(e.target) && resultsDiv) {
+        resultsDiv.classList.remove('active');
+    }
+});
+
+function addMarker(loc) {
+    const m = L.marker([loc.lat, loc.lng], { icon: makeIcon() }).addTo(map);
+    m.bindPopup(makePopupHtml(loc));
+    m.on('click', () => { highlightCard(loc.id); });
+    markers[loc.id] = m;
+}
+
+function makePopupHtml(loc) {
+    const peopleHtml = loc.people && loc.people.length > 0
+        ? loc.people.map(p => `<span class="person-chip">${p}</span>`).join('')
+        : '<span style="color:var(--muted);font-size:12px;">Brak osób</span>';
+    const addrHtml = loc.address ? `<div class="popup-row">🏡 <span style="font-size:11px;">${loc.address}</span></div>` : '';
+    const days = calcDays(loc.dateFrom, loc.dateTo);
+    const totalCost = days ? (days * parseFloat(loc.price || 0)) : null;
+    const dateHtml = (loc.dateFrom || loc.dateTo) ? `
+        <div class="popup-row">📅 <span>${fmtDate(loc.dateFrom)} → ${fmtDate(loc.dateTo)}</span></div>
+        ${days ? `<div class="popup-row">⏱ <span>${days} dni • €${totalCost.toFixed(2)} łącznie</span></div>` : ''}` : '';
+    const rs = rentalStatus(loc);
+    const caregiverHtml = loc.caregiver ? `<div class="popup-row">👤 Opiekun: <span>${loc.caregiver}</span></div>` : '';
+    const addedByHtml = loc.addedBy ? `<div class="popup-row" style="opacity:0.6; font-size:11px;">✍️ Dodał(a): <span>${loc.addedBy}</span></div>` : '';
+    const houseIcon = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; color: var(--accent);"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
+    return `<div style="min-width:220px;padding:4px;">
+        <div class="popup-name">${houseIcon} ${loc.name}</div>
+        <div style="margin-bottom:6px; display:flex; gap:4px; flex-wrap:wrap;">
+            <span class="rental-badge ${rs.cls}">${rs.label}</span>
+            ${loc.caregiver ? `<span class="caregiver-badge">👤 ${loc.caregiver}</span>` : ''}
+        </div>
+        ${addrHtml}
+        ${caregiverHtml}
+        ${dateHtml}
+        <div class="popup-row">👥 Miejsc: <span>${loc.capacity}</span></div>
+        <div class="popup-row">💰 Cena/doba: <span>€${parseFloat(loc.price || 0).toFixed(2)}</span></div>
+        <div class="popup-row" style="font-size:11px;">📌 <span>${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span></div>
+        ${addedByHtml}
+        <div class="popup-people"><div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600;">MIESZKAŃCY</div>${peopleHtml}</div>
+    </div>`;
+}
+
+// ===== HELPERS =====
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function save() { localStorage.setItem('vs_locations', JSON.stringify(locations)); }
+
+function calcDays(from, to) {
+    if (!from || !to) return null;
+    const d = (new Date(to) - new Date(from)) / 86400000;
+    return d > 0 ? Math.round(d) : null;
+}
+
+function rentalStatus(loc) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (!loc.dateFrom && !loc.dateTo) return { cls: 'rb-nodates', label: 'Brak dat wynajmu' };
+    const from = loc.dateFrom ? new Date(loc.dateFrom) : null;
+    const to = loc.dateTo ? new Date(loc.dateTo) : null;
+    if (from && to) {
+        if (today < from) {
+            const daysLeft = Math.round((from - today) / 86400000);
+            return { cls: 'rb-upcoming', label: `📅 Nadchodzi za ${daysLeft} dni` };
+        }
+        if (today > to) return { cls: 'rb-expired', label: '⏹ Zakończony' };
+        const daysLeft = Math.round((to - today) / 86400000);
+        return { cls: 'rb-active', label: `✅ Aktywny • jeszcze ${daysLeft} dni` };
+    }
+    if (from && today >= from) return { cls: 'rb-active', label: '✅ Aktywny' };
+    return { cls: 'rb-nodates', label: '📅 Częściowe daty' };
+}
+
+function fmtDate(d) {
+    if (!d) return '—';
+    const dt = new Date(d);
+    return dt.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function updateTotalCost() {
+    const price = parseFloat(document.getElementById('fPrice').value);
+    const from = document.getElementById('fDateFrom').value;
+    const to = document.getElementById('fDateTo').value;
+    const bar = document.getElementById('fTotalCost');
+    const days = calcDays(from, to);
+    if (days && !isNaN(price) && price > 0) {
+        bar.style.display = 'block';
+        bar.textContent = `💰 Łączny koszt: ${days} dni × €${price.toFixed(2)} = €${(days * price).toFixed(2)}`;
+    } else bar.style.display = 'none';
+}
+
+function updateEditTotalCost() {
+    const price = parseFloat(document.getElementById('ePrice').value);
+    const from = document.getElementById('eDateFrom').value;
+    const to = document.getElementById('eDateTo').value;
+    const bar = document.getElementById('eTotalCost');
+    const days = calcDays(from, to);
+    if (days && !isNaN(price) && price > 0) {
+        bar.style.display = 'block';
+        bar.textContent = `💰 Łączny koszt: ${days} dni × €${price.toFixed(2)} = €${(days * price).toFixed(2)}`;
+    } else bar.style.display = 'none';
+}
+
+// ===== ADD FORM =====
+let addPeople = [];
+
+function addNewPerson() {
+    addPeople.push('');
+    renderPeopleInputs('addPeopleList', addPeople, 'add');
+}
+
+function renderPeopleInputs(containerId, arr, mode) {
+    const c = document.getElementById(containerId);
+    if (!c) return;
+    c.innerHTML = '';
+    arr.forEach((p, i) => {
+        const row = document.createElement('div');
+        row.className = 'people-row';
+        row.innerHTML = `<input type="text" value="${p}" placeholder="Imię i nazwisko" oninput="updatePerson('${mode}',${i},this.value)"/><button onclick="removePerson('${mode}',${i})">×</button>`;
+        c.appendChild(row);
+    });
+}
+
+function updatePerson(mode, idx, val) {
+    if (mode === 'add') addPeople[idx] = val;
+    else editPeople[idx] = val;
+}
+
+function removePerson(mode, idx) {
+    if (mode === 'add') { addPeople.splice(idx, 1); renderPeopleInputs('addPeopleList', addPeople, 'add'); }
+    else { editPeople.splice(idx, 1); renderPeopleInputs('editPeopleList', editPeople, 'edit'); }
+}
+
+function saveLocation() {
+    const name = document.getElementById('fName').value.trim();
+    const address = document.getElementById('fAddress').value.trim();
+    const capacity = parseInt(document.getElementById('fCapacity').value);
+    const price = parseFloat(document.getElementById('fPrice').value);
+    if (pendingLat === null) { showFormErr('Kliknij na mapę aby wybrać lokalizację.'); return; }
+    if (!name) { showFormErr('Podaj nazwę miejsca.'); return; }
+    if (!capacity || capacity < 1) { showFormErr('Podaj liczbę miejsc.'); return; }
+    if (isNaN(price) || price < 0) { showFormErr('Podaj prawidłową cenę.'); return; }
+    const loc = {
+        id: uid(), name, address, capacity, price,
+        caregiver: document.getElementById('fCaregiver').value,
+        dateFrom: document.getElementById('fDateFrom').value,
+        dateTo: document.getElementById('fDateTo').value,
+        lat: pendingLat, lng: pendingLng,
+        people: [...addPeople].filter(p => p.trim()),
+        addedBy: currentUser
+    };
+    locations.push(loc); save();
+    if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+    addMarker(loc); map.setView([loc.lat, loc.lng], 14);
+    markers[loc.id].openPopup(); resetForm(); renderList(); renderStats(); switchTab('list');
+}
+
+function showFormErr(msg) {
+    const e = document.getElementById('formErr');
+    e.textContent = '⚠️ ' + msg; e.style.display = 'block';
+}
+
+function resetForm() {
+    ['fName', 'fAddress', 'addressSearch', 'fCapacity', 'fPrice', 'fCaregiver', 'fDateFrom', 'fDateTo'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    document.getElementById('fTotalCost').style.display = 'none';
+    document.getElementById('formErr').style.display = 'none';
+    document.getElementById('coordDisplay').style.display = 'none';
+    addPeople = []; renderPeopleInputs('addPeopleList', addPeople, 'add');
+    pendingLat = null; pendingLng = null;
+    if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+}
+
+// ===== LIST =====
+function renderList() {
+    const list = document.getElementById('locList');
+    const empty = document.getElementById('emptyState');
+    const count = document.getElementById('locCount');
+    count.textContent = locations.length + ' lokalizacj' + (locations.length === 1 ? 'a' : locations.length < 5 ? 'e' : 'i');
+    if (!locations.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    const houseIcon = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; color: var(--accent);"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
+    list.innerHTML = locations.map(loc => {
+        const people = loc.people && loc.people.length ? loc.people.map(p => `<span class="person-chip">${p}</span>`).join('') : '<span style="color:var(--muted);font-size:12px;">Brak osób</span>';
+        const rs = rentalStatus(loc); const days = calcDays(loc.dateFrom, loc.dateTo);
+        const totalCost = days ? (days * parseFloat(loc.price || 0)) : null;
+        return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')">
+            <div class="loc-card-head"><div class="loc-name">${houseIcon} ${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
+            ${loc.address ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${loc.address}</div>` : ''}
+            ${(loc.dateFrom || loc.dateTo) ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;">📅 ${fmtDate(loc.dateFrom)} → ${fmtDate(loc.dateTo)}${days ? ` &bull; ${days} dni &bull; <strong style="color:var(--accent);">€${totalCost.toFixed(2)}</strong>` : ''}</div>` : ''}
+            <div class="loc-badges" style="margin-top:8px;"><span class="rental-badge ${rs.cls}">${rs.label}</span>${loc.caregiver ? `<span class="caregiver-badge">👤 ${loc.caregiver}</span>` : ''}<span class="badge badge-amber">👥 ${loc.capacity} miejsc</span><span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)}/doba</span><span class="badge badge-blue">${loc.people ? loc.people.length : 0}/${loc.capacity} zajętych</span></div>
+            <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
+            <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title">Mieszkańcy</div>${people}</div>
+        </div>`;
+    }).join('');
+}
+
+function focusLoc(id) {
+    const loc = locations.find(l => l.id === id);
+    if (!loc || !map) return;
+    map.setView([loc.lat, loc.lng], 13);
+    if (markers[id]) markers[id].openPopup();
+    highlightCard(id);
+}
+
+function highlightCard(id) {
+    document.querySelectorAll('.loc-card').forEach(c => c.classList.remove('selected'));
+    const card = document.getElementById('card-' + id);
+    if (card) { card.classList.add('selected'); card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); switchTab('list'); }
+}
+
+function deleteLocation(id, e) {
+    e?.stopPropagation(); if (!confirm('Usunąć tę lokalizację?')) return;
+    locations = locations.filter(l => l.id !== id); save();
+    if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; }
+    renderList(); renderStats();
+}
+
+// ===== EDIT =====
+let editPeople = [];
+
+function openEdit(id, e) {
+    e?.stopPropagation(); const loc = locations.find(l => l.id === id); if (!loc) return;
+    editingId = id;
+    document.getElementById('eName').value = loc.name;
+    document.getElementById('eCapacity').value = loc.capacity;
+    document.getElementById('ePrice').value = loc.price || 0;
+    document.getElementById('eCaregiver').value = loc.caregiver || '';
+    document.getElementById('eDateFrom').value = loc.dateFrom || '';
+    document.getElementById('eDateTo').value = loc.dateTo || '';
+    editPeople = [...(loc.people || [])];
+    renderPeopleInputs('editPeopleList', editPeople, 'edit');
+    updateEditTotalCost();
+    document.getElementById('editModal').classList.add('open');
+}
+
+function addEditPerson() { editPeople.push(''); renderPeopleInputs('editPeopleList', editPeople, 'edit'); }
+
+function saveEdit() {
+    const loc = locations.find(l => l.id === editingId); if (!loc) return;
+    const name = document.getElementById('eName').value.trim();
+    const capacity = parseInt(document.getElementById('eCapacity').value);
+    const price = parseFloat(document.getElementById('ePrice').value);
+    if (!name || !capacity || isNaN(price)) { alert('Wypełnij wszystkie wymagane pola.'); return; }
+    loc.name = name; loc.capacity = capacity; loc.price = price;
+    loc.caregiver = document.getElementById('eCaregiver').value;
+    loc.dateFrom = document.getElementById('eDateFrom').value;
+    loc.dateTo = document.getElementById('eDateTo').value;
+    loc.people = [...editPeople].filter(p => p.trim());
+    save(); if (markers[loc.id]) { map.removeLayer(markers[loc.id]); delete markers[loc.id]; addMarker(loc); }
+    renderList(); renderStats(); closeEdit();
+}
+
+function closeEdit() { editingId = null; document.getElementById('editModal').classList.remove('open'); }
+
+// ===== STATS =====
+function renderStats() {
+    const totalLocs = locations.length;
+    const totalCapacity = locations.reduce((s, l) => s + l.capacity, 0);
+    const totalPeople = locations.reduce((s, l) => s + (l.people ? l.people.length : 0), 0);
+    const totalRevPerDay = locations.reduce((s, l) => s + parseFloat(l.price || 0) * (l.people ? l.people.length : 0), 0);
+
+    const statsGrid = document.getElementById('statsGrid');
+    if (statsGrid) {
+        statsGrid.innerHTML = `
+            <div class="stat-card"><div class="stat-val">${totalLocs}</div><div class="stat-lbl">Lokalizacji</div></div>
+            <div class="stat-card"><div class="stat-val">${totalCapacity}</div><div class="stat-lbl">Łączna pojemność</div></div>
+            <div class="stat-card"><div class="stat-val">${totalPeople}</div><div class="stat-lbl">Zamieszkałych osób</div></div>
+            <div class="stat-card"><div class="stat-val">€${totalRevPerDay.toFixed(0)}</div><div class="stat-lbl">Koszt łączny/doba</div></div>
+        `;
+    }
+
+    const details = document.getElementById('statsDetails');
+    if (!details) return;
+    if (!locations.length) { details.innerHTML = '<div class="empty-state">...</div>'; return; }
+    details.innerHTML = locations.map(loc => {
+        const occ = loc.people ? loc.people.length : 0; const pct = Math.round(occ / loc.capacity * 100);
+        return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;">
+            <div style="font-size:13px;font-weight:700;">${loc.name}</div>
+            <div style="font-size:12px;color:var(--muted);">Zajętość: ${occ}/${loc.capacity} (${pct}%)</div>
+            <div style="height:5px;background:var(--bg);border-radius:3px;overflow:hidden;margin:6px 0;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),#fbbf24);"></div></div>
+            <div style="font-size:12px;color:var(--accent);">€${parseFloat(loc.price || 0).toFixed(2)}/os. doba · €${(occ * parseFloat(loc.price || 0)).toFixed(2)} koszt/doba</div>
+        </div>`;
+    }).join('');
+}
+
+// ===== TABS =====
+function switchTab(tab) {
+    ['list', 'add', 'stats'].forEach(t => {
+        const panel = document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1));
+        const tabEl = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (panel) panel.classList.remove('active');
+        if (tabEl) tabEl.classList.remove('active');
+    });
+    const activePanel = document.getElementById('panel' + tab.charAt(0).toUpperCase() + tab.slice(1));
+    const activeTab = document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+    if (activePanel) activePanel.classList.add('active');
+    if (activeTab) activeTab.classList.add('active');
+}

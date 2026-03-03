@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VanStev Home – Zarządzanie Zakwaterowaniem</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@800;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style/style.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+
+<body>
+
+    <!-- ===== LOGIN SCREEN ===== -->
+    <div id="loginScreen">
+        <div class="login-grid"></div>
+        <div class="login-box">
+            <div class="logo-area">
+                <div class="logo-svg-wrap">
+                    <svg viewBox="0 0 210 56" width="180" height="48" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="210" height="56" rx="8" fill="#E8621A" />
+                        <text x="105" y="42" text-anchor="middle" font-family="'Barlow Condensed', sans-serif"
+                            font-weight="900" font-size="44" fill="white" letter-spacing="-1.5">VANSTEV</text>
+                    </svg>
+                </div>
+                <div class="logo-sub">System zarządzania zakwaterowaniem</div>
+            </div>
+            <div class="field-wrap">
+                <div class="field-label">Login</div>
+                <input type="text" id="loginEmail" placeholder="Wpisz swój login" autocomplete="username" />
+            </div>
+            <div class="field-wrap">
+                <div class="field-label">Hasło</div>
+                <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" />
+            </div>
+            <button class="login-btn" onclick="doLogin()">Zaloguj się</button>
+            <div class="login-err" id="loginErr">❌ Nieprawidłowy login lub hasło.</div>
+            <div class="login-hint">Wpisz swój login i hasło systemowe.</div>
+        </div>
+    </div>
+
+    <!-- ===== EDIT MODAL ===== -->
+    <div id="editModal">
+        <div class="modal-box">
+            <div class="modal-title">
+                <span>✏️ Edytuj lokalizację</span>
+                <button class="modal-close" onclick="closeEdit()">×</button>
+            </div>
+            <div class="form-group">
+                <label>Nazwa miejsca</label>
+                <input type="text" id="eName" placeholder="np. Dom Eindhoven A" />
+            </div>
+            <div class="form-group">
+                <label>Liczba miejsc (osób)</label>
+                <input type="number" id="eCapacity" min="1" max="50" placeholder="np. 8" />
+            </div>
+            <div class="form-group">
+                <label>Cena za dobę (€)</label>
+                <input type="number" id="ePrice" min="0" step="0.01" placeholder="np. 25.00"
+                    oninput="updateEditTotalCost()" />
+            </div>
+            <div class="form-group">
+                <label>Okres wynajmu</label>
+                <div class="date-row">
+                    <div class="date-col">
+                        <div class="date-lbl">📅 Od</div>
+                        <input type="date" id="eDateFrom" onchange="updateEditTotalCost()" />
+                    </div>
+                    <div class="date-sep">→</div>
+                    <div class="date-col">
+                        <div class="date-lbl">📅 Do</div>
+                        <input type="date" id="eDateTo" onchange="updateEditTotalCost()" />
+                    </div>
+                </div>
+                <div id="eTotalCost" class="total-cost-bar" style="display:none;"></div>
+            </div>
+            <div class="form-group">
+                <label>Opiekun pobytu</label>
+                <select id="eCaregiver">
+                    <option value="">Wybierz opiekuna...</option>
+                    <option value="Mirek">Mirek</option>
+                    <option value="Szymon">Szymon</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Osoby zamieszkałe</label>
+                <div class="people-area" id="editPeopleList"></div>
+                <button class="add-person-btn" onclick="addEditPerson()">+ Dodaj osobę</button>
+            </div>
+            <div class="btn-row">
+                <button class="btn-primary" onclick="saveEdit()">💾 Zapisz zmiany</button>
+                <button class="btn-secondary" onclick="closeEdit()">Anuluj</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MAIN APP ===== -->
+    <div id="app">
+        <div class="topbar">
+            <div class="tb-logo">
+                <svg viewBox="0 0 210 56" width="140" height="38" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="210" height="56" rx="8" fill="#E8621A" />
+                    <text x="105" y="42" text-anchor="middle" font-family="'Barlow Condensed', sans-serif"
+                        font-weight="900" font-size="44" fill="white" letter-spacing="-1.5">VANSTEV</text>
+                </svg>
+            </div>
+            <div class="tb-search">
+                <div class="search-container">
+                    <div class="search-input-wrap">
+                        <input type="text" id="addressSearch" class="search-input"
+                            placeholder="Szukaj adresu lub kodu pocztowego..." onkeydown="handleSearchKey(event)">
+                        <button class="search-btn" onclick="performSearch()">🔍 Szukaj</button>
+                    </div>
+                    <div id="searchResults" class="search-results"></div>
+                </div>
+            </div>
+            <div class="tb-user">
+                <button class="tb-logout" id="themeToggle" onclick="toggleTheme()"
+                    style="margin-right:8px; border-color:var(--accent); color:var(--text)">🌙 Tryb Ciemny</button>
+                <span id="tbUserEmail"></span>
+                <button class="tb-logout" onclick="doLogout()">Wyloguj</button>
+            </div>
+        </div>
+        <div class="main-area">
+            <div id="map"></div>
+            <div class="sidebar">
+                <div class="sidebar-tabs">
+                    <div class="stab active" onclick="switchTab('list')" id="tabList">📋 Lokalizacje</div>
+                    <div class="stab" onclick="switchTab('add')" id="tabAdd">➕ Dodaj</div>
+                    <div class="stab" onclick="switchTab('stats')" id="tabStats">📊 Statystyki</div>
+                </div>
+
+                <!-- LIST TAB -->
+                <div class="tab-panel active" id="panelList">
+                    <div class="loc-count" id="locCount">0 lokalizacji</div>
+                    <div id="locList"></div>
+                    <div class="empty-state" id="emptyState">
+                        <div class="empty-icon">📍</div>
+                        <div class="empty-txt">Brak dodanych lokalizacji.<br>Kliknij na mapę, aby dodać miejsce.</div>
+                    </div>
+                </div>
+
+                <!-- ADD TAB -->
+                <div class="tab-panel" id="panelAdd">
+                    <div class="form-title">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                            style="vertical-align: middle; margin-right: 6px; color: var(--accent);">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                        Dodaj nowe miejsce
+                    </div>
+                    <div class="map-hint">
+                        <span class="map-hint-icon">🖱️</span>
+                        <span>Kliknij na mapę albo użyj wyszukiwarki na górze aby umieścić pinezkę.</span>
+                    </div>
+                    <div id="coordDisplay" style="font-size:11px;color:var(--muted);margin-bottom:10px;display:none;">
+                        📌 <span id="coordTxt"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Adres (auto-wczytany) *</label>
+                        <textarea id="fAddress" rows="2" placeholder="Kliknij na mapę aby pobrać adres..."></textarea>
+                        <div class="hint-txt">✏️ Możesz ręcznie poprawić adres przed zapisem</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Nazwa miejsca *</label>
+                        <input type="text" id="fName" placeholder="np. Dom Rotterdam B" />
+                    </div>
+                    <div class="form-group">
+                        <label>Liczba miejsc (osób) *</label>
+                        <input type="number" id="fCapacity" min="1" max="50" placeholder="np. 6" />
+                    </div>
+                    <div class="form-group">
+                        <label>Cena za dobę (€) *</label>
+                        <input type="number" id="fPrice" min="0" step="0.01" placeholder="np. 30.00"
+                            oninput="updateTotalCost()" />
+                    </div>
+                    <div class="form-group">
+                        <label>Okres wynajmu</label>
+                        <div class="date-row">
+                            <div class="date-col">
+                                <div class="date-lbl">📅 Od</div>
+                                <input type="date" id="fDateFrom" onchange="updateTotalCost()" />
+                            </div>
+                            <div class="date-sep">→</div>
+                            <div class="date-col">
+                                <div class="date-lbl">📅 Do</div>
+                                <input type="date" id="fDateTo" onchange="updateTotalCost()" />
+                            </div>
+                        </div>
+                        <div id="fTotalCost" class="total-cost-bar" style="display:none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Opiekun pobytu</label>
+                        <select id="fCaregiver">
+                            <option value="">Wybierz opiekuna...</option>
+                            <option value="Mirek">Mirek</option>
+                            <option value="Szymon">Szymon</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Osoby zamieszkałe</label>
+                        <div class="people-area" id="addPeopleList"></div>
+                        <button class="add-person-btn" onclick="addNewPerson()">+ Dodaj osobę</button>
+                    </div>
+                    <div class="btn-row" style="margin-top:8px;">
+                        <button class="btn-primary" onclick="saveLocation()">✅ Akceptuj i dodaj</button>
+                        <button class="btn-secondary" onclick="resetForm()">Wyczyść</button>
+                    </div>
+                    <div id="formErr" style="color:var(--danger);font-size:12px;margin-top:8px;display:none;"></div>
+                </div>
+
+                <!-- STATS TAB -->
+                <div class="tab-panel" id="panelStats">
+                    <div class="form-title">Statystyki</div>
+                    <div class="stat-grid" id="statsGrid"></div>
+                    <div id="statsDetails"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
