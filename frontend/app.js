@@ -281,7 +281,7 @@ function makePopupHtml(loc) {
         ${caregiverHtml}
         ${dateHtml}
         <div class="popup-row">👥 Miejsc: <span>${loc.capacity}</span></div>
-        <div class="popup-row">💰 Koszt/m-c: <span>€${parseFloat(loc.price || 0).toFixed(2)}</span></div>
+        <div class="popup-row">💰 Koszt za miesiąc: <span>€${parseFloat(loc.price || 0).toFixed(2)}</span></div>
         <div class="popup-row" style="font-size:11px;">📌 <span>${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span></div>
         ${addedByHtml}
         <div class="popup-people"><div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600;">MIESZKAŃCY</div>${peopleHtml}</div>
@@ -488,7 +488,7 @@ function renderList() {
             <div class="loc-card-head"><div class="loc-name">${houseIcon} ${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
             ${loc.address ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${loc.address}</div>` : ''}
             ${(loc.dateFrom || loc.dateTo || loc.isIndefinite) ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;">📅 ${fmtDate(loc.dateFrom)} → ${dateToFmt}${months ? ` &bull; ${months} m-cy &bull; <strong style="color:var(--accent);">€${totalCost.toFixed(2)}</strong>` : ''}</div>` : ''}
-            <div class="loc-badges" style="margin-top:8px;"><span class="rental-badge ${rs.cls}">${rs.label}</span>${loc.caregiver ? `<span class="caregiver-badge">👤 ${loc.caregiver}</span>` : ''}<span class="badge badge-amber">👥 ${loc.capacity} miejsc</span><span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)}/m-c</span><span class="badge badge-blue">${occ}/${loc.capacity} zajętych</span></div>
+            <div class="loc-badges" style="margin-top:8px;"><span class="rental-badge ${rs.cls}">${rs.label}</span>${loc.caregiver ? `<span class="caregiver-badge">👤 ${loc.caregiver}</span>` : ''}<span class="badge badge-amber">👥 ${loc.capacity} miejsc</span><span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)} za miesiąc</span><span class="badge badge-blue">${occ}/${loc.capacity} zajętych</span></div>
             <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
             <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title">Mieszkańcy</div>${people}</div>
         </div>`;
@@ -589,7 +589,7 @@ function renderStats() {
             <div style="font-size:13px;font-weight:700;">${loc.name}</div>
             <div style="font-size:12px;color:var(--muted);">Zajętość: ${occ}/${loc.capacity} (${pct}%)</div>
             <div style="height:5px;background:var(--bg);border-radius:3px;overflow:hidden;margin:6px 0;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),#fbbf24);"></div></div>
-            <div style="font-size:12px;color:var(--accent);">€${parseFloat(loc.price || 0).toFixed(2)} /m-c /os · €${(occ * parseFloat(loc.price || 0)).toFixed(2)}/m-c</div>
+            <div style="font-size:12px;color:var(--accent);">€${parseFloat(loc.price || 0).toFixed(2)} /miesiąc /os · €${(occ * parseFloat(loc.price || 0)).toFixed(2)} za miesiąc</div>
         </div>`;
     }).join('');
 }
