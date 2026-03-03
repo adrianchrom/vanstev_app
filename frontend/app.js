@@ -166,14 +166,14 @@ function makeTempIcon() {
     });
 }
 
-function makeIcon() {
+function makeIcon(color = '#E8621A') {
     return L.divIcon({
         className: '',
         html: `<div style="position:relative;width:34px;height:42px;">
-            <div style="width:34px;height:34px;border-radius:7px;background:#E8621A;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(232,98,26,0.55);border:2.5px solid #fff;">
+            <div style="width:34px;height:34px;border-radius:7px;background:${color};display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(0,0,0,0.3);border:2.5px solid #fff;">
                 <span style="color:#fff;font-family:'Barlow Condensed',Impact,sans-serif;font-weight:900;font-size:22px;line-height:1;">V</span>
             </div>
-            <div style="width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:11px solid #E8621A;margin:0 auto;"></div>
+            <div style="width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:11px solid ${color};margin:0 auto;"></div>
         </div>`,
         iconSize: [34, 45],
         iconAnchor: [17, 45],
@@ -246,7 +246,10 @@ document.addEventListener('click', (e) => {
 });
 
 function addMarker(loc) {
-    const m = L.marker([loc.lat, loc.lng], { icon: makeIcon() }).addTo(map);
+    const occ = loc.people ? loc.people.length : 0;
+    const isFull = occ >= loc.capacity;
+    const color = isFull ? '#E8621A' : '#10b981'; // Pomarańczowy jeśli pełno, zielony jeśli wolne miejsca
+    const m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
     m.bindPopup(makePopupHtml(loc));
     m.on('click', () => { highlightCard(loc.id); });
     markers[loc.id] = m;
@@ -258,10 +261,12 @@ function makePopupHtml(loc) {
         : '<span style="color:var(--muted);font-size:12px;">Brak osób</span>';
     const addrHtml = loc.address ? `<div class="popup-row">🏡 <span style="font-size:11px;">${loc.address}</span></div>` : '';
     const days = calcDays(loc.dateFrom, loc.dateTo);
-    const totalCost = days ? (days * parseFloat(loc.price || 0)) : null;
-    const dateHtml = (loc.dateFrom || loc.dateTo) ? `
-        <div class="popup-row">📅 <span>${fmtDate(loc.dateFrom)} → ${fmtDate(loc.dateTo)}</span></div>
-        ${days ? `<div class="popup-row">⏱ <span>${days} dni • €${totalCost.toFixed(2)} łącznie</span></div>` : ''}` : '';
+    const months = days ? (days / 30).toFixed(1) : null;
+    const totalCost = months ? (parseFloat(months) * parseFloat(loc.price || 0)) : null;
+    const dateToFmt = loc.isIndefinite ? 'Nieokreślony' : fmtDate(loc.dateTo);
+    const dateHtml = (loc.dateFrom || loc.dateTo || loc.isIndefinite) ? `
+        <div class="popup-row">📅 <span>${fmtDate(loc.dateFrom)} → ${dateToFmt}</span></div>
+        ${months ? `<div class="popup-row">⏱ <span>${months} m-cy • €${totalCost.toFixed(2)} szac.</span></div>` : ''}` : '';
     const rs = rentalStatus(loc);
     const caregiverHtml = loc.caregiver ? `<div class="popup-row">👤 Opiekun: <span>${loc.caregiver}</span></div>` : '';
     const addedByHtml = loc.addedBy ? `<div class="popup-row" style="opacity:0.6; font-size:11px;">✍️ Dodał(a): <span>${loc.addedBy}</span></div>` : '';
@@ -276,7 +281,7 @@ function makePopupHtml(loc) {
         ${caregiverHtml}
         ${dateHtml}
         <div class="popup-row">👥 Miejsc: <span>${loc.capacity}</span></div>
-        <div class="popup-row">💰 Cena/doba: <span>€${parseFloat(loc.price || 0).toFixed(2)}</span></div>
+        <div class="popup-row">💰 Koszt/m-c: <span>€${parseFloat(loc.price || 0).toFixed(2)}</span></div>
         <div class="popup-row" style="font-size:11px;">📌 <span>${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span></div>
         ${addedByHtml}
         <div class="popup-people"><div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600;">MIESZKAŃCY</div>${peopleHtml}</div>
@@ -309,8 +314,12 @@ function calcDays(from, to) {
 
 function rentalStatus(loc) {
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    if (!loc.dateFrom && !loc.dateTo) return { cls: 'rb-nodates', label: 'Brak dat wynajmu' };
+    if (!loc.dateFrom && !loc.dateTo && !loc.isIndefinite) return { cls: 'rb-nodates', label: 'Brak dat wynajmu' };
     const from = loc.dateFrom ? new Date(loc.dateFrom) : null;
+    if (loc.isIndefinite) {
+        if (from && today < from) return { cls: 'rb-upcoming', label: '📅 Nadchodzi (Nieokreślony)' };
+        return { cls: 'rb-active', label: '✅ Aktywny (Czas nieokreślony)' };
+    }
     const to = loc.dateTo ? new Date(loc.dateTo) : null;
     if (from && to) {
         if (today < from) {
@@ -325,6 +334,16 @@ function rentalStatus(loc) {
     return { cls: 'rb-nodates', label: '📅 Częściowe daty' };
 }
 
+function toggleIndefinite(mode) {
+    const isChecked = document.getElementById(mode === 'add' ? 'fIndefinite' : 'eIndefinite').checked;
+    const dateInput = document.getElementById(mode === 'add' ? 'fDateTo' : 'eDateTo');
+    if (dateInput) {
+        dateInput.disabled = isChecked;
+        if (isChecked) dateInput.value = '';
+    }
+    if (mode === 'add') updateTotalCost(); else updateEditTotalCost();
+}
+
 function fmtDate(d) {
     if (!d) return '—';
     const dt = new Date(d);
@@ -335,11 +354,18 @@ function updateTotalCost() {
     const price = parseFloat(document.getElementById('fPrice').value);
     const from = document.getElementById('fDateFrom').value;
     const to = document.getElementById('fDateTo').value;
+    const isIndefinite = document.getElementById('fIndefinite').checked;
     const bar = document.getElementById('fTotalCost');
+    if (isIndefinite && !isNaN(price) && price > 0) {
+        bar.style.display = 'block';
+        bar.textContent = `💰 Koszt miesięczny: €${price.toFixed(2)}`;
+        return;
+    }
     const days = calcDays(from, to);
     if (days && !isNaN(price) && price > 0) {
+        const months = (days / 30).toFixed(1);
         bar.style.display = 'block';
-        bar.textContent = `💰 Łączny koszt: ${days} dni × €${price.toFixed(2)} = €${(days * price).toFixed(2)}`;
+        bar.textContent = `💰 Szac. koszt (${months} m-cy): €${(months * price).toFixed(2)}`;
     } else bar.style.display = 'none';
 }
 
@@ -347,11 +373,18 @@ function updateEditTotalCost() {
     const price = parseFloat(document.getElementById('ePrice').value);
     const from = document.getElementById('eDateFrom').value;
     const to = document.getElementById('eDateTo').value;
+    const isIndefinite = document.getElementById('eIndefinite').checked;
     const bar = document.getElementById('eTotalCost');
+    if (isIndefinite && !isNaN(price) && price > 0) {
+        bar.style.display = 'block';
+        bar.textContent = `💰 Koszt miesięczny: €${price.toFixed(2)}`;
+        return;
+    }
     const days = calcDays(from, to);
     if (days && !isNaN(price) && price > 0) {
+        const months = (days / 30).toFixed(1);
         bar.style.display = 'block';
-        bar.textContent = `💰 Łączny koszt: ${days} dni × €${price.toFixed(2)} = €${(days * price).toFixed(2)}`;
+        bar.textContent = `💰 Szac. koszt (${months} m-cy): €${(months * price).toFixed(2)}`;
     } else bar.style.display = 'none';
 }
 
@@ -399,6 +432,7 @@ function saveLocation() {
         caregiver: document.getElementById('fCaregiver').value,
         dateFrom: document.getElementById('fDateFrom').value,
         dateTo: document.getElementById('fDateTo').value,
+        isIndefinite: document.getElementById('fIndefinite').checked,
         lat: pendingLat, lng: pendingLng,
         people: [...addPeople].filter(p => p.trim()),
         addedBy: currentUser,
@@ -427,6 +461,8 @@ function resetForm() {
     document.getElementById('fTotalCost').style.display = 'none';
     document.getElementById('formErr').style.display = 'none';
     document.getElementById('coordDisplay').style.display = 'none';
+    document.getElementById('fIndefinite').checked = false;
+    document.getElementById('fDateTo').disabled = false;
     addPeople = []; renderPeopleInputs('addPeopleList', addPeople, 'add');
     pendingLat = null; pendingLng = null;
     if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
@@ -444,12 +480,15 @@ function renderList() {
     list.innerHTML = locations.map(loc => {
         const people = loc.people && loc.people.length ? loc.people.map(p => `<span class="person-chip">${p}</span>`).join('') : '<span style="color:var(--muted);font-size:12px;">Brak osób</span>';
         const rs = rentalStatus(loc); const days = calcDays(loc.dateFrom, loc.dateTo);
-        const totalCost = days ? (days * parseFloat(loc.price || 0)) : null;
+        const months = days ? (days / 30).toFixed(1) : null;
+        const totalCost = months ? (months * parseFloat(loc.price || 0)) : null;
+        const dateToFmt = loc.isIndefinite ? 'Nieokreślony' : fmtDate(loc.dateTo);
+        const occ = loc.people ? loc.people.length : 0;
         return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')">
             <div class="loc-card-head"><div class="loc-name">${houseIcon} ${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
             ${loc.address ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${loc.address}</div>` : ''}
-            ${(loc.dateFrom || loc.dateTo) ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;">📅 ${fmtDate(loc.dateFrom)} → ${fmtDate(loc.dateTo)}${days ? ` &bull; ${days} dni &bull; <strong style="color:var(--accent);">€${totalCost.toFixed(2)}</strong>` : ''}</div>` : ''}
-            <div class="loc-badges" style="margin-top:8px;"><span class="rental-badge ${rs.cls}">${rs.label}</span>${loc.caregiver ? `<span class="caregiver-badge">👤 ${loc.caregiver}</span>` : ''}<span class="badge badge-amber">👥 ${loc.capacity} miejsc</span><span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)}/doba</span><span class="badge badge-blue">${loc.people ? loc.people.length : 0}/${loc.capacity} zajętych</span></div>
+            ${(loc.dateFrom || loc.dateTo || loc.isIndefinite) ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;">📅 ${fmtDate(loc.dateFrom)} → ${dateToFmt}${months ? ` &bull; ${months} m-cy &bull; <strong style="color:var(--accent);">€${totalCost.toFixed(2)}</strong>` : ''}</div>` : ''}
+            <div class="loc-badges" style="margin-top:8px;"><span class="rental-badge ${rs.cls}">${rs.label}</span>${loc.caregiver ? `<span class="caregiver-badge">👤 ${loc.caregiver}</span>` : ''}<span class="badge badge-amber">👥 ${loc.capacity} miejsc</span><span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)}/m-c</span><span class="badge badge-blue">${occ}/${loc.capacity} zajętych</span></div>
             <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
             <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title">Mieszkańcy</div>${people}</div>
         </div>`;
@@ -488,6 +527,9 @@ function openEdit(id, e) {
     document.getElementById('eCaregiver').value = loc.caregiver || '';
     document.getElementById('eDateFrom').value = loc.dateFrom || '';
     document.getElementById('eDateTo').value = loc.dateTo || '';
+    const isIndef = !!loc.isIndefinite;
+    document.getElementById('eIndefinite').checked = isIndef;
+    document.getElementById('eDateTo').disabled = isIndef;
     editPeople = [...(loc.people || [])];
     renderPeopleInputs('editPeopleList', editPeople, 'edit');
     updateEditTotalCost();
@@ -507,6 +549,7 @@ function saveEdit() {
         caregiver: document.getElementById('eCaregiver').value,
         dateFrom: document.getElementById('eDateFrom').value,
         dateTo: document.getElementById('eDateTo').value,
+        isIndefinite: document.getElementById('eIndefinite').checked,
         people: [...editPeople].filter(p => p.trim()),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -533,7 +576,7 @@ function renderStats() {
             <div class="stat-card"><div class="stat-val">${totalLocs}</div><div class="stat-lbl">Lokalizacji</div></div>
             <div class="stat-card"><div class="stat-val">${totalCapacity}</div><div class="stat-lbl">Łączna pojemność</div></div>
             <div class="stat-card"><div class="stat-val">${totalPeople}</div><div class="stat-lbl">Zamieszkałych osób</div></div>
-            <div class="stat-card"><div class="stat-val">€${totalRevPerDay.toFixed(0)}</div><div class="stat-lbl">Koszt łączny/doba</div></div>
+            <div class="stat-card"><div class="stat-val">€${totalRevPerDay.toFixed(0)}</div><div class="stat-lbl">Koszt miesięczny (suma)</div></div>
         `;
     }
 
@@ -546,7 +589,7 @@ function renderStats() {
             <div style="font-size:13px;font-weight:700;">${loc.name}</div>
             <div style="font-size:12px;color:var(--muted);">Zajętość: ${occ}/${loc.capacity} (${pct}%)</div>
             <div style="height:5px;background:var(--bg);border-radius:3px;overflow:hidden;margin:6px 0;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),#fbbf24);"></div></div>
-            <div style="font-size:12px;color:var(--accent);">€${parseFloat(loc.price || 0).toFixed(2)}/os. doba · €${(occ * parseFloat(loc.price || 0)).toFixed(2)} koszt/doba</div>
+            <div style="font-size:12px;color:var(--accent);">€${parseFloat(loc.price || 0).toFixed(2)} /m-c /os · €${(occ * parseFloat(loc.price || 0)).toFixed(2)}/m-c</div>
         </div>`;
     }).join('');
 }

@@ -59,8 +59,8 @@
                 <input type="number" id="eCapacity" min="1" max="50" placeholder="np. 8" />
             </div>
             <div class="form-group">
-                <label>Cena za dobę (€)</label>
-                <input type="number" id="ePrice" min="0" step="0.01" placeholder="np. 25.00"
+                <label>Koszt za miesiąc (€)</label>
+                <input type="number" id="ePrice" min="0" step="0.01" placeholder="np. 600.00"
                     oninput="updateEditTotalCost()" />
             </div>
             <div class="form-group">
@@ -72,7 +72,12 @@
                     </div>
                     <div class="date-sep">→</div>
                     <div class="date-col">
-                        <div class="date-lbl">📅 Do</div>
+                        <div class="date-lbl" style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>📅 Do</span>
+                            <label style="font-size:9px; text-transform:none; cursor:pointer;">
+                                <input type="checkbox" id="eIndefinite" onchange="toggleIndefinite('edit')" /> Nieokreślony
+                            </label>
+                        </div>
                         <input type="date" id="eDateTo" onchange="updateEditTotalCost()" />
                     </div>
                 </div>
@@ -176,8 +181,8 @@
                         <input type="number" id="fCapacity" min="1" max="50" placeholder="np. 6" />
                     </div>
                     <div class="form-group">
-                        <label>Cena za dobę (€) *</label>
-                        <input type="number" id="fPrice" min="0" step="0.01" placeholder="np. 30.00"
+                        <label>Koszt za miesiąc (€) *</label>
+                        <input type="number" id="fPrice" min="0" step="0.01" placeholder="np. 700.00"
                             oninput="updateTotalCost()" />
                     </div>
                     <div class="form-group">
@@ -189,7 +194,12 @@
                             </div>
                             <div class="date-sep">→</div>
                             <div class="date-col">
-                                <div class="date-lbl">📅 Do</div>
+                                <div class="date-lbl" style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span>📅 Do</span>
+                                    <label style="font-size:9px; text-transform:none; cursor:pointer;">
+                                        <input type="checkbox" id="fIndefinite" onchange="toggleIndefinite('add')" /> Nieokreślony
+                                    </label>
+                                </div>
                                 <input type="date" id="fDateTo" onchange="updateTotalCost()" />
                             </div>
                         </div>
