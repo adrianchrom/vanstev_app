@@ -1,3 +1,4 @@
+// Version: 1.1.1
 // ===== FIREBASE CONFIGURATION =====
 // Wklej tutaj swój obiekt konfiguracji Firebase z konsoli Firebase
 const firebaseConfig = {
