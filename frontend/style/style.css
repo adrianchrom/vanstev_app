@@ -193,6 +193,12 @@ body {
     align-items: center;
     justify-content: flex-end;
     gap: 10px;
+    font-size: 13px;
+}
+
+#tbUserEmail {
+    color: var(--muted);
+    font-weight: 500;
 }
 
 .tb-logout {
