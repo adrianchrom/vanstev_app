@@ -59,7 +59,11 @@
             </div>
             <div class="form-group">
                 <label>Adres</label>
-                <textarea id="eAddress" rows="2" placeholder="Adres lokalizacji..."></textarea>
+                <div style="position:relative;">
+                    <textarea id="eAddress" rows="2" placeholder="Adres lokalizacji..."></textarea>
+                    <button class="small-map-btn" onclick="geocodeManual('edit')"
+                        title="Ustaw pinezkę na podstawie adresu">📍 Sprawdź adres na mapie</button>
+                </div>
             </div>
             <div class="form-group">
                 <label>Liczba miejsc (osób)</label>
@@ -177,7 +181,12 @@
                     </div>
                     <div class="form-group">
                         <label>Adres (auto-wczytany) *</label>
-                        <textarea id="fAddress" rows="2" placeholder="Kliknij na mapę aby pobrać adres..."></textarea>
+                        <div style="position:relative;">
+                            <textarea id="fAddress" rows="2"
+                                placeholder="Kliknij na mapę aby pobrać adres..."></textarea>
+                            <button class="small-map-btn" onclick="geocodeManual('add')"
+                                title="Ustaw pinezkę na podstawie adresu">📍 Sprawdź adres na mapie</button>
+                        </div>
                         <div class="hint-txt">✏️ Możesz ręcznie poprawić adres przed zapisem</div>
                     </div>
                     <div class="form-group">

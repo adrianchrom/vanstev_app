@@ -157,7 +157,8 @@ function onMapClick(e) {
     // Mode: Add new location
     pendingLat = lat; pendingLng = lng;
     if (tempMarker) map.removeLayer(tempMarker);
-    tempMarker = L.marker([lat, lng], { icon: makeTempIcon() }).addTo(map);
+    tempMarker = L.marker([lat, lng], { icon: makeTempIcon(), draggable: true }).addTo(map);
+    tempMarker.on('dragend', onTempMarkerDrag);
 
     document.getElementById('coordDisplay').style.display = 'block';
     document.getElementById('coordTxt').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
@@ -172,6 +173,54 @@ function onMapClick(e) {
         .catch(() => {
             document.getElementById('fAddress').value = lat.toFixed(5) + ', ' + lng.toFixed(5);
         });
+}
+
+function onTempMarkerDrag(e) {
+    const latlng = e.target.getLatLng();
+    const lat = latlng.lat;
+    const lng = latlng.lng;
+
+    if (editingId) {
+        editLat = lat; editLng = lng;
+        document.getElementById('eCoordDisplay').style.display = 'block';
+        document.getElementById('eCoordTxt').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+    } else {
+        pendingLat = lat; pendingLng = lng;
+        document.getElementById('coordDisplay').style.display = 'block';
+        document.getElementById('coordTxt').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+    }
+}
+
+function geocodeManual(mode) {
+    const addr = document.getElementById(mode === 'add' ? 'fAddress' : 'eAddress').value.trim();
+    if (addr.length < 3) return;
+
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.length > 0) {
+                const lat = parseFloat(data[0].lat);
+                const lon = parseFloat(data[0].lon);
+
+                map.setView([lat, lon], 18);
+                if (tempMarker) map.removeLayer(tempMarker);
+                tempMarker = L.marker([lat, lon], { icon: makeTempIcon(), draggable: true }).addTo(map);
+                tempMarker.on('dragend', onTempMarkerDrag);
+
+                if (mode === 'edit') {
+                    editLat = lat; editLng = lon;
+                    document.getElementById('eCoordDisplay').style.display = 'block';
+                    document.getElementById('eCoordTxt').textContent = lat.toFixed(5) + ', ' + lon.toFixed(5);
+                } else {
+                    pendingLat = lat; pendingLng = lon;
+                    document.getElementById('coordDisplay').style.display = 'block';
+                    document.getElementById('coordTxt').textContent = lat.toFixed(5) + ', ' + lon.toFixed(5);
+                }
+            } else {
+                alert("Nie znaleziono lokalizacji dla tego adresu.");
+            }
+        })
+        .catch(err => console.error("Błąd geokodowania:", err));
 }
 
 function makeTempIcon() {
@@ -251,9 +300,10 @@ function selectSearchResult(lat, lon, addr) {
     resultsDiv.classList.remove('active');
     document.getElementById('addressSearch').value = '';
 
-    map.setView([lat, lon], 16);
+    map.setView([lat, lon], 18);
     if (tempMarker) map.removeLayer(tempMarker);
-    tempMarker = L.marker([lat, lon], { icon: makeTempIcon() }).addTo(map);
+    tempMarker = L.marker([lat, lon], { icon: makeTempIcon(), draggable: true }).addTo(map);
+    tempMarker.on('dragend', onTempMarkerDrag);
 
     if (editingId) {
         editLat = lat; editLng = lon;
