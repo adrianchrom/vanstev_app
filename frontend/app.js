@@ -1,5 +1,20 @@
+// ===== FIREBASE CONFIGURATION =====
+// Wklej tutaj swój obiekt konfiguracji Firebase z konsoli Firebase
+const firebaseConfig = {
+    apiKey: "AIzaSyDyZcEpL_OD0s_gQUjZk2qRAQuyxiVm7d0",
+    authDomain: "vanstev-app.firebaseapp.com",
+    projectId: "vanstev-app",
+    storageBucket: "vanstev-app.firebasestorage.app",
+    messagingSenderId: "914077920403",
+    appId: "1:914077920403:web:8ea9134b39024cf65df166"
+};
+
+// Inicjalizacja Firebase (Compat)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
 // ===== DATA =====
-let locations = JSON.parse(localStorage.getItem('vs_locations') || '[]');
+let locations = [];
 let pendingLat = null, pendingLng = null;
 let map, markers = {};
 let editingId = null;
@@ -32,7 +47,7 @@ function doLogin() {
     document.getElementById('app').style.display = 'flex';
     document.getElementById('tbUserEmail').textContent = currentUser;
     initMap();
-    renderList();
+    initDataSync();
     renderStats();
 }
 
@@ -255,7 +270,21 @@ function makePopupHtml(loc) {
 
 // ===== HELPERS =====
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
-function save() { localStorage.setItem('vs_locations', JSON.stringify(locations)); }
+
+// Real-time synchronization
+function initDataSync() {
+    db.collection('locations').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+        locations = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        reloadMarkers();
+        renderList();
+        renderStats();
+    }, error => {
+        console.error("Błąd synchronizacji:", error);
+    });
+}
 
 function calcDays(from, to) {
     if (!from || !to) return null;
@@ -350,19 +379,24 @@ function saveLocation() {
     if (!name) { showFormErr('Podaj nazwę miejsca.'); return; }
     if (!capacity || capacity < 1) { showFormErr('Podaj liczbę miejsc.'); return; }
     if (isNaN(price) || price < 0) { showFormErr('Podaj prawidłową cenę.'); return; }
-    const loc = {
-        id: uid(), name, address, capacity, price,
+    const locData = {
+        name, address, capacity, price,
         caregiver: document.getElementById('fCaregiver').value,
         dateFrom: document.getElementById('fDateFrom').value,
         dateTo: document.getElementById('fDateTo').value,
         lat: pendingLat, lng: pendingLng,
         people: [...addPeople].filter(p => p.trim()),
-        addedBy: currentUser
+        addedBy: currentUser,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
-    locations.push(loc); save();
-    if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
-    addMarker(loc); map.setView([loc.lat, loc.lng], 14);
-    markers[loc.id].openPopup(); resetForm(); renderList(); renderStats(); switchTab('list');
+
+    db.collection('locations').add(locData)
+        .then(() => {
+            if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+            resetForm();
+            switchTab('list');
+        })
+        .catch(err => showFormErr("Błąd zapisu: " + err.message));
 }
 
 function showFormErr(msg) {
@@ -423,9 +457,8 @@ function highlightCard(id) {
 
 function deleteLocation(id, e) {
     e?.stopPropagation(); if (!confirm('Usunąć tę lokalizację?')) return;
-    locations = locations.filter(l => l.id !== id); save();
-    if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; }
-    renderList(); renderStats();
+    db.collection('locations').doc(id).delete()
+        .catch(err => alert("Błąd usuwania: " + err.message));
 }
 
 // ===== EDIT =====
@@ -449,18 +482,25 @@ function openEdit(id, e) {
 function addEditPerson() { editPeople.push(''); renderPeopleInputs('editPeopleList', editPeople, 'edit'); }
 
 function saveEdit() {
-    const loc = locations.find(l => l.id === editingId); if (!loc) return;
     const name = document.getElementById('eName').value.trim();
     const capacity = parseInt(document.getElementById('eCapacity').value);
     const price = parseFloat(document.getElementById('ePrice').value);
     if (!name || !capacity || isNaN(price)) { alert('Wypełnij wszystkie wymagane pola.'); return; }
-    loc.name = name; loc.capacity = capacity; loc.price = price;
-    loc.caregiver = document.getElementById('eCaregiver').value;
-    loc.dateFrom = document.getElementById('eDateFrom').value;
-    loc.dateTo = document.getElementById('eDateTo').value;
-    loc.people = [...editPeople].filter(p => p.trim());
-    save(); if (markers[loc.id]) { map.removeLayer(markers[loc.id]); delete markers[loc.id]; addMarker(loc); }
-    renderList(); renderStats(); closeEdit();
+
+    const updatedData = {
+        name, capacity, price,
+        caregiver: document.getElementById('eCaregiver').value,
+        dateFrom: document.getElementById('eDateFrom').value,
+        dateTo: document.getElementById('eDateTo').value,
+        people: [...editPeople].filter(p => p.trim()),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    db.collection('locations').doc(editingId).update(updatedData)
+        .then(() => {
+            closeEdit();
+        })
+        .catch(err => alert("Błąd edycji: " + err.message));
 }
 
 function closeEdit() { editingId = null; document.getElementById('editModal').classList.remove('open'); }
