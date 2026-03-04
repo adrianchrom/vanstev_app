@@ -260,10 +260,11 @@ function makeIcon(color = '#E8621A') {
     });
 }
 
-function reloadMarkers() {
+function reloadMarkers(data = null) {
     Object.values(markers).forEach(m => map.removeLayer(m));
     markers = {};
-    locations.forEach(loc => addMarker(loc));
+    const dataToUse = data || locations;
+    dataToUse.forEach(loc => addMarker(loc));
 }
 
 // ===== SEARCH =====
@@ -390,8 +391,7 @@ function initDataSync() {
             id: doc.id,
             ...doc.data()
         }));
-        reloadMarkers();
-        renderList();
+        applyFilters();
         renderStats();
     }, error => {
         console.error("Błąd synchronizacji:", error);
@@ -750,16 +750,23 @@ function switchTab(tab) {
 }
 
 
-// ===== PERSON SEARCH =====
-function filterByPerson(query) {
-    const q = query.trim().toLowerCase();
-    if (!q) {
-        renderList();
-        return;
-    }
+// ===== FILTERING =====
+function applyFilters() {
+    const q = document.getElementById('personSearch').value.trim().toLowerCase();
+    const showOnlyAvailable = document.getElementById('availableFilter').checked;
+
     const filtered = locations.filter(loc => {
-        // Search in inhabitants names
-        return loc.people && loc.people.some(p => p.toLowerCase().includes(q));
+        // Person search
+        const matchesPerson = !q || (loc.people && loc.people.some(p => p.toLowerCase().includes(q)));
+
+        // Availability filter
+        const occ = loc.people ? loc.people.length : 0;
+        const hasSpace = occ < loc.capacity;
+        const matchesAvailability = !showOnlyAvailable || hasSpace;
+
+        return matchesPerson && matchesAvailability;
     });
+
     renderList(filtered);
+    reloadMarkers(filtered);
 }

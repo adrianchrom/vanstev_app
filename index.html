@@ -198,9 +198,15 @@
                 <!-- LIST TAB -->
                 <div class="tab-panel active" id="panelList">
                     <div style="margin-bottom: 12px;">
-                        <div class="field-label" style="font-size: 10px; margin-bottom: 4px;">🔎 Szukaj mieszkańca</div>
+                        <div class="field-label" style="font-size: 10px; margin-bottom: 4px;">🔎 Szukaj mieszkańców
+                        </div>
                         <input type="text" id="personSearch" class="search-input" placeholder="Wpisz imię i nazwisko..."
-                            oninput="filterByPerson(this.value)" style="width:100%;">
+                            oninput="applyFilters()" style="width:100%;">
+                        <label
+                            style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); margin-top: 8px; cursor: pointer;">
+                            <input type="checkbox" id="availableFilter" onchange="applyFilters()" style="width: auto;">
+                            Tylko z wolnymi miejscami
+                        </label>
                     </div>
                     <div class="loc-count" id="locCount">0 lokalizacji</div>
                     <div id="locList"></div>
