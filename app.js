@@ -431,7 +431,10 @@ function makePopupHtml(loc) {
         ${caregiverHtml}
         ${dateHtml}
         <div class="popup-row">👥 Miejsc: <span>${loc.capacity}</span></div>
-        <div class="popup-row">💰 Koszt za miesiąc: <span>€${parseFloat(loc.price || 0).toFixed(2)}</span></div>
+        <div class="popup-row" style="margin-bottom:2px;">
+            💰 Koszt: <strong style="color:var(--accent);">€${parseFloat(loc.price || 0).toFixed(2)}</strong>
+            <span style="font-size:10px; color:var(--muted); margin-left:8px;">(~${(parseFloat(loc.price || 0) * eurToPln).toFixed(2)} PLN)</span>
+        </div>
         <div class="popup-row" style="font-size:11px;">📌 <span>${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span></div>
         ${addedByHtml}
         ${loc.notes ? `<div class="popup-row" style="margin-top:4px; font-style:italic; color:var(--muted);">📝 Uwagi: <span>${loc.notes}</span></div>` : ''}
@@ -658,7 +661,13 @@ function renderList(filteredLocs = null) {
             <div class="loc-card-head"><div class="loc-name">${houseIcon} ${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
             ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
             ${(loc.dateFrom || loc.dateTo || loc.isIndefinite) ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;">📅 ${fmtDate(loc.dateFrom)} → ${dateToFmt}${months ? ` &bull; ${months} m-cy &bull; <strong style="color:var(--accent);">€${totalCost.toFixed(2)}</strong>` : ''}</div>` : ''}
-            <div class="loc-badges" style="margin-top:8px;"><span class="rental-badge ${rs.cls}">${rs.label}</span>${loc.caregiver ? `<span class="caregiver-badge">👤 ${loc.caregiver}</span>` : ''}<span class="badge badge-amber">👥 ${loc.capacity} miejsc</span><span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)} za miesiąc</span><span class="badge badge-blue">${occ}/${loc.capacity} zajętych</span></div>
+            <div class="loc-badges" style="margin-top:8px;">
+                <span class="rental-badge ${rs.cls}">${rs.label}</span>
+                ${loc.caregiver ? `<span class="caregiver-badge">👤 ${loc.caregiver}</span>` : ''}
+                <span class="badge badge-amber">👥 ${loc.capacity} miejsc</span>
+                <span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)} <small>(~${(parseFloat(loc.price || 0) * eurToPln).toFixed(0)} PLN)</small></span>
+                <span class="badge badge-blue">${occ}/${loc.capacity} zajętych</span>
+            </div>
             <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
             ${loc.notes ? `<div style="margin-top:6px; font-size:11px; padding:6px; background:var(--bg); border-radius:6px; border-left:3px solid var(--accent);">📝 <em>${loc.notes}</em></div>` : ''}
             <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title">Mieszkańcy</div>${people}</div>
@@ -667,11 +676,7 @@ function renderList(filteredLocs = null) {
 }
 
 function focusLoc(id) {
-    const loc = locations.find(l => l.id === id);
-    if (!loc || !map) return;
-    map.setView([loc.lat, loc.lng], 13);
-    if (markers[id]) markers[id].openPopup();
-    highlightCard(id);
+    focusLocation(id);
 }
 
 function highlightCard(id) {
@@ -789,15 +794,14 @@ function renderStats() {
         statsGrid.innerHTML = `
             <div class="stat-card"><div class="stat-val">${totalLocs}</div><div class="stat-lbl">Lokalizacji</div></div>
             <div class="stat-card"><div class="stat-val">${totalCapacity}</div><div class="stat-lbl">Łączna pojemność</div></div>
-            <div class="stat-card"><div class="stat-val">${totalPeople}</div><div class="stat-lbl">Zamieszkałych osób</div></div>
+            <div class="stat-card"><div class="stat-val">${totalPeople}</div><div class="stat-lbl">Lokatorzy (osoby)</div></div>
             <div class="stat-card">
                 <div class="stat-val">€${totalRevPerMonth.toFixed(0)}</div>
-                <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">~${(totalRevPerMonth * eurToPln).toFixed(0)} PLN</div>
-                <div class="stat-lbl">Koszt miesięczny (suma)</div>
+                <div style="font-size:11px; color:var(--accent2); font-weight:700; margin-top:2px;">~${(totalRevPerMonth * eurToPln).toFixed(0)} PLN</div>
+                <div class="stat-lbl" style="margin-top:4px;">Koszt miesięczny (suma)</div>
             </div>
         `;
     }
-
     const details = document.getElementById('statsDetails');
     if (!details) return;
     if (!locations.length) { details.innerHTML = '<div class="empty-state">...</div>'; return; }
@@ -807,13 +811,13 @@ function renderStats() {
             <div style="font-size:13px;font-weight:700;">${loc.name}</div>
             <div style="font-size:12px;color:var(--muted);">Zajętość: ${occ}/${loc.capacity} (${pct}%)</div>
             <div style="height:5px;background:var(--bg);border-radius:3px;overflow:hidden;margin:6px 0;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),#fbbf24);"></div></div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px; border-top:1px solid var(--border); padding-top:10px;">
                 <div>
-                    <div style="font-size:12px;color:var(--accent);">Koszt stały: €${parseFloat(loc.price || 0).toFixed(2)} /m-c</div>
-                    <div style="font-size:10px;color:var(--muted);">~${(parseFloat(loc.price || 0) * eurToPln).toFixed(2)} PLN</div>
+                    <div style="font-size:13px; color:var(--accent); font-weight:800;">€${parseFloat(loc.price || 0).toFixed(2)}</div>
+                    <div style="font-size:11px; color:var(--muted); font-weight:600;">~${(parseFloat(loc.price || 0) * eurToPln).toFixed(2)} PLN</div>
                 </div>
-                <button onclick="focusLocation('${loc.id}')" style="background:var(--accent); color:white; border:none; border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer; font-weight:600; transition:opacity 0.2s;">
-                    📍 Przejdź do lokalizacji
+                <button onclick="focusLocation('${loc.id}')" style="background:var(--accent); color:white; border:none; border-radius:8px; padding:6px 14px; font-size:12px; cursor:pointer; font-weight:700; box-shadow:var(--glow);">
+                    📍 Przejdź do mapy
                 </button>
             </div>
         </div>`;
@@ -963,4 +967,27 @@ function openHelp() {
 
 function closeHelp() {
     document.getElementById('helpModal').classList.remove('open');
+}
+
+// ===== MAP NAVIGATION =====
+function focusLocation(id) {
+    const loc = locations.find(l => l.id === id);
+    if (!loc) return;
+
+    // Switch to list tab
+    switchTab('list');
+
+    // Ensure the marker exists (it might have been filtered out)
+    if (!markers[id]) {
+        // Temporarily ignore filters to show the searched location marker
+        addMarker(loc);
+    }
+
+    map.setView([loc.lat, loc.lng], 16);
+    if (markers[id]) {
+        markers[id].openPopup();
+    }
+
+    // Highlight in session
+    highlightCard(id);
 }
