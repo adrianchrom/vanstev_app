@@ -382,15 +382,15 @@ function makeIcon(color = '#E8621A') {
 function makeProjectIcon() {
     return L.divIcon({
         className: '',
-        html: `<div style="position:relative;width:40px;height:40px;">
-            <div style="width:40px;height:40px;border-radius:50%;background:#3b82f6;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(0,0,0,0.3);border:3px solid #fff;">
-                <span style="font-size:22px;line-height:1;margin-top:2px;">🏭</span>
+        html: `<div style="position:relative;width:46px;height:56px;">
+            <div style="width:46px;height:46px;border-radius:50%;background:#3b82f6;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,0,0,0.35);border:3px solid #fff;">
+                <span style="font-size:26px;line-height:1;margin-top:2px;">🏭</span>
             </div>
-            <div style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:9px solid #3b82f6;margin:0 auto;margin-top:-2px;"></div>
+            <div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:11px solid #3b82f6;margin:0 auto;margin-top:-2px;"></div>
         </div>`,
-        iconSize: [40, 48],
-        iconAnchor: [20, 48],
-        popupAnchor: [0, -50]
+        iconSize: [46, 56],
+        iconAnchor: [23, 56],
+        popupAnchor: [0, -58]
     });
 }
 
