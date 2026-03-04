@@ -788,7 +788,12 @@ function renderStats() {
             <div style="font-size:13px;font-weight:700;">${loc.name}</div>
             <div style="font-size:12px;color:var(--muted);">Zajętość: ${occ}/${loc.capacity} (${pct}%)</div>
             <div style="height:5px;background:var(--bg);border-radius:3px;overflow:hidden;margin:6px 0;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),#fbbf24);"></div></div>
-            <div style="font-size:12px;color:var(--accent);">Koszt stały: €${parseFloat(loc.price || 0).toFixed(2)} /miesiąc</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                <div style="font-size:12px;color:var(--accent);">Koszt stały: €${parseFloat(loc.price || 0).toFixed(2)} /m-c</div>
+                <button onclick="focusLocation('${loc.id}')" style="background:var(--accent); color:white; border:none; border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer; font-weight:600; transition:opacity 0.2s;">
+                    📍 Przejdź do lokalizacji
+                </button>
+            </div>
         </div>`;
     }).join('');
 }
