@@ -23,6 +23,7 @@ let editingId = null;
 let locToDelete = null;
 let currentUser = null;
 let eurToPln = 4.3; // Default fallback rate
+let addingType = 'location'; // 'location' or 'project'
 
 // ===== LOGIN =====
 const VALID_USERS = ['radek', 'jola', 'kasia', 'tomek', 'przemek', 'mirek'];
@@ -210,10 +211,70 @@ function onMapClick(e) {
     tempMarker = L.marker([lat, lng], { icon: makeTempIcon(), draggable: false }).addTo(map);
 
 
+    document.getElementById('typeModal').style.display = 'flex';
+}
+
+function selectAddMode(type) {
+    document.getElementById('typeModal').style.display = 'none';
+    setAddModeUI(type);
     document.getElementById('coordDisplay').style.display = 'block';
-    document.getElementById('coordTxt').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
-    fillAddressFields('add', lat, lng);
+    document.getElementById('coordTxt').textContent = pendingLat.toFixed(5) + ', ' + pendingLng.toFixed(5);
+    fillAddressFields('add', pendingLat, pendingLng);
     switchTab('add');
+}
+
+function closeTypeModal() {
+    document.getElementById('typeModal').style.display = 'none';
+    if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+    pendingLat = null; pendingLng = null;
+}
+
+function setAddModeUI(type) {
+    addingType = type;
+    const isLoc = type === 'location';
+    document.getElementById('modeLocBtn').className = isLoc ? 'active' : '';
+    document.getElementById('modeLocBtn').style.background = isLoc ? 'var(--accent)' : 'transparent';
+    document.getElementById('modeLocBtn').style.color = isLoc ? '#fff' : 'var(--muted)';
+
+    document.getElementById('modeProjBtn').className = !isLoc ? 'active' : '';
+    document.getElementById('modeProjBtn').style.background = !isLoc ? 'var(--accent)' : 'transparent';
+    document.getElementById('modeProjBtn').style.color = !isLoc ? '#fff' : 'var(--muted)';
+
+    document.getElementById('locSpecificFields').style.display = isLoc ? 'block' : 'none';
+    document.getElementById('projSpecificFields').style.display = !isLoc ? 'block' : 'none';
+
+    document.getElementById('addFormTitleText').textContent = isLoc ? 'Dodaj lokalizację' : 'Dodaj projekt';
+
+    if (!isLoc) {
+        renderLinkedLocations('fLinkedLocations', []);
+    }
+}
+
+function renderLinkedLocations(containerId, selectedIds) {
+    const c = document.getElementById(containerId);
+    if (!c) return;
+    const locs = locations.filter(l => l.type !== 'project').sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
+    if (locs.length === 0) {
+        c.innerHTML = '<span style="color:var(--muted);">Brak dostępnych lokalizacji</span>';
+        return;
+    }
+    c.innerHTML = locs.map(l => {
+        const isChecked = selectedIds.includes(l.id) ? 'checked' : '';
+        return `<label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:2px;">
+            <input type="checkbox" value="${l.id}" ${isChecked} class="linked-loc-cb" style="width:auto; height:auto; margin:0;">
+            <span>[#${l.locNumber || '?'}] ${l.name}</span>
+        </label>`;
+    }).join('');
+}
+
+function getSelectedLinkedLocations() {
+    const cbs = document.querySelectorAll('#fLinkedLocations .linked-loc-cb:checked');
+    return Array.from(cbs).map(cb => cb.value);
+}
+
+function getEditSelectedLinkedLocations() {
+    const cbs = document.querySelectorAll('#eLinkedLocations .linked-loc-cb:checked');
+    return Array.from(cbs).map(cb => cb.value);
 }
 
 function fillAddressFields(mode, lat, lng) {
@@ -318,6 +379,21 @@ function makeIcon(color = '#E8621A') {
     });
 }
 
+function makeProjectIcon() {
+    return L.divIcon({
+        className: '',
+        html: `<div style="position:relative;width:40px;height:40px;">
+            <div style="width:40px;height:40px;border-radius:50%;background:#3b82f6;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(0,0,0,0.3);border:3px solid #fff;">
+                <span style="font-size:22px;line-height:1;margin-top:2px;">🏭</span>
+            </div>
+            <div style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:9px solid #3b82f6;margin:0 auto;margin-top:-2px;"></div>
+        </div>`,
+        iconSize: [40, 48],
+        iconAnchor: [20, 48],
+        popupAnchor: [0, -50]
+    });
+}
+
 function reloadMarkers(data = null) {
     Object.values(markers).forEach(m => map.removeLayer(m));
     markers = {};
@@ -378,10 +454,7 @@ function selectSearchResult(lat, lon, addr) {
         fillAddressFields('edit', lat, lon);
     } else {
         pendingLat = lat; pendingLng = lon;
-        document.getElementById('coordDisplay').style.display = 'block';
-        document.getElementById('coordTxt').textContent = lat.toFixed(5) + ', ' + lon.toFixed(5);
-        fillAddressFields('add', lat, lon);
-        switchTab('add');
+        document.getElementById('typeModal').style.display = 'flex';
     }
 }
 
@@ -394,16 +467,42 @@ document.addEventListener('click', (e) => {
 });
 
 function addMarker(loc) {
-    const occ = loc.people ? loc.people.length : 0;
-    const isFull = occ >= loc.capacity;
-    const color = isFull ? '#E8621A' : '#10b981'; // Pomarańczowy jeśli pełno, zielony jeśli wolne miejsca
-    const m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
+    let m;
+    if (loc.type === 'project') {
+        m = L.marker([loc.lat, loc.lng], { icon: makeProjectIcon() }).addTo(map);
+    } else {
+        const occ = loc.people ? loc.people.length : 0;
+        const isFull = occ >= loc.capacity;
+        const color = isFull ? '#E8621A' : '#10b981';
+        m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
+    }
     m.bindPopup(makePopupHtml(loc));
     m.on('click', () => { highlightCard(loc.id); });
     markers[loc.id] = m;
 }
 
 function makePopupHtml(loc) {
+    if (loc.type === 'project') {
+        const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
+        const addrHtml = fullAddr ? `<div class="popup-row">🏡 <span style="font-size:11px;">${fullAddr}</span></div>` : '';
+        const addedByHtml = loc.addedBy ? `<div class="popup-row" style="opacity:0.6; font-size:11px;">✍️ Dodał(a): <span>${loc.addedBy}</span></div>` : '';
+
+        const linkedNames = (loc.linkedLocations || []).map(id => {
+            const l = locations.find(x => x.id === id);
+            return l ? `[#${l.locNumber || '?'}] ${l.name}` : `Nieznana`;
+        }).join('<br>');
+
+        return `<div style="min-width:220px;padding:4px;">
+            <div class="popup-name">🏭 ${loc.name}</div>
+            <span class="badge badge-blue" style="margin-bottom:8px;">Projekt</span>
+            ${addrHtml}
+            <div class="popup-row" style="font-size:11px;">📌 <span>${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span></div>
+            ${addedByHtml}
+            <div style="margin-top:8px; font-size:11px; color:var(--muted); font-weight:600;">PRZYPISANE LOKALIZACJE:</div>
+            <div style="font-size:12px; margin-top:4px;">${linkedNames || '<span style="color:var(--muted)">Brak</span>'}</div>
+        </div>`;
+    }
+
     const peopleHtml = loc.people && loc.people.length > 0
         ? loc.people.map(p => `<span class="person-chip">${p}</span>`).join('')
         : '<span style="color:var(--muted);font-size:12px;">Brak osób</span>';
@@ -421,8 +520,9 @@ function makePopupHtml(loc) {
     const caregiverHtml = loc.caregiver ? `<div class="popup-row">👤 Opiekun: <span>${loc.caregiver}</span></div>` : '';
     const addedByHtml = loc.addedBy ? `<div class="popup-row" style="opacity:0.6; font-size:11px;">✍️ Dodał(a): <span>${loc.addedBy}</span></div>` : '';
     const houseIcon = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; color: var(--accent);"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
+    const numPrefix = loc.locNumber ? `<span style="color:var(--muted); font-size:13px; font-weight:normal;">[#${loc.locNumber}]</span> ` : '';
     return `<div style="min-width:220px;padding:4px;">
-        <div class="popup-name">${houseIcon} ${loc.name}</div>
+        <div class="popup-name">${houseIcon} ${numPrefix}${loc.name}</div>
         <div style="margin-bottom:6px; display:flex; gap:4px; flex-wrap:wrap;">
             <span class="rental-badge ${rs.cls}">${rs.label}</span>
             ${loc.caregiver ? `<span class="caregiver-badge">👤 ${loc.caregiver}</span>` : ''}
@@ -590,31 +690,46 @@ function removePerson(mode, idx) {
 }
 
 function saveLocation() {
+    const type = addingType || 'location';
     const name = document.getElementById('fName').value.trim();
     const zip = document.getElementById('fZip').value.trim();
     const city = document.getElementById('fCity').value.trim();
     const street = document.getElementById('fStreet').value.trim();
     const houseNum = document.getElementById('fHouseNum').value.trim();
-    const capacity = parseInt(document.getElementById('fCapacity').value);
-    const price = parseFloat(document.getElementById('fPrice').value);
 
     if (pendingLat === null) { showFormErr('Kliknij na mapę aby wybrać lokalizację.'); return; }
-    if (!name) { showFormErr('Podaj nazwę miejsca.'); return; }
-    if (!capacity || capacity < 1) { showFormErr('Podaj liczbę miejsc.'); return; }
-    if (isNaN(price) || price < 0) { showFormErr('Podaj prawidłową cenę.'); return; }
+    if (!name) { showFormErr('Podaj nazwę.'); return; }
 
     const locData = {
-        name, zip, city, street, houseNum, capacity, price,
-        caregiver: document.getElementById('fCaregiver').value,
-        dateFrom: document.getElementById('fDateFrom').value,
-        dateTo: document.getElementById('fDateTo').value,
-        isIndefinite: document.getElementById('fIndefinite').checked,
+        type, name, zip, city, street, houseNum,
         lat: pendingLat, lng: pendingLng,
-        people: [...addPeople].filter(p => p.trim()),
-        notes: document.getElementById('fNotes').value.trim(),
         addedBy: currentUser,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
+
+    if (type === 'location') {
+        const capacity = parseInt(document.getElementById('fCapacity').value);
+        const price = parseFloat(document.getElementById('fPrice').value);
+        if (!capacity || capacity < 1) { showFormErr('Podaj liczbę miejsc.'); return; }
+        if (isNaN(price) || price < 0) { showFormErr('Podaj prawidłową cenę.'); return; }
+
+        const maxLocNum = locations.filter(l => l.type !== 'project').reduce((max, l) => Math.max(max, l.locNumber || 0), 0);
+
+        Object.assign(locData, {
+            locNumber: maxLocNum + 1,
+            capacity, price,
+            caregiver: document.getElementById('fCaregiver').value,
+            dateFrom: document.getElementById('fDateFrom').value,
+            dateTo: document.getElementById('fDateTo').value,
+            isIndefinite: document.getElementById('fIndefinite').checked,
+            people: [...addPeople].filter(p => p.trim()),
+            notes: document.getElementById('fNotes').value.trim()
+        });
+    } else {
+        Object.assign(locData, {
+            linkedLocations: getSelectedLinkedLocations()
+        });
+    }
 
     db.collection('locations').add(locData)
         .then(() => {
@@ -652,20 +767,36 @@ function renderList(filteredLocs = null) {
     const empty = document.getElementById('emptyState');
     const count = document.getElementById('locCount');
     const dataToRender = filteredLocs || locations;
-    count.textContent = dataToRender.length + ' lokalizacj' + (dataToRender.length === 1 ? 'a' : dataToRender.length < 5 ? 'e' : 'i');
+    count.textContent = dataToRender.length + ' wpis' + (dataToRender.length === 1 ? '' : dataToRender.length < 5 ? 'y' : 'ów');
     if (!dataToRender.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
     const houseIcon = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; color: var(--accent);"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
     list.innerHTML = dataToRender.map(loc => {
+        const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
+
+        if (loc.type === 'project') {
+            const linkedNames = (loc.linkedLocations || []).map(id => {
+                const l = locations.find(x => x.id === id);
+                return l ? `<span class="person-chip">[#${l.locNumber || '?'}] ${l.name}</span>` : '';
+            }).join('');
+            return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')" style="border-left:4px solid var(--blue);">
+                <div class="loc-card-head"><div class="loc-name">🏭 ${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
+                ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
+                <div class="loc-badges" style="margin-top:8px;"><span class="badge badge-blue">Projekt</span></div>
+                <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
+                <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title">Przypisane lokalizacje</div>${linkedNames || '<span style="color:var(--muted);font-size:12px;">Brak</span>'}</div>
+            </div>`;
+        }
+
+        const numPrefix = loc.locNumber ? `<span style="color:var(--muted); font-size:13px; font-weight:normal;">[#${loc.locNumber}]</span> ` : '';
         const people = loc.people && loc.people.length ? loc.people.map(p => `<span class="person-chip">${p}</span>`).join('') : '<span style="color:var(--muted);font-size:12px;">Brak osób</span>';
         const rs = rentalStatus(loc); const days = calcDays(loc.dateFrom, loc.dateTo);
         const months = days ? (days / 30).toFixed(1) : null;
         const totalCost = months ? (months * parseFloat(loc.price || 0)) : null;
         const dateToFmt = loc.isIndefinite ? 'Nieokreślony' : fmtDate(loc.dateTo);
         const occ = loc.people ? loc.people.length : 0;
-        const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
         return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')">
-            <div class="loc-card-head"><div class="loc-name">${houseIcon} ${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
+            <div class="loc-card-head"><div class="loc-name">${houseIcon} ${numPrefix}${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
             ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
             ${(loc.dateFrom || loc.dateTo || loc.isIndefinite) ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;">📅 ${fmtDate(loc.dateFrom)} → ${dateToFmt}${months ? ` &bull; ${months} m-cy &bull; <strong style="color:var(--accent);">€${totalCost.toFixed(2)}</strong>` : ''}</div>` : ''}
             <div class="loc-badges" style="margin-top:8px;">
@@ -725,55 +856,82 @@ function openEdit(id, e) {
     editingId = id;
     map.setView([loc.lat, loc.lng], 15);
     if (markers[id]) markers[id].openPopup();
-    document.getElementById('eName').value = loc.name;
+    document.getElementById('eName').value = loc.name || '';
     document.getElementById('eZip').value = loc.zip || '';
     document.getElementById('eCity').value = loc.city || '';
     document.getElementById('eStreet').value = loc.street || '';
     document.getElementById('eHouseNum').value = loc.houseNum || '';
-    document.getElementById('eCapacity').value = loc.capacity;
-    document.getElementById('ePrice').value = loc.price || 0;
-    document.getElementById('eCaregiver').value = loc.caregiver || '';
-    document.getElementById('eDateFrom').value = loc.dateFrom || '';
-    document.getElementById('eDateTo').value = loc.dateTo || '';
-    const isIndef = !!loc.isIndefinite;
-    document.getElementById('eIndefinite').checked = isIndef;
-    document.getElementById('eDateTo').disabled = isIndef;
+
+    document.getElementById('eType').value = loc.type === 'project' ? 'project' : 'location';
+
+    if (loc.type === 'project') {
+        document.getElementById('eLocSpecificFields').style.display = 'none';
+        document.getElementById('eProjSpecificFields').style.display = 'block';
+        renderLinkedLocations('eLinkedLocations', loc.linkedLocations || []);
+    } else {
+        document.getElementById('eLocSpecificFields').style.display = 'block';
+        document.getElementById('eProjSpecificFields').style.display = 'none';
+
+        document.getElementById('eCapacity').value = loc.capacity || '';
+        document.getElementById('ePrice').value = loc.price || 0;
+        document.getElementById('eCaregiver').value = loc.caregiver || '';
+        document.getElementById('eDateFrom').value = loc.dateFrom || '';
+        document.getElementById('eDateTo').value = loc.dateTo || '';
+        const isIndef = !!loc.isIndefinite;
+        document.getElementById('eIndefinite').checked = isIndef;
+        document.getElementById('eDateTo').disabled = isIndef;
+
+        editPeople = [...(loc.people || [])];
+        renderPeopleInputs('editPeopleList', editPeople, 'edit');
+        updateEditTotalCost();
+    }
+
     editLat = loc.lat;
     editLng = loc.lng;
     document.getElementById('eCoordDisplay').style.display = 'block';
     document.getElementById('eCoordTxt').textContent = editLat.toFixed(5) + ', ' + editLng.toFixed(5);
     document.getElementById('eNotes').value = loc.notes || '';
 
-    editPeople = [...(loc.people || [])];
-    renderPeopleInputs('editPeopleList', editPeople, 'edit');
-    updateEditTotalCost();
     document.getElementById('editModal').classList.add('open');
 }
 
 function addEditPerson() { editPeople.push(''); renderPeopleInputs('editPeopleList', editPeople, 'edit'); }
 
 function saveEdit() {
+    const type = document.getElementById('eType').value;
     const name = document.getElementById('eName').value.trim();
     const zip = document.getElementById('eZip').value.trim();
     const city = document.getElementById('eCity').value.trim();
     const street = document.getElementById('eStreet').value.trim();
     const houseNum = document.getElementById('eHouseNum').value.trim();
-    const capacity = parseInt(document.getElementById('eCapacity').value);
-    const price = parseFloat(document.getElementById('ePrice').value);
 
-    if (!name || !capacity || isNaN(price)) { alert('Wypełnij wszystkie wymagane pola.'); return; }
+    if (!name) { alert('Wypełnij nazwę.'); return; }
 
     const updatedData = {
-        name, zip, city, street, houseNum, capacity, price,
+        name, zip, city, street, houseNum,
         lat: editLat, lng: editLng,
-        caregiver: document.getElementById('eCaregiver').value,
-        dateFrom: document.getElementById('eDateFrom').value,
-        dateTo: document.getElementById('eDateTo').value,
-        isIndefinite: document.getElementById('eIndefinite').checked,
-        people: [...editPeople].filter(p => p.trim()),
-        notes: document.getElementById('eNotes').value.trim(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
+
+    if (type === 'location') {
+        const capacity = parseInt(document.getElementById('eCapacity').value);
+        const price = parseFloat(document.getElementById('ePrice').value);
+        if (!capacity || isNaN(price)) { alert('Wypełnij wszystkie wymagane pola.'); return; }
+
+        Object.assign(updatedData, {
+            capacity, price,
+            caregiver: document.getElementById('eCaregiver').value,
+            dateFrom: document.getElementById('eDateFrom').value,
+            dateTo: document.getElementById('eDateTo').value,
+            isIndefinite: document.getElementById('eIndefinite').checked,
+            people: [...editPeople].filter(p => p.trim()),
+            notes: document.getElementById('eNotes').value.trim()
+        });
+    } else {
+        Object.assign(updatedData, {
+            linkedLocations: getEditSelectedLinkedLocations()
+        });
+    }
 
     db.collection('locations').doc(editingId).update(updatedData)
         .then(() => {
