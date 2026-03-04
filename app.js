@@ -62,10 +62,25 @@ function setupApp(userName) {
     }
 
     // Aktualizuj status użytkownika
-    db.collection('users').doc(currentUser).set({
+    const userRef = db.collection('users').doc(currentUser);
+    userRef.set({
         lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+        lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
         online: true
     }, { merge: true });
+
+    // Heartbeat - co 5 minut aktualizuj lastSeen, by Admin widział czy ktoś nadal siedzi
+    if (window.vsHeartbeat) clearInterval(window.vsHeartbeat);
+    window.vsHeartbeat = setInterval(() => {
+        if (currentUser) {
+            db.collection('users').doc(currentUser).update({
+                lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+                online: true
+            });
+        }
+    }, 5 * 60 * 1000);
+
+    logActivity('Zalogowano', 'System');
 
     initMap();
     initDataSync();
@@ -86,11 +101,13 @@ document.getElementById('loginEmail')?.addEventListener('keydown', e => { if (e.
 
 function doLogout() {
     if (currentUser) {
+        logActivity('Wylogowano', 'Przez użytkownika');
         db.collection('users').doc(currentUser).set({
-            online: false
+            online: false,
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
     }
-    currentUser = null;
+    if (window.vsHeartbeat) clearInterval(window.vsHeartbeat);
     localStorage.removeItem('vs_user');
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
@@ -825,19 +842,28 @@ async function renderAdminPanel() {
             const userActs = allActs.filter(a => a.user === u).slice(0, 3);
             const status = usersData[u] || {};
             const isOnline = status.online === true;
-            const lastLogin = status.lastLogin ? fmtTime(status.lastLogin.toDate()) : 'Nigdy';
+
+            // Sprawdź czy lastSeen nie jest starszy niż 10 minut (zapas) -> alternatywa dla online
+            let effectivelyOnline = isOnline;
+            if (status.lastSeen) {
+                const diff = (new Date() - status.lastSeen.toDate()) / 1000 / 60;
+                if (diff > 10 && isOnline) effectivelyOnline = false;
+            }
+
+            const loginTime = status.lastLogin ? fmtTime(status.lastLogin.toDate()) : 'Brak danych';
 
             html += `
                 <div style="background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:15px; margin-bottom:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
                     <div style="font-weight:700; font-size:15px; color:var(--accent); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
                         <span>👤 ${u}</span>
                         <div style="display:flex; align-items:center; gap:8px; background:var(--bg); padding:4px 10px; border-radius:20px; border:1px solid var(--border);">
-                            <span style="width:10px; height:10px; border-radius:50%; background:${isOnline ? 'var(--success)' : '#4b5563'}; box-shadow:${isOnline ? '0 0 10px var(--success)' : 'none'};"></span>
-                            <span style="font-size:11px; font-weight:600; color:${isOnline ? 'var(--success)' : 'var(--muted)'};">${isOnline ? 'ONLINE' : 'OFFLINE'}</span>
+                            <span style="width:10px; height:10px; border-radius:50%; background:${effectivelyOnline ? 'var(--success)' : '#4b5563'}; box-shadow:${effectivelyOnline ? '0 0 10px var(--success)' : 'none'};"></span>
+                            <span style="font-size:11px; font-weight:600; color:${effectivelyOnline ? 'var(--success)' : 'var(--muted)'};">${effectivelyOnline ? 'ONLINE' : 'OFFLINE'}</span>
                         </div>
                     </div>
-                    <div style="font-size:12px; color:var(--muted); margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed var(--border);">
-                        Ostatnie logowanie: <strong style="color:var(--text);">${lastLogin}</strong>
+                    <div style="font-size:12px; color:var(--muted); margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed var(--border); display:flex; flex-direction:column; gap:2px;">
+                        <div>Wejście: <strong style="color:var(--text);">${loginTime}</strong></div>
+                        ${status.lastSeen ? `<div style="font-size:10px; opacity:0.8;">Ostatni ruch: ${fmtTime(status.lastSeen.toDate())}</div>` : ''}
                     </div>
                     
                     <div style="font-size:10px; color:var(--muted); margin-bottom:6px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Ostatnia aktywność:</div>
