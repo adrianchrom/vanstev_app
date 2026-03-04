@@ -433,7 +433,7 @@ function makePopupHtml(loc) {
         <div class="popup-row">👥 Miejsc: <span>${loc.capacity}</span></div>
         <div class="popup-row" style="margin-bottom:2px;">
             💰 Koszt: <strong style="color:var(--accent);">€${parseFloat(loc.price || 0).toFixed(2)}</strong>
-            <span style="font-size:10px; color:var(--muted); margin-left:8px;">(~${(parseFloat(loc.price || 0) * eurToPln).toFixed(2)} PLN)</span>
+            <span style="font-size:10px; color:var(--muted); margin-left:8px;">(~${fmtPLN(parseFloat(loc.price || 0) * eurToPln, 2)} PLN)</span>
         </div>
         <div class="popup-row" style="font-size:11px;">📌 <span>${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span></div>
         ${addedByHtml}
@@ -512,6 +512,13 @@ function fmtDate(d) {
     if (!d) return '—';
     const dt = new Date(d);
     return dt.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function fmtPLN(val, dec = 0) {
+    if (isNaN(val)) return '0';
+    let parts = parseFloat(val).toFixed(dec).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return parts.join(',');
 }
 
 function updateTotalCost() {
@@ -665,7 +672,7 @@ function renderList(filteredLocs = null) {
                 <span class="rental-badge ${rs.cls}">${rs.label}</span>
                 ${loc.caregiver ? `<span class="caregiver-badge">👤 ${loc.caregiver}</span>` : ''}
                 <span class="badge badge-amber">👥 ${loc.capacity} miejsc</span>
-                <span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)} <small>(~${(parseFloat(loc.price || 0) * eurToPln).toFixed(0)} PLN)</small></span>
+                <span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)} <small>(~${fmtPLN(parseFloat(loc.price || 0) * eurToPln, 0)} PLN)</small></span>
                 <span class="badge badge-blue">${occ}/${loc.capacity} zajętych</span>
             </div>
             <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
@@ -797,7 +804,7 @@ function renderStats() {
             <div class="stat-card"><div class="stat-val">${totalPeople}</div><div class="stat-lbl">Lokatorzy (osoby)</div></div>
             <div class="stat-card">
                 <div class="stat-val">€${totalRevPerMonth.toFixed(0)}</div>
-                <div style="font-size:11px; color:var(--accent2); font-weight:700; margin-top:2px;">~${(totalRevPerMonth * eurToPln).toFixed(0)} PLN</div>
+                <div style="font-size:11px; color:var(--accent2); font-weight:700; margin-top:2px;">~${fmtPLN(totalRevPerMonth * eurToPln, 0)} PLN</div>
                 <div class="stat-lbl" style="margin-top:4px;">Koszt miesięczny (suma)</div>
             </div>
         `;
@@ -814,7 +821,7 @@ function renderStats() {
             <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px; border-top:1px solid var(--border); padding-top:10px;">
                 <div>
                     <div style="font-size:13px; color:var(--accent); font-weight:800;">€${parseFloat(loc.price || 0).toFixed(2)}</div>
-                    <div style="font-size:11px; color:var(--muted); font-weight:600;">~${(parseFloat(loc.price || 0) * eurToPln).toFixed(2)} PLN</div>
+                    <div style="font-size:11px; color:var(--muted); font-weight:600;">~${fmtPLN(parseFloat(loc.price || 0) * eurToPln, 2)} PLN</div>
                 </div>
                 <button onclick="focusLocation('${loc.id}')" style="background:var(--accent); color:white; border:none; border-radius:8px; padding:6px 14px; font-size:12px; cursor:pointer; font-weight:700; box-shadow:var(--glow);">
                     📍 Przejdź do mapy
