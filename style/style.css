@@ -1042,3 +1042,18 @@ body.light-mode .caregiver-badge {
         white-space: nowrap;
     }
 }
+/* Confirm Delete Modal */
+#confirmDeleteModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(7, 11, 20, 0.9);
+    backdrop-filter: blur(10px);
+    align-items: center;
+    justify-content: center;
+}
+
+#confirmDeleteModal.open {
+    display: flex;
+}

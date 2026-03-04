@@ -141,6 +141,24 @@
         </div>
     </div>
 
+    <!-- ===== CONFIRM DELETE MODAL ===== -->
+    <div id="confirmDeleteModal">
+        <div class="modal-box" style="width:360px; text-align:center;">
+            <div class="modal-title"
+                style="color:var(--danger); justify-content:center; border-bottom:none; margin-bottom:8px;">
+                <span>⚠️ Uwaga!</span>
+            </div>
+            <div style="font-size:14px; margin-bottom:20px; color:var(--text); line-height:1.5;">
+                Czy na pewno chcesz <strong>trwale usunąć</strong> tę lokalizację?<br>Tej operacji nie można cofnąć.
+            </div>
+            <div class="btn-row">
+                <button class="btn-primary" id="confirmDeleteBtn"
+                    style="background:linear-gradient(135deg, var(--danger), #b91c1c);">Tak, usuń</button>
+                <button class="btn-secondary" onclick="closeConfirmDelete()" style="flex:1;">Anuluj</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== MAIN APP ===== -->
     <div id="app">
         <div class="topbar">

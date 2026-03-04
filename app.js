@@ -20,6 +20,7 @@ let pendingLat = null, pendingLng = null;
 let editLat = null, editLng = null;
 let map, markers = {};
 let editingId = null;
+let locToDelete = null;
 let currentUser = null;
 
 // ===== LOGIN =====
@@ -609,10 +610,27 @@ function highlightCard(id) {
 }
 
 function deleteLocation(id, e) {
-    e?.stopPropagation(); if (!confirm('Usunąć tę lokalizację?')) return;
-    db.collection('locations').doc(id).delete()
-        .catch(err => alert("Błąd usuwania: " + err.message));
+    e?.stopPropagation();
+    locToDelete = id;
+    document.getElementById('confirmDeleteModal').classList.add('open');
 }
+
+function closeConfirmDelete() {
+    locToDelete = null;
+    document.getElementById('confirmDeleteModal').classList.remove('open');
+}
+
+document.getElementById('confirmDeleteBtn')?.addEventListener('click', () => {
+    if (!locToDelete) return;
+    db.collection('locations').doc(locToDelete).delete()
+        .then(() => {
+            closeConfirmDelete();
+        })
+        .catch(err => {
+            alert("Błąd usuwania: " + err.message);
+            closeConfirmDelete();
+        });
+});
 
 // ===== EDIT =====
 let editPeople = [];
