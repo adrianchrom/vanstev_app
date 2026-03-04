@@ -55,6 +55,11 @@ function setupApp(userName) {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('tbUserEmail').textContent = currentUser;
+    if (currentUser === 'Admin') {
+        document.getElementById('tabAdmin').style.display = 'block';
+    } else {
+        document.getElementById('tabAdmin').style.display = 'none';
+    }
     initMap();
     initDataSync();
     renderStats();
@@ -393,8 +398,19 @@ function initDataSync() {
         }));
         applyFilters();
         renderStats();
+        if (currentUser === 'Admin') renderAdminPanel();
     }, error => {
         console.error("Błąd synchronizacji:", error);
+    });
+}
+
+function logActivity(action, details) {
+    if (!currentUser) return;
+    db.collection('activity').add({
+        user: currentUser,
+        action: action,
+        details: details,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
 }
 
@@ -539,6 +555,7 @@ function saveLocation() {
 
     db.collection('locations').add(locData)
         .then(() => {
+            logActivity('Dodano lokalizację', name);
             if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
             resetForm();
             switchTab('list');
@@ -623,8 +640,10 @@ function closeConfirmDelete() {
 
 document.getElementById('confirmDeleteBtn')?.addEventListener('click', () => {
     if (!locToDelete) return;
+    const locName = locations.find(l => l.id === locToDelete)?.name || 'Nieznana';
     db.collection('locations').doc(locToDelete).delete()
         .then(() => {
+            logActivity('Usunięto lokalizację', locName);
             closeConfirmDelete();
         })
         .catch(err => {
@@ -693,6 +712,7 @@ function saveEdit() {
 
     db.collection('locations').doc(editingId).update(updatedData)
         .then(() => {
+            logActivity('Edytowano lokalizację', name);
             closeEdit();
         })
         .catch(err => alert("Błąd edycji: " + err.message));
@@ -747,6 +767,52 @@ function switchTab(tab) {
     const activeTab = document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1));
     if (activePanel) activePanel.classList.add('active');
     if (activeTab) activeTab.classList.add('active');
+    if (tab === 'admin') renderAdminPanel();
+}
+
+async function renderAdminPanel() {
+    if (currentUser !== 'Admin') return;
+    const adminList = document.getElementById('adminUserList');
+    if (!adminList) return;
+
+    adminList.innerHTML = '<div style="color:var(--muted); font-size:12px; padding:10px;">Wczytywanie aktywności...</div>';
+
+    try {
+        const snapshot = await db.collection('activity').orderBy('timestamp', 'desc').get();
+        const allActs = snapshot.docs.map(d => d.data());
+
+        const users = ['Radek', 'Jola', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Admin'];
+
+        let html = '';
+        users.forEach(u => {
+            const userActs = allActs.filter(a => a.user === u).slice(0, 3);
+            html += `
+                <div style="background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:12px;">
+                    <div style="font-weight:700; font-size:14px; color:var(--accent); margin-bottom:8px; display:flex; justify-content:space-between;">
+                        <span>👤 ${u}</span>
+                        ${u === 'Admin' ? '<span style="font-size:10px; opacity:0.6;">Administrator</span>' : ''}
+                    </div>
+                    <div style="font-size:11px; color:var(--muted); margin-bottom:4px; font-weight:600; text-transform:uppercase;">Ostatnie akcje:</div>
+                    ${userActs.length ? userActs.map(a => `
+                        <div style="font-size:12px; border-bottom:1px solid var(--bg); padding:6px 0; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                            <span>${a.action}: <strong style="color:var(--text);">${a.details}</strong></span>
+                            <span style="font-size:10px; color:var(--muted); white-space:nowrap;">${a.timestamp ? fmtTime(a.timestamp.toDate()) : '...'}</span>
+                        </div>
+                    `).join('') : '<div style="font-size:12px; color:var(--muted); font-style:italic; padding:4px 0;">Brak zarejestrowanej aktywności</div>'}
+                </div>
+            `;
+        });
+        adminList.innerHTML = html;
+    } catch (err) {
+        console.error("Błąd Admin Panel:", err);
+        adminList.innerHTML = '<div style="color:var(--danger); font-size:12px;">Błąd podczas ładowania danych.</div>';
+    }
+}
+
+function fmtTime(date) {
+    if (!date) return '';
+    return date.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }) + ' ' +
+        date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' });
 }
 
 

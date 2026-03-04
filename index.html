@@ -216,6 +216,8 @@
                     <div class="stab active" onclick="switchTab('list')" id="tabList">📋 Lokalizacje</div>
                     <div class="stab" onclick="switchTab('add')" id="tabAdd">➕ Dodaj</div>
                     <div class="stab" onclick="switchTab('stats')" id="tabStats">📊 Statystyki</div>
+                    <div class="stab" onclick="switchTab('admin')" id="tabAdmin"
+                        style="display:none; color:var(--accent);">🛡️ Admin</div>
                 </div>
 
                 <!-- LIST TAB -->
@@ -352,6 +354,12 @@
                     <div class="form-title">Statystyki</div>
                     <div class="stat-grid" id="statsGrid"></div>
                     <div id="statsDetails"></div>
+                </div>
+
+                <!-- ADMIN TAB -->
+                <div class="tab-panel" id="panelAdmin">
+                    <div class="form-title">Panel Administratora</div>
+                    <div id="adminUserList"></div>
                 </div>
             </div>
         </div>
