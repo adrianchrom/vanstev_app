@@ -567,15 +567,16 @@ function resetForm() {
 }
 
 // ===== LIST =====
-function renderList() {
+function renderList(filteredLocs = null) {
     const list = document.getElementById('locList');
     const empty = document.getElementById('emptyState');
     const count = document.getElementById('locCount');
-    count.textContent = locations.length + ' lokalizacj' + (locations.length === 1 ? 'a' : locations.length < 5 ? 'e' : 'i');
-    if (!locations.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+    const dataToRender = filteredLocs || locations;
+    count.textContent = dataToRender.length + ' lokalizacj' + (dataToRender.length === 1 ? 'a' : dataToRender.length < 5 ? 'e' : 'i');
+    if (!dataToRender.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
     const houseIcon = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; color: var(--accent);"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
-    list.innerHTML = locations.map(loc => {
+    list.innerHTML = dataToRender.map(loc => {
         const people = loc.people && loc.people.length ? loc.people.map(p => `<span class="person-chip">${p}</span>`).join('') : '<span style="color:var(--muted);font-size:12px;">Brak osób</span>';
         const rs = rentalStatus(loc); const days = calcDays(loc.dateFrom, loc.dateTo);
         const months = days ? (days / 30).toFixed(1) : null;
@@ -708,7 +709,7 @@ function renderStats() {
     const totalLocs = locations.length;
     const totalCapacity = locations.reduce((s, l) => s + l.capacity, 0);
     const totalPeople = locations.reduce((s, l) => s + (l.people ? l.people.length : 0), 0);
-    const totalRevPerDay = locations.reduce((s, l) => s + parseFloat(l.price || 0) * (l.people ? l.people.length : 0), 0);
+    const totalRevPerMonth = locations.reduce((s, l) => s + parseFloat(l.price || 0), 0);
 
     const statsGrid = document.getElementById('statsGrid');
     if (statsGrid) {
@@ -716,7 +717,7 @@ function renderStats() {
             <div class="stat-card"><div class="stat-val">${totalLocs}</div><div class="stat-lbl">Lokalizacji</div></div>
             <div class="stat-card"><div class="stat-val">${totalCapacity}</div><div class="stat-lbl">Łączna pojemność</div></div>
             <div class="stat-card"><div class="stat-val">${totalPeople}</div><div class="stat-lbl">Zamieszkałych osób</div></div>
-            <div class="stat-card"><div class="stat-val">€${totalRevPerDay.toFixed(0)}</div><div class="stat-lbl">Koszt miesięczny (suma)</div></div>
+            <div class="stat-card"><div class="stat-val">€${totalRevPerMonth.toFixed(0)}</div><div class="stat-lbl">Koszt miesięczny (suma)</div></div>
         `;
     }
 
@@ -729,7 +730,7 @@ function renderStats() {
             <div style="font-size:13px;font-weight:700;">${loc.name}</div>
             <div style="font-size:12px;color:var(--muted);">Zajętość: ${occ}/${loc.capacity} (${pct}%)</div>
             <div style="height:5px;background:var(--bg);border-radius:3px;overflow:hidden;margin:6px 0;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),#fbbf24);"></div></div>
-            <div style="font-size:12px;color:var(--accent);">€${parseFloat(loc.price || 0).toFixed(2)} /miesiąc /os · €${(occ * parseFloat(loc.price || 0)).toFixed(2)} za miesiąc</div>
+            <div style="font-size:12px;color:var(--accent);">Koszt stały: €${parseFloat(loc.price || 0).toFixed(2)} /miesiąc</div>
         </div>`;
     }).join('');
 }
@@ -748,3 +749,17 @@ function switchTab(tab) {
     if (activeTab) activeTab.classList.add('active');
 }
 
+
+// ===== PERSON SEARCH =====
+function filterByPerson(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) {
+        renderList();
+        return;
+    }
+    const filtered = locations.filter(loc => {
+        // Search in inhabitants names
+        return loc.people && loc.people.some(p => p.toLowerCase().includes(q));
+    });
+    renderList(filtered);
+}
