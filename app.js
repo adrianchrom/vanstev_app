@@ -72,6 +72,15 @@ function setupApp(userName) {
     renderStats();
 }
 
+// Obsługa wylogowania przy zamknięciu karty
+window.addEventListener('beforeunload', () => {
+    if (currentUser) {
+        // Używamy sendBeacon lub synchronicznego XHR jeśli to możliwe, 
+        // ale w Firebase najlepiej po prostu zaktualizować status przy ponownym wejściu
+        db.collection('users').doc(currentUser).set({ online: false }, { merge: true });
+    }
+});
+
 document.getElementById('loginPass')?.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 document.getElementById('loginEmail')?.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
@@ -789,66 +798,81 @@ function openAdmin() {
 
 function closeAdmin() {
     document.getElementById('adminModal').classList.remove('open');
-    if (adminUnsub) {
-        adminUnsub(); // Unsubscribe from real-time updates when modal is closed
-        adminUnsub = null;
-    }
+    if (adminUnsubUsers) { adminUnsubUsers(); adminUnsubUsers = null; }
+    if (adminUnsubActivity) { adminUnsubActivity(); adminUnsubActivity = null; }
 }
 
-let adminUnsub = null;
+let adminUnsubUsers = null;
+let adminUnsubActivity = null;
+
 async function renderAdminPanel() {
     if (currentUser !== 'Admin') return;
     const adminList = document.getElementById('adminUserList');
     if (!adminList) return;
 
-    if (adminUnsub) adminUnsub();
+    if (adminUnsubUsers) adminUnsubUsers();
+    if (adminUnsubActivity) adminUnsubActivity();
 
-    adminList.innerHTML = '<div style="color:var(--muted); font-size:12px; padding:10px;">Wczytywanie...</div>';
+    adminList.innerHTML = '<div style="color:var(--muted); font-size:12px; padding:10px;">Łączenie z bazą...</div>';
 
-    // Synchronous activity fetch + Real-time user status
-    try {
-        const activitySnapshot = await db.collection('activity').orderBy('timestamp', 'desc').limit(100).get();
-        const allActs = activitySnapshot.docs.map(d => d.data());
+    const users = ['Radek', 'Jola', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Admin'];
+    let allActs = [];
+    let usersData = {};
 
-        adminUnsub = db.collection('users').onSnapshot(usersSnap => {
-            const usersData = {};
-            usersSnap.forEach(d => { usersData[d.id] = d.data(); });
+    const updateUI = () => {
+        let html = '';
+        users.forEach(u => {
+            const userActs = allActs.filter(a => a.user === u).slice(0, 3);
+            const status = usersData[u] || {};
+            const isOnline = status.online === true;
+            const lastLogin = status.lastLogin ? fmtTime(status.lastLogin.toDate()) : 'Nigdy';
 
-            const users = ['Radek', 'Jola', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Admin'];
-            let html = '';
-
-            users.forEach(u => {
-                const userActs = allActs.filter(a => a.user === u).slice(0, 3);
-                const status = usersData[u] || {};
-                const isOnline = status.online === true;
-                const lastLogin = status.lastLogin ? fmtTime(status.lastLogin.toDate()) : 'Nigdy';
-
-                html += `
-                    <div style="background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:12px;">
-                        <div style="font-weight:700; font-size:14px; color:var(--accent); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-                            <span>👤 ${u}</span>
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <span style="width:8px; height:8px; border-radius:50%; background:${isOnline ? 'var(--success)' : '#4b5563'}; box-shadow:${isOnline ? '0 0 8px var(--success)' : 'none'};"></span>
-                                <span style="font-size:10px; color:${isOnline ? 'var(--success)' : 'var(--muted)'};">${isOnline ? 'Online' : 'Offline'}</span>
-                            </div>
+            html += `
+                <div style="background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:15px; margin-bottom:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <div style="font-weight:700; font-size:15px; color:var(--accent); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>👤 ${u}</span>
+                        <div style="display:flex; align-items:center; gap:8px; background:var(--bg); padding:4px 10px; border-radius:20px; border:1px solid var(--border);">
+                            <span style="width:10px; height:10px; border-radius:50%; background:${isOnline ? 'var(--success)' : '#4b5563'}; box-shadow:${isOnline ? '0 0 10px var(--success)' : 'none'};"></span>
+                            <span style="font-size:11px; font-weight:600; color:${isOnline ? 'var(--success)' : 'var(--muted)'};">${isOnline ? 'ONLINE' : 'OFFLINE'}</span>
                         </div>
-                        <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">Ostatnie logowanie: <strong style="color:var(--text);">${lastLogin}</strong></div>
-                        <div style="font-size:10px; color:var(--muted); margin-bottom:4px; font-weight:600; text-transform:uppercase;">Ostatnie akcje:</div>
-                        ${userActs.length ? userActs.map(a => `
-                            <div style="font-size:11px; border-bottom:1px solid var(--bg); padding:4px 0; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
-                                <span>${a.action}: <strong style="color:var(--text);">${a.details}</strong></span>
-                                <span style="font-size:9px; color:var(--muted); white-space:nowrap;">${a.timestamp ? fmtTime(a.timestamp.toDate()) : '...'}</span>
-                            </div>
-                        `).join('') : '<div style="font-size:11px; color:var(--muted); font-style:italic; padding:4px 0;">Brak akcji</div>'}
                     </div>
-                `;
-            });
-            adminList.innerHTML = html;
+                    <div style="font-size:12px; color:var(--muted); margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed var(--border);">
+                        Ostatnie logowanie: <strong style="color:var(--text);">${lastLogin}</strong>
+                    </div>
+                    
+                    <div style="font-size:10px; color:var(--muted); margin-bottom:6px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Ostatnia aktywność:</div>
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        ${userActs.length ? userActs.map(a => `
+                            <div style="font-size:12px; background:var(--bg); padding:8px 12px; border-radius:8px; border:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start;">
+                                <div style="display:flex; flex-direction:column;">
+                                    <span style="font-weight:600; color:var(--text);">${a.action}</span>
+                                    <span style="font-size:11px; color:var(--muted);">${a.details}</span>
+                                </div>
+                                <span style="font-size:10px; color:var(--muted); background:var(--card2); padding:2px 6px; border-radius:4px;">${a.timestamp ? fmtTime(a.timestamp.toDate()) : '...'}</span>
+                            </div>
+                        `).join('') : '<div style="font-size:12px; color:var(--muted); font-style:italic; padding:10px; text-align:center; background:var(--bg); border-radius:8px;">Brak zarejestrowanych akcji</div>'}
+                    </div>
+                </div>
+            `;
         });
-    } catch (err) {
-        console.error("Admin Panel Error:", err);
-        adminList.innerHTML = '<div style="color:var(--danger); font-size:12px;">Błąd podczas ładowania danych.</div>';
-    }
+        adminList.innerHTML = html;
+    };
+
+    // Nasłuchiwanie użytkowników
+    adminUnsubUsers = db.collection('users').onSnapshot(snap => {
+        snap.forEach(d => { usersData[d.id] = d.data(); });
+        updateUI();
+    }, err => {
+        console.error("Admin Users Error:", err);
+    });
+
+    // Nasłuchiwanie aktywności
+    adminUnsubActivity = db.collection('activity').orderBy('timestamp', 'desc').limit(200).onSnapshot(snap => {
+        allActs = snap.docs.map(d => d.data());
+        updateUI();
+    }, err => {
+        console.error("Admin Activity Error:", err);
+    });
 }
 
 function fmtTime(date) {
