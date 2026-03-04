@@ -56,9 +56,9 @@ function setupApp(userName) {
     document.getElementById('app').style.display = 'flex';
     document.getElementById('tbUserEmail').textContent = currentUser;
     if (currentUser === 'Admin') {
-        document.getElementById('tabAdmin').style.display = 'block';
+        document.getElementById('adminBtn').style.display = 'block';
     } else {
-        document.getElementById('tabAdmin').style.display = 'none';
+        document.getElementById('adminBtn').style.display = 'none';
     }
 
     // Aktualizuj status użytkownika
@@ -779,59 +779,74 @@ function switchTab(tab) {
     const activeTab = document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1));
     if (activePanel) activePanel.classList.add('active');
     if (activeTab) activeTab.classList.add('active');
-    if (tab === 'admin') renderAdminPanel();
+    if (tab === 'admin') openAdmin();
 }
 
+function openAdmin() {
+    document.getElementById('adminModal').classList.add('open');
+    renderAdminPanel();
+}
+
+function closeAdmin() {
+    document.getElementById('adminModal').classList.remove('open');
+    if (adminUnsub) {
+        adminUnsub(); // Unsubscribe from real-time updates when modal is closed
+        adminUnsub = null;
+    }
+}
+
+let adminUnsub = null;
 async function renderAdminPanel() {
     if (currentUser !== 'Admin') return;
     const adminList = document.getElementById('adminUserList');
     if (!adminList) return;
 
-    adminList.innerHTML = '<div style="color:var(--muted); font-size:12px; padding:10px;">Wczytywanie aktywności...</div>';
+    if (adminUnsub) adminUnsub();
 
+    adminList.innerHTML = '<div style="color:var(--muted); font-size:12px; padding:10px;">Wczytywanie...</div>';
+
+    // Synchronous activity fetch + Real-time user status
     try {
-        const [activitySnap, usersSnap] = await Promise.all([
-            db.collection('activity').orderBy('timestamp', 'desc').get(),
-            db.collection('users').get()
-        ]);
+        const activitySnapshot = await db.collection('activity').orderBy('timestamp', 'desc').limit(100).get();
+        const allActs = activitySnapshot.docs.map(d => d.data());
 
-        const allActs = activitySnap.docs.map(d => d.data());
-        const usersData = {};
-        usersSnap.forEach(d => { usersData[d.id] = d.data(); });
+        adminUnsub = db.collection('users').onSnapshot(usersSnap => {
+            const usersData = {};
+            usersSnap.forEach(d => { usersData[d.id] = d.data(); });
 
-        const users = ['Radek', 'Jola', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Admin'];
+            const users = ['Radek', 'Jola', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Admin'];
+            let html = '';
 
-        let html = '';
-        users.forEach(u => {
-            const userActs = allActs.filter(a => a.user === u).slice(0, 3);
-            const status = usersData[u] || {};
-            const isOnline = status.online === true;
-            const lastLogin = status.lastLogin ? fmtTime(status.lastLogin.toDate()) : 'Nigdy';
+            users.forEach(u => {
+                const userActs = allActs.filter(a => a.user === u).slice(0, 3);
+                const status = usersData[u] || {};
+                const isOnline = status.online === true;
+                const lastLogin = status.lastLogin ? fmtTime(status.lastLogin.toDate()) : 'Nigdy';
 
-            html += `
-                <div style="background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:12px;">
-                    <div style="font-weight:700; font-size:14px; color:var(--accent); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-                        <span>👤 ${u}</span>
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <span style="width:8px; height:8px; border-radius:50%; background:${isOnline ? 'var(--success)' : '#4b5563'}; box-shadow:${isOnline ? '0 0 8px var(--success)' : 'none'};"></span>
-                            <span style="font-size:10px; color:${isOnline ? 'var(--success)' : 'var(--muted)'};">${isOnline ? 'Online' : 'Offline'}</span>
+                html += `
+                    <div style="background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:12px;">
+                        <div style="font-weight:700; font-size:14px; color:var(--accent); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                            <span>👤 ${u}</span>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span style="width:8px; height:8px; border-radius:50%; background:${isOnline ? 'var(--success)' : '#4b5563'}; box-shadow:${isOnline ? '0 0 8px var(--success)' : 'none'};"></span>
+                                <span style="font-size:10px; color:${isOnline ? 'var(--success)' : 'var(--muted)'};">${isOnline ? 'Online' : 'Offline'}</span>
+                            </div>
                         </div>
+                        <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">Ostatnie logowanie: <strong style="color:var(--text);">${lastLogin}</strong></div>
+                        <div style="font-size:10px; color:var(--muted); margin-bottom:4px; font-weight:600; text-transform:uppercase;">Ostatnie akcje:</div>
+                        ${userActs.length ? userActs.map(a => `
+                            <div style="font-size:11px; border-bottom:1px solid var(--bg); padding:4px 0; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                                <span>${a.action}: <strong style="color:var(--text);">${a.details}</strong></span>
+                                <span style="font-size:9px; color:var(--muted); white-space:nowrap;">${a.timestamp ? fmtTime(a.timestamp.toDate()) : '...'}</span>
+                            </div>
+                        `).join('') : '<div style="font-size:11px; color:var(--muted); font-style:italic; padding:4px 0;">Brak akcji</div>'}
                     </div>
-                    <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">Ostatnie logowanie: <strong style="color:var(--text);">${lastLogin}</strong></div>
-                    
-                    <div style="font-size:11px; color:var(--muted); margin-bottom:4px; font-weight:600; text-transform:uppercase;">Ostatnie akcje:</div>
-                    ${userActs.length ? userActs.map(a => `
-                        <div style="font-size:12px; border-bottom:1px solid var(--bg); padding:6px 0; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
-                            <span>${a.action}: <strong style="color:var(--text);">${a.details}</strong></span>
-                            <span style="font-size:10px; color:var(--muted); white-space:nowrap;">${a.timestamp ? fmtTime(a.timestamp.toDate()) : '...'}</span>
-                        </div>
-                    `).join('') : '<div style="font-size:12px; color:var(--muted); font-style:italic; padding:4px 0;">Brak zarejestrowanej aktywności</div>'}
-                </div>
-            `;
+                `;
+            });
+            adminList.innerHTML = html;
         });
-        adminList.innerHTML = html;
     } catch (err) {
-        console.error("Błąd Admin Panel:", err);
+        console.error("Admin Panel Error:", err);
         adminList.innerHTML = '<div style="color:var(--danger); font-size:12px;">Błąd podczas ładowania danych.</div>';
     }
 }

@@ -1073,3 +1073,19 @@ body.light-mode .caregiver-badge {
 #helpModal.open {
     display: flex;
 }
+
+/* Admin Modal */
+#adminModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9500;
+    background: rgba(7, 11, 20, 0.9);
+    backdrop-filter: blur(15px);
+    align-items: center;
+    justify-content: center;
+}
+
+#adminModal.open {
+    display: flex;
+}

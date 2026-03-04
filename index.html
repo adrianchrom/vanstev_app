@@ -201,6 +201,9 @@
                 </div>
             </div>
             <div class="tb-user">
+                <button class="tb-logout" id="adminBtn" onclick="switchTab('admin')"
+                    style="display:none; margin-right:8px; border-color:var(--accent); color:var(--accent2)">🛡️
+                    Admin</button>
                 <button class="tb-logout" onclick="openHelp()"
                     style="margin-right:8px; border-color:var(--blue); color:var(--blue2)">❓ Pomoc</button>
                 <button class="tb-logout" id="themeToggle" onclick="toggleTheme()"
@@ -216,8 +219,6 @@
                     <div class="stab active" onclick="switchTab('list')" id="tabList">📋 Lokalizacje</div>
                     <div class="stab" onclick="switchTab('add')" id="tabAdd">➕ Dodaj</div>
                     <div class="stab" onclick="switchTab('stats')" id="tabStats">📊 Statystyki</div>
-                    <div class="stab" onclick="switchTab('admin')" id="tabAdmin"
-                        style="display:none; color:var(--accent);">🛡️ Admin</div>
                 </div>
 
                 <!-- LIST TAB -->
@@ -355,12 +356,20 @@
                     <div class="stat-grid" id="statsGrid"></div>
                     <div id="statsDetails"></div>
                 </div>
+            </div>
+        </div>
+    </div>
 
-                <!-- ADMIN TAB -->
-                <div class="tab-panel" id="panelAdmin">
-                    <div class="form-title">Panel Administratora</div>
-                    <div id="adminUserList"></div>
-                </div>
+    <!-- ===== ADMIN MODAL ===== -->
+    <div id="adminModal" class="modal-overlay">
+        <div class="modal-box" style="width:500px; max-width:95%;">
+            <div class="modal-title">
+                <span>🛡️ Panel Administratora</span>
+                <button class="modal-close" onclick="closeAdmin()">×</button>
+            </div>
+            <div id="adminUserList" style="margin-top:10px;"></div>
+            <div class="btn-row" style="margin-top:20px;">
+                <button class="btn-secondary" onclick="closeAdmin()" style="width:100%;">Zamknij</button>
             </div>
         </div>
     </div>
