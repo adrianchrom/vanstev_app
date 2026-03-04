@@ -22,6 +22,7 @@ let map, markers = {};
 let editingId = null;
 let locToDelete = null;
 let currentUser = null;
+let eurToPln = 4.3; // Default fallback rate
 
 // ===== LOGIN =====
 const VALID_USERS = ['radek', 'jola', 'kasia', 'tomek', 'przemek', 'mirek'];
@@ -85,6 +86,20 @@ function setupApp(userName) {
     initMap();
     initDataSync();
     renderStats();
+    fetchExchangeRate();
+}
+
+async function fetchExchangeRate() {
+    try {
+        const response = await fetch('https://api.nbp.pl/api/exchangerates/rates/a/eur/?format=json');
+        const data = await response.json();
+        if (data && data.rates && data.rates[0].mid) {
+            eurToPln = data.rates[0].mid;
+            renderStats(); // Re-render with new rate
+        }
+    } catch (err) {
+        console.warn("Nie udało się pobrać kursu walut:", err);
+    }
 }
 
 // Obsługa wylogowania przy zamknięciu karty
@@ -775,7 +790,11 @@ function renderStats() {
             <div class="stat-card"><div class="stat-val">${totalLocs}</div><div class="stat-lbl">Lokalizacji</div></div>
             <div class="stat-card"><div class="stat-val">${totalCapacity}</div><div class="stat-lbl">Łączna pojemność</div></div>
             <div class="stat-card"><div class="stat-val">${totalPeople}</div><div class="stat-lbl">Zamieszkałych osób</div></div>
-            <div class="stat-card"><div class="stat-val">€${totalRevPerMonth.toFixed(0)}</div><div class="stat-lbl">Koszt miesięczny (suma)</div></div>
+            <div class="stat-card">
+                <div class="stat-val">€${totalRevPerMonth.toFixed(0)}</div>
+                <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">~${(totalRevPerMonth * eurToPln).toFixed(0)} PLN</div>
+                <div class="stat-lbl">Koszt miesięczny (suma)</div>
+            </div>
         `;
     }
 
@@ -789,7 +808,10 @@ function renderStats() {
             <div style="font-size:12px;color:var(--muted);">Zajętość: ${occ}/${loc.capacity} (${pct}%)</div>
             <div style="height:5px;background:var(--bg);border-radius:3px;overflow:hidden;margin:6px 0;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),#fbbf24);"></div></div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                <div style="font-size:12px;color:var(--accent);">Koszt stały: €${parseFloat(loc.price || 0).toFixed(2)} /m-c</div>
+                <div>
+                    <div style="font-size:12px;color:var(--accent);">Koszt stały: €${parseFloat(loc.price || 0).toFixed(2)} /m-c</div>
+                    <div style="font-size:10px;color:var(--muted);">~${(parseFloat(loc.price || 0) * eurToPln).toFixed(2)} PLN</div>
+                </div>
                 <button onclick="focusLocation('${loc.id}')" style="background:var(--accent); color:white; border:none; border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer; font-weight:600; transition:opacity 0.2s;">
                     📍 Przejdź do lokalizacji
                 </button>
