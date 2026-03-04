@@ -374,6 +374,7 @@ function makePopupHtml(loc) {
         <div class="popup-row">💰 Koszt za miesiąc: <span>€${parseFloat(loc.price || 0).toFixed(2)}</span></div>
         <div class="popup-row" style="font-size:11px;">📌 <span>${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span></div>
         ${addedByHtml}
+        ${loc.notes ? `<div class="popup-row" style="margin-top:4px; font-style:italic; color:var(--muted);">📝 Uwagi: <span>${loc.notes}</span></div>` : ''}
         <div class="popup-people"><div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600;">MIESZKAŃCY</div>${peopleHtml}</div>
     </div>`;
 }
@@ -530,6 +531,7 @@ function saveLocation() {
         isIndefinite: document.getElementById('fIndefinite').checked,
         lat: pendingLat, lng: pendingLng,
         people: [...addPeople].filter(p => p.trim()),
+        notes: document.getElementById('fNotes').value.trim(),
         addedBy: currentUser,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -549,7 +551,7 @@ function showFormErr(msg) {
 }
 
 function resetForm() {
-    ['fName', 'fZip', 'fCity', 'fStreet', 'fHouseNum', 'addressSearch', 'fCapacity', 'fPrice', 'fCaregiver', 'fDateFrom', 'fDateTo'].forEach(id => {
+    ['fName', 'fZip', 'fCity', 'fStreet', 'fHouseNum', 'addressSearch', 'fCapacity', 'fPrice', 'fCaregiver', 'fDateFrom', 'fDateTo', 'fNotes'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -586,6 +588,7 @@ function renderList() {
             ${(loc.dateFrom || loc.dateTo || loc.isIndefinite) ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;">📅 ${fmtDate(loc.dateFrom)} → ${dateToFmt}${months ? ` &bull; ${months} m-cy &bull; <strong style="color:var(--accent);">€${totalCost.toFixed(2)}</strong>` : ''}</div>` : ''}
             <div class="loc-badges" style="margin-top:8px;"><span class="rental-badge ${rs.cls}">${rs.label}</span>${loc.caregiver ? `<span class="caregiver-badge">👤 ${loc.caregiver}</span>` : ''}<span class="badge badge-amber">👥 ${loc.capacity} miejsc</span><span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)} za miesiąc</span><span class="badge badge-blue">${occ}/${loc.capacity} zajętych</span></div>
             <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
+            ${loc.notes ? `<div style="margin-top:6px; font-size:11px; padding:6px; background:var(--bg); border-radius:6px; border-left:3px solid var(--accent);">📝 <em>${loc.notes}</em></div>` : ''}
             <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title">Mieszkańcy</div>${people}</div>
         </div>`;
     }).join('');
@@ -636,6 +639,7 @@ function openEdit(id, e) {
     editLng = loc.lng;
     document.getElementById('eCoordDisplay').style.display = 'block';
     document.getElementById('eCoordTxt').textContent = editLat.toFixed(5) + ', ' + editLng.toFixed(5);
+    document.getElementById('eNotes').value = loc.notes || '';
 
     editPeople = [...(loc.people || [])];
     renderPeopleInputs('editPeopleList', editPeople, 'edit');
@@ -664,6 +668,7 @@ function saveEdit() {
         dateTo: document.getElementById('eDateTo').value,
         isIndefinite: document.getElementById('eIndefinite').checked,
         people: [...editPeople].filter(p => p.trim()),
+        notes: document.getElementById('eNotes').value.trim(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
