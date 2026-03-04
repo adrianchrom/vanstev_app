@@ -60,6 +60,13 @@ function setupApp(userName) {
     } else {
         document.getElementById('tabAdmin').style.display = 'none';
     }
+
+    // Aktualizuj status użytkownika
+    db.collection('users').doc(currentUser).set({
+        lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+        online: true
+    }, { merge: true });
+
     initMap();
     initDataSync();
     renderStats();
@@ -69,6 +76,11 @@ document.getElementById('loginPass')?.addEventListener('keydown', e => { if (e.k
 document.getElementById('loginEmail')?.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
 function doLogout() {
+    if (currentUser) {
+        db.collection('users').doc(currentUser).set({
+            online: false
+        }, { merge: true });
+    }
     currentUser = null;
     localStorage.removeItem('vs_user');
     document.getElementById('loginScreen').style.display = 'flex';
@@ -778,20 +790,35 @@ async function renderAdminPanel() {
     adminList.innerHTML = '<div style="color:var(--muted); font-size:12px; padding:10px;">Wczytywanie aktywności...</div>';
 
     try {
-        const snapshot = await db.collection('activity').orderBy('timestamp', 'desc').get();
-        const allActs = snapshot.docs.map(d => d.data());
+        const [activitySnap, usersSnap] = await Promise.all([
+            db.collection('activity').orderBy('timestamp', 'desc').get(),
+            db.collection('users').get()
+        ]);
+
+        const allActs = activitySnap.docs.map(d => d.data());
+        const usersData = {};
+        usersSnap.forEach(d => { usersData[d.id] = d.data(); });
 
         const users = ['Radek', 'Jola', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Admin'];
 
         let html = '';
         users.forEach(u => {
             const userActs = allActs.filter(a => a.user === u).slice(0, 3);
+            const status = usersData[u] || {};
+            const isOnline = status.online === true;
+            const lastLogin = status.lastLogin ? fmtTime(status.lastLogin.toDate()) : 'Nigdy';
+
             html += `
                 <div style="background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:12px;">
-                    <div style="font-weight:700; font-size:14px; color:var(--accent); margin-bottom:8px; display:flex; justify-content:space-between;">
+                    <div style="font-weight:700; font-size:14px; color:var(--accent); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
                         <span>👤 ${u}</span>
-                        ${u === 'Admin' ? '<span style="font-size:10px; opacity:0.6;">Administrator</span>' : ''}
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="width:8px; height:8px; border-radius:50%; background:${isOnline ? 'var(--success)' : '#4b5563'}; box-shadow:${isOnline ? '0 0 8px var(--success)' : 'none'};"></span>
+                            <span style="font-size:10px; color:${isOnline ? 'var(--success)' : 'var(--muted)'};">${isOnline ? 'Online' : 'Offline'}</span>
+                        </div>
                     </div>
+                    <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">Ostatnie logowanie: <strong style="color:var(--text);">${lastLogin}</strong></div>
+                    
                     <div style="font-size:11px; color:var(--muted); margin-bottom:4px; font-weight:600; text-transform:uppercase;">Ostatnie akcje:</div>
                     ${userActs.length ? userActs.map(a => `
                         <div style="font-size:12px; border-bottom:1px solid var(--bg); padding:6px 0; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
