@@ -159,6 +159,27 @@
         </div>
     </div>
 
+    <!-- ===== HELP MODAL ===== -->
+    <div id="helpModal" class="modal-overlay">
+        <div class="modal-box" style="width:380px; text-align:center;">
+            <div class="modal-title" style="justify-content:center; border-bottom:none; margin-bottom:12px;">
+                <span>💡 Informacje o aplikacji</span>
+            </div>
+            <div style="font-size:14px; margin-bottom:20px; color:var(--text); line-height:1.6;">
+                Aplikacja przeznaczona jest wyłącznie do <strong>użytku biurowego</strong>.<br><br>
+                <div
+                    style="background:var(--card2); padding:15px; border-radius:12px; border:1px solid var(--border); text-align:left;">
+                    <div style="margin-bottom:8px;">👤 Opiekun: <strong>Adrian</strong></div>
+                    <div style="margin-bottom:8px;">📧 Email: <a href="mailto:adrian@vanstev.pl"
+                            style="color:var(--accent); text-decoration:none;">adrian@vanstev.pl</a></div>
+                    <div>📞 Tel: <a href="tel:+48605595049" style="color:var(--accent); text-decoration:none;">605 595
+                            049</a></div>
+                </div>
+            </div>
+            <button class="btn-primary" onclick="closeHelp()" style="width:100%;">Zamknij</button>
+        </div>
+    </div>
+
     <!-- ===== MAIN APP ===== -->
     <div id="app">
         <div class="topbar">
@@ -180,6 +201,8 @@
                 </div>
             </div>
             <div class="tb-user">
+                <button class="tb-logout" onclick="openHelp()"
+                    style="margin-right:8px; border-color:var(--blue); color:var(--blue2)">❓ Pomoc</button>
                 <button class="tb-logout" id="themeToggle" onclick="toggleTheme()"
                     style="margin-right:8px; border-color:var(--accent); color:var(--text)">🌙 Tryb Ciemny</button>
                 <span id="tbUserEmail"></span>

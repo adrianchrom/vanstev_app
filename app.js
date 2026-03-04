@@ -770,3 +770,12 @@ function applyFilters() {
     renderList(filtered);
     reloadMarkers(filtered);
 }
+
+// ===== HELP MODAL =====
+function openHelp() {
+    document.getElementById('helpModal').classList.add('open');
+}
+
+function closeHelp() {
+    document.getElementById('helpModal').classList.remove('open');
+}

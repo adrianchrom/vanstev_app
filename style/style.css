@@ -1057,3 +1057,19 @@ body.light-mode .caregiver-badge {
 #confirmDeleteModal.open {
     display: flex;
 }
+
+/* Help Modal */
+#helpModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: rgba(7, 11, 20, 0.85);
+    backdrop-filter: blur(10px);
+    align-items: center;
+    justify-content: center;
+}
+
+#helpModal.open {
+    display: flex;
+}
