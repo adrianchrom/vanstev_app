@@ -137,8 +137,8 @@ function onMapClick(e) {
     if (editingId) {
         editLat = lat; editLng = lng;
         if (tempMarker) map.removeLayer(tempMarker);
-        tempMarker = L.marker([lat, lng], { icon: makeTempIcon(), draggable: true }).addTo(map);
-        tempMarker.on('dragend', onTempMarkerDrag);
+        tempMarker = L.marker([lat, lng], { icon: makeTempIcon(), draggable: false }).addTo(map);
+
 
         document.getElementById('eCoordDisplay').style.display = 'block';
         document.getElementById('eCoordTxt').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
@@ -148,8 +148,8 @@ function onMapClick(e) {
 
     pendingLat = lat; pendingLng = lng;
     if (tempMarker) map.removeLayer(tempMarker);
-    tempMarker = L.marker([lat, lng], { icon: makeTempIcon(), draggable: true }).addTo(map);
-    tempMarker.on('dragend', onTempMarkerDrag);
+    tempMarker = L.marker([lat, lng], { icon: makeTempIcon(), draggable: false }).addTo(map);
+
 
     document.getElementById('coordDisplay').style.display = 'block';
     document.getElementById('coordTxt').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
@@ -210,8 +210,8 @@ function geocodeManual(mode) {
 
                 map.setView([lat, lon], 18);
                 if (tempMarker) map.removeLayer(tempMarker);
-                tempMarker = L.marker([lat, lon], { icon: makeTempIcon(), draggable: true }).addTo(map);
-                tempMarker.on('dragend', onTempMarkerDrag);
+                tempMarker = L.marker([lat, lon], { icon: makeTempIcon(), draggable: false }).addTo(map);
+
 
                 if (mode === 'edit') {
                     editLat = lat; editLng = lon;
@@ -308,8 +308,8 @@ function selectSearchResult(lat, lon, addr) {
 
     map.setView([lat, lon], 18);
     if (tempMarker) map.removeLayer(tempMarker);
-    tempMarker = L.marker([lat, lon], { icon: makeTempIcon(), draggable: true }).addTo(map);
-    tempMarker.on('dragend', onTempMarkerDrag);
+    tempMarker = L.marker([lat, lon], { icon: makeTempIcon(), draggable: false }).addTo(map);
+
 
     if (editingId) {
         editLat = lat; editLng = lon;
