@@ -899,7 +899,12 @@ function renderList(filteredLocs = null) {
     const list = document.getElementById('locList');
     const empty = document.getElementById('emptyState');
     const count = document.getElementById('locCount');
-    const dataToRender = filteredLocs || locations;
+    const dataToRender = [...(filteredLocs || locations)].sort((a, b) => {
+        if (a.type === 'project' && b.type !== 'project') return -1;
+        if (a.type !== 'project' && b.type === 'project') return 1;
+        // Secondary sort by locNumber if types are the same
+        return (a.locNumber || 0) - (b.locNumber || 0);
+    });
     count.textContent = dataToRender.length + ' wpis' + (dataToRender.length === 1 ? '' : dataToRender.length < 5 ? 'y' : 'ów');
     if (!dataToRender.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
