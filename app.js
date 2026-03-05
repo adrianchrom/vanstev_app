@@ -261,25 +261,25 @@ function renderLinkedLocations(containerId, selectedIds) {
     }
 
     const formatOccupant = (p) => {
-        if (typeof p === 'string') return p;
+        if (typeof p === 'string') return `<span style="display:inline-block; border:1px solid var(--border); background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; margin:1px;">${p}</span>`;
         const driverIcon = p.isDriver ? '🚗 ' : '';
         const plate = p.isDriver && p.carPlate ? ` (${p.carPlate})` : '';
-        return `${driverIcon}${p.name}${plate}`;
+        return `<span style="display:inline-block; border:1px solid var(--border); background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; margin:1px;">${driverIcon}${p.name}${plate}</span>`;
     };
 
     c.innerHTML = locs.map(l => {
         const isChecked = selectedIds.includes(l.id) ? 'checked' : '';
         const occupants = l.people && l.people.length > 0
-            ? l.people.map(p => formatOccupant(p)).join(', ')
-            : 'brak mieszkańców';
+            ? l.people.map(p => formatOccupant(p)).join('')
+            : '<span style="color:var(--muted); font-style:italic;">brak mieszkańców</span>';
 
-        return `<label class="linked-loc-item ${isChecked ? 'highlighted' : ''}" style="display:flex; flex-direction:column; gap:4px; cursor:pointer; padding:8px; border-radius:8px; border:1px solid transparent; transition: all 0.2s; margin-bottom:4px; background: var(--bg);">
+        return `<label class="linked-loc-item ${isChecked ? 'highlighted' : ''}" style="display:flex; flex-direction:column; gap:6px; cursor:pointer; padding:10px; border-radius:10px; border:1px solid transparent; transition: all 0.2s; margin-bottom:6px; background: var(--bg);">
             <div style="display:flex; align-items:center; gap:8px;">
-                <input type="checkbox" value="${l.id}" ${isChecked} class="linked-loc-cb" onchange="toggleLinkedLocationHighlight(this, '${l.id}')" style="width:16px; height:16px; margin:0; cursor:pointer;">
-                <span style="font-weight:600; font-size:13px;"><span style="color:var(--accent);">[#${l.locNumber || '?'}]</span> ${l.name}</span>
-                <span style="font-size:10px; color:var(--muted); margin-left:auto;">${l.people ? l.people.length : 0}/${l.capacity}</span>
+                <input type="checkbox" value="${l.id}" ${isChecked} class="linked-loc-cb" onchange="toggleLinkedLocationHighlight(this, '${l.id}')" style="width:18px; height:18px; margin:0; cursor:pointer;">
+                <span style="font-weight:700; font-size:14px;"><span style="color:var(--accent);">[#${l.locNumber || '?'}]</span> ${l.name}</span>
+                <span style="font-size:10px; color:var(--muted); margin-left:auto; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:20px;">👥 ${l.people ? l.people.length : 0}/${l.capacity}</span>
             </div>
-            <div style="font-size:11px; color:var(--muted); padding-left:24px; line-height:1.4;">👤 ${occupants}</div>
+            <div style="font-size:11px; color:var(--muted); padding-left:26px; display:flex; flex-wrap:wrap; gap:2px;">${occupants}</div>
         </label>`;
     }).join('');
 }
@@ -432,12 +432,13 @@ function makeIcon(color = '#E8621A') {
     });
 }
 
-function makeProjectIcon() {
+function makeProjectIcon(name = 'P') {
+    const initial = name ? name.charAt(0).toUpperCase() : 'P';
     return L.divIcon({
         className: '',
         html: `<div style="position:relative;width:46px;height:56px;">
             <div style="width:46px;height:46px;border-radius:50%;background:#3b82f6;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,0,0,0.35);border:3px solid #fff;">
-                <span style="font-size:26px;line-height:1;margin-top:2px;">🏭</span>
+                <span style="font-size:24px;line-height:1;margin-top:2px;color:white;font-weight:900;font-family:'Barlow Condensed',sans-serif;">${initial}</span>
             </div>
             <div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:11px solid #3b82f6;margin:0 auto;margin-top:-2px;"></div>
         </div>`,
@@ -522,7 +523,7 @@ document.addEventListener('click', (e) => {
 function addMarker(loc) {
     let m;
     if (loc.type === 'project') {
-        m = L.marker([loc.lat, loc.lng], { icon: makeProjectIcon() }).addTo(map);
+        m = L.marker([loc.lat, loc.lng], { icon: makeProjectIcon(loc.name) }).addTo(map);
     } else {
         const occ = loc.people ? loc.people.length : 0;
         const isFull = occ >= loc.capacity;
@@ -546,8 +547,8 @@ function makePopupHtml(loc) {
         }).join('<br>');
 
         return `<div style="min-width:220px;padding:4px;">
-            <div class="popup-name">🏭 ${loc.name}</div>
-            <span class="badge badge-blue" style="margin-bottom:8px;">Projekt</span>
+            <div class="popup-name" style="color:var(--blue);"><span style="font-size:10px; background:var(--blue); color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">PROJEKT</span>${loc.name}</div>
+            <span class="badge badge-blue" style="margin-bottom:8px;">Aktywny projekt</span>
             ${addrHtml}
             <div class="popup-row" style="font-size:11px;">📌 <span>${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span></div>
             ${addedByHtml}
@@ -557,15 +558,15 @@ function makePopupHtml(loc) {
     }
 
     const formatPerson = (p) => {
-        if (typeof p === 'string') return `<span class="person-chip">${p}</span>`;
+        if (typeof p === 'string') return `<span class="person-chip" style="border-radius:4px;">${p}</span>`;
         const plate = p.isDriver && p.carPlate ? ` <span class="car-plate">${p.carPlate}</span>` : '';
         const driverIcon = p.isDriver ? '<span style="margin-left:4px;">🚗</span>' : '';
-        return `<span class="person-chip">${p.name}${driverIcon}${plate}</span>`;
+        return `<span class="person-chip" style="border-radius:4px;">${driverIcon}${p.name}${plate}</span>`;
     };
 
     const peopleHtml = loc.people && loc.people.length > 0
         ? loc.people.map(p => formatPerson(p)).join('')
-        : '<span style="color:var(--muted);font-size:12px;">Brak osób</span>';
+        : '<span style="color:var(--muted);font-size:12px;font-style:italic;">brak mieszkańców</span>';
 
     const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
     const addrHtml = fullAddr ? `<div class="popup-row">🏡 <span style="font-size:11px;">${fullAddr}</span></div>` : '';
@@ -867,10 +868,10 @@ function renderList(filteredLocs = null) {
         if (loc.type === 'project') {
             const linkedNames = (loc.linkedLocations || []).map(id => {
                 const l = locations.find(x => x.id === id);
-                return l ? `<span class="person-chip">[#${l.locNumber || '?'}] ${l.name}</span>` : '';
+                return l ? `<span class="person-chip" style="border-radius:4px; border-color:var(--blue); color:var(--blue);font-weight:700;">[#${l.locNumber || '?'}] ${l.name}</span>` : '';
             }).join('');
             return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')" style="border-left:4px solid var(--blue);">
-                <div class="loc-card-head"><div class="loc-name">🏭 ${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
+                <div class="loc-card-head"><div class="loc-name"><span style="font-size:10px; background:var(--blue); color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">PROJEKT</span>${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
                 ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
                 <div class="loc-badges" style="margin-top:8px;"><span class="badge badge-blue">Projekt</span></div>
                 <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
@@ -879,10 +880,10 @@ function renderList(filteredLocs = null) {
         }
 
         const formatPerson = (p) => {
-            if (typeof p === 'string') return `<span class="person-chip">${p}</span>`;
+            if (typeof p === 'string') return `<span class="person-chip" style="border-radius:4px;">${p}</span>`;
             const plate = p.isDriver && p.carPlate ? ` <span class="car-plate">${p.carPlate}</span>` : '';
             const driverIcon = p.isDriver ? '<span style="margin-left:4px;">🚗</span>' : '';
-            return `<span class="person-chip">${p.name}${driverIcon}${plate}</span>`;
+            return `<span class="person-chip" style="border-radius:4px;">${driverIcon}${p.name}${plate}</span>`;
         };
 
         const numPrefix = loc.locNumber ? `<span style="color:var(--muted); font-size:13px; font-weight:normal;">[#${loc.locNumber}]</span> ` : '';
