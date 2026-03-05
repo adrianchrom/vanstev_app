@@ -597,13 +597,65 @@ body {
 }
 
 .person-chip {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border);
     border-radius: 20px;
     padding: 3px 10px;
     font-size: 12px;
     margin: 2px 3px 2px 0;
+}
+
+.driver-info {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--accent2);
+    font-weight: 600;
+}
+
+.car-plate {
+    background: #fff;
+    color: #000;
+    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-weight: 800;
+    text-transform: uppercase;
+    border: 1px solid #000;
+    line-height: 1;
+}
+
+.people-row {
+    display: grid !important;
+    grid-template-columns: 1fr auto auto auto !important;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 8px;
+    background: var(--bg);
+    padding: 6px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.people-row input[type="text"] {
+    width: 100%;
+}
+
+.driver-checkbox-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.driver-checkbox-wrap input {
+    width: 14px;
+    height: 14px;
 }
 
 .empty-state {
@@ -1062,6 +1114,7 @@ body.light-mode .caregiver-badge {
         white-space: nowrap;
     }
 }
+
 /* Confirm Delete Modal */
 #confirmDeleteModal {
     display: none;

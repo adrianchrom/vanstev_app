@@ -543,8 +543,15 @@ function makePopupHtml(loc) {
         </div>`;
     }
 
+    const formatPerson = (p) => {
+        if (typeof p === 'string') return `<span class="person-chip">${p}</span>`;
+        const plate = p.isDriver && p.carPlate ? ` <span class="car-plate">${p.carPlate}</span>` : '';
+        const driverIcon = p.isDriver ? '<span style="margin-left:4px;">🚗</span>' : '';
+        return `<span class="person-chip">${p.name}${driverIcon}${plate}</span>`;
+    };
+
     const peopleHtml = loc.people && loc.people.length > 0
-        ? loc.people.map(p => `<span class="person-chip">${p}</span>`).join('')
+        ? loc.people.map(p => formatPerson(p)).join('')
         : '<span style="color:var(--muted);font-size:12px;">Brak osób</span>';
 
     const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
@@ -700,10 +707,10 @@ function updateEditTotalCost() {
 }
 
 // ===== ADD FORM =====
-let addPeople = [];
+let addPeople = []; // Array of objects {name, isDriver, carPlate}
 
 function addNewPerson() {
-    addPeople.push('');
+    addPeople.push({ name: '', isDriver: false, carPlate: '' });
     renderPeopleInputs('addPeopleList', addPeople, 'add');
 }
 
@@ -712,16 +719,28 @@ function renderPeopleInputs(containerId, arr, mode) {
     if (!c) return;
     c.innerHTML = '';
     arr.forEach((p, i) => {
+        if (typeof p === 'string') {
+            arr[i] = { name: p, isDriver: false, carPlate: '' };
+            p = arr[i];
+        }
         const row = document.createElement('div');
         row.className = 'people-row';
-        row.innerHTML = `<input type="text" value="${p}" placeholder="Imię i nazwisko" oninput="updatePerson('${mode}',${i},this.value)"/><button onclick="removePerson('${mode}',${i})">×</button>`;
+        row.innerHTML = `
+            <input type="text" value="${p.name}" placeholder="Imię i nazwisko" oninput="updatePersonField('${mode}',${i},'name',this.value)"/>
+            <label class="driver-checkbox-wrap">
+                <input type="checkbox" ${p.isDriver ? 'checked' : ''} onchange="updatePersonField('${mode}',${i},'isDriver',this.checked); renderPeopleInputs('${containerId}', ${mode === 'add' ? 'addPeople' : 'editPeople'}, '${mode}')"/>
+                Kierowca
+            </label>
+            ${p.isDriver ? `<input type="text" value="${p.carPlate || ''}" placeholder="Nr rej." style="width:80px; text-transform:uppercase;" oninput="updatePersonField('${mode}',${i},'carPlate',this.value.toUpperCase())"/>` : '<div></div>'}
+            <button onclick="removePerson('${mode}',${i})">×</button>
+        `;
         c.appendChild(row);
     });
 }
 
-function updatePerson(mode, idx, val) {
-    if (mode === 'add') addPeople[idx] = val;
-    else editPeople[idx] = val;
+function updatePersonField(mode, idx, field, val) {
+    const arr = mode === 'add' ? addPeople : editPeople;
+    if (arr[idx]) arr[idx][field] = val;
 }
 
 function removePerson(mode, idx) {
@@ -762,7 +781,7 @@ function saveLocation() {
             dateFrom: document.getElementById('fDateFrom').value,
             dateTo: document.getElementById('fDateTo').value,
             isIndefinite: document.getElementById('fIndefinite').checked,
-            people: [...addPeople].filter(p => p.trim()),
+            people: [...addPeople].filter(p => p.name.trim()),
             notes: document.getElementById('fNotes').value.trim()
         });
     } else {
@@ -829,8 +848,15 @@ function renderList(filteredLocs = null) {
             </div>`;
         }
 
+        const formatPerson = (p) => {
+            if (typeof p === 'string') return `<span class="person-chip">${p}</span>`;
+            const plate = p.isDriver && p.carPlate ? ` <span class="car-plate">${p.carPlate}</span>` : '';
+            const driverIcon = p.isDriver ? '<span style="margin-left:4px;">🚗</span>' : '';
+            return `<span class="person-chip">${p.name}${driverIcon}${plate}</span>`;
+        };
+
         const numPrefix = loc.locNumber ? `<span style="color:var(--muted); font-size:13px; font-weight:normal;">[#${loc.locNumber}]</span> ` : '';
-        const people = loc.people && loc.people.length ? loc.people.map(p => `<span class="person-chip">${p}</span>`).join('') : '<span style="color:var(--muted);font-size:12px;">Brak osób</span>';
+        const people = loc.people && loc.people.length ? loc.people.map(p => formatPerson(p)).join('') : '<span style="color:var(--muted);font-size:12px;">Brak osób</span>';
         const rs = rentalStatus(loc); const days = calcDays(loc.dateFrom, loc.dateTo);
         const months = days ? (days / 30).toFixed(1) : null;
         const totalCost = months ? (months * parseFloat(loc.price || 0)) : null;
@@ -924,7 +950,10 @@ function openEdit(id, e) {
         document.getElementById('eIndefinite').checked = isIndef;
         document.getElementById('eDateTo').disabled = isIndef;
 
-        editPeople = [...(loc.people || [])];
+        editPeople = (loc.people || []).map(p => {
+            if (typeof p === 'string') return { name: p, isDriver: false, carPlate: '' };
+            return { ...p };
+        });
         renderPeopleInputs('editPeopleList', editPeople, 'edit');
         updateEditTotalCost();
     }
@@ -938,7 +967,7 @@ function openEdit(id, e) {
     document.getElementById('editModal').classList.add('open');
 }
 
-function addEditPerson() { editPeople.push(''); renderPeopleInputs('editPeopleList', editPeople, 'edit'); }
+function addEditPerson() { editPeople.push({ name: '', isDriver: false, carPlate: '' }); renderPeopleInputs('editPeopleList', editPeople, 'edit'); }
 
 function saveEdit() {
     const type = document.getElementById('eType').value;
@@ -967,7 +996,7 @@ function saveEdit() {
             dateFrom: document.getElementById('eDateFrom').value,
             dateTo: document.getElementById('eDateTo').value,
             isIndefinite: document.getElementById('eIndefinite').checked,
-            people: [...editPeople].filter(p => p.trim()),
+            people: [...editPeople].filter(p => p.name.trim()),
             notes: document.getElementById('eNotes').value.trim()
         });
     } else {
@@ -1155,7 +1184,10 @@ function applyFilters() {
 
     const filtered = locations.filter(loc => {
         // Person search
-        const matchesPerson = !q || (loc.people && loc.people.some(p => p.toLowerCase().includes(q)));
+        const matchesPerson = !q || (loc.people && loc.people.some(p => {
+            const name = typeof p === 'string' ? p : p.name;
+            return name.toLowerCase().includes(q);
+        }));
 
         // Availability filter
         const occ = loc.people ? loc.people.length : 0;
