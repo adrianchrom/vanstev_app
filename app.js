@@ -259,15 +259,27 @@ function renderLinkedLocations(containerId, selectedIds) {
         c.innerHTML = '<span style="color:var(--muted);">Brak dostępnych lokalizacji</span>';
         return;
     }
+
+    const formatOccupant = (p) => {
+        if (typeof p === 'string') return p;
+        const driverIcon = p.isDriver ? '🚗 ' : '';
+        const plate = p.isDriver && p.carPlate ? ` (${p.carPlate})` : '';
+        return `${driverIcon}${p.name}${plate}`;
+    };
+
     c.innerHTML = locs.map(l => {
         const isChecked = selectedIds.includes(l.id) ? 'checked' : '';
-        const occupants = l.people && l.people.length > 0 ? l.people.join(', ') : 'brak mieszkańców';
+        const occupants = l.people && l.people.length > 0
+            ? l.people.map(p => formatOccupant(p)).join(', ')
+            : 'brak mieszkańców';
+
         return `<label class="linked-loc-item ${isChecked ? 'highlighted' : ''}" style="display:flex; flex-direction:column; gap:4px; cursor:pointer; padding:8px; border-radius:8px; border:1px solid transparent; transition: all 0.2s; margin-bottom:4px; background: var(--bg);">
             <div style="display:flex; align-items:center; gap:8px;">
                 <input type="checkbox" value="${l.id}" ${isChecked} class="linked-loc-cb" onchange="toggleLinkedLocationHighlight(this, '${l.id}')" style="width:16px; height:16px; margin:0; cursor:pointer;">
                 <span style="font-weight:600; font-size:13px;"><span style="color:var(--accent);">[#${l.locNumber || '?'}]</span> ${l.name}</span>
+                <span style="font-size:10px; color:var(--muted); margin-left:auto;">${l.people ? l.people.length : 0}/${l.capacity}</span>
             </div>
-            <div style="font-size:11px; color:var(--muted); padding-left:24px;">👤 ${occupants}</div>
+            <div style="font-size:11px; color:var(--muted); padding-left:24px; line-height:1.4;">👤 ${occupants}</div>
         </label>`;
     }).join('');
 }
@@ -595,11 +607,28 @@ function uid() { return Date.now().toString(36) + Math.random().toString(36).sli
 
 // Real-time synchronization
 function initDataSync() {
-    db.collection('locations').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
-        locations = snapshot.docs.map(doc => ({
+    db.collection('locations').orderBy('createdAt', 'asc').onSnapshot(snapshot => {
+        const rawDocs = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         }));
+
+        // Podaj unikatowe numery tym, którzy ich nie mają
+        let updatePromises = [];
+        let currentMax = rawDocs.reduce((max, l) => Math.max(max, l.locNumber || 0), 0);
+
+        rawDocs.forEach(doc => {
+            if (doc.type !== 'project' && !doc.locNumber) {
+                currentMax++;
+                updatePromises.push(db.collection('locations').doc(doc.id).update({ locNumber: currentMax }));
+            }
+        });
+
+        if (updatePromises.length > 0) {
+            Promise.all(updatePromises).then(() => console.log("Zaktualizowano brakujące numery lokalizacji"));
+        }
+
+        locations = rawDocs;
         applyFilters();
         renderStats();
         if (currentUser === 'Admin') renderAdminPanel();
