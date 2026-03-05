@@ -1044,21 +1044,42 @@ function renderStats() {
     const details = document.getElementById('statsDetails');
     if (!details) return;
     if (!locations.length) { details.innerHTML = '<div class="empty-state">...</div>'; return; }
-    details.innerHTML = locations.map(loc => {
-        const occ = loc.people ? loc.people.length : 0; const pct = Math.round(occ / loc.capacity * 100);
-        return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;">
-            <div style="font-size:13px;font-weight:700;">${loc.name}</div>
-            <div style="font-size:12px;color:var(--muted);">Zajętość: ${occ}/${loc.capacity} (${pct}%)</div>
-            <div style="height:5px;background:var(--bg);border-radius:3px;overflow:hidden;margin:6px 0;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),#fbbf24);"></div></div>
-            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px; border-top:1px solid var(--border); padding-top:10px;">
-                <div>
-                    <div style="font-size:13px; color:var(--accent); font-weight:800;">€${parseFloat(loc.price || 0).toFixed(2)}</div>
-                    <div style="font-size:11px; color:var(--muted); font-weight:600;">~${fmtPLN(parseFloat(loc.price || 0) * eurToPln, 2)} PLN</div>
-                </div>
-                <button onclick="focusLocation('${loc.id}')" style="background:var(--accent); color:white; border:none; border-radius:8px; padding:6px 14px; font-size:12px; cursor:pointer; font-weight:700; box-shadow:var(--glow);">
-                    📍 Przejdź do mapy
-                </button>
+    details.innerHTML = locations.filter(l => l.type !== 'project').map(loc => {
+        const occ = loc.people ? loc.people.length : 0;
+        const pct = Math.round(occ / loc.capacity * 100);
+        const price = parseFloat(loc.price || 0);
+        const perPerson = occ > 0 ? (price / occ) : 0;
+
+        return `<div style="background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:10px;">
+            <div style="font-size:13px; font-weight:700; display:flex; justify-content:space-between;">
+                <span>🏠 ${loc.name}</span>
+                <span style="color:var(--muted); font-size:11px;">#${loc.locNumber || '?'}</span>
             </div>
+            <div style="font-size:11px; color:var(--muted); margin-top:4px;">Zajętość: ${occ}/${loc.capacity} (${pct}%)</div>
+            <div style="height:6px; background:var(--bg); border-radius:3px; overflow:hidden; margin:8px 0;">
+                <div style="height:100%; width:${pct}%; background:linear-gradient(90deg, var(--accent), var(--accent2));"></div>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
+                <div>
+                    <div style="font-size:9px; color:var(--muted); text-transform:uppercase; font-weight:700; margin-bottom:4px;">Koszt całkowity:</div>
+                    <div style="font-size:14px; color:var(--accent); font-weight:800;">€${price.toFixed(2)}</div>
+                    <div style="font-size:11px; color:var(--muted); font-weight:600;">~${fmtPLN(price * eurToPln, 0)} PLN</div>
+                </div>
+                ${occ > 0 ? `
+                <div style="border-left:1px dashed var(--border); padding-left:10px;">
+                    <div style="font-size:9px; color:var(--muted); text-transform:uppercase; font-weight:700; margin-bottom:4px;">Na 1 osobę:</div>
+                    <div style="font-size:14px; color:var(--success); font-weight:800;">€${perPerson.toFixed(2)}</div>
+                    <div style="font-size:11px; color:var(--muted); font-weight:600;">~${fmtPLN(perPerson * eurToPln, 0)} PLN</div>
+                </div>
+                ` : `
+                <div style="border-left:1px dashed var(--border); padding-left:10px; display:flex; align-items:center;">
+                    <span style="font-size:10px; color:var(--danger); font-style:italic;">Brak lokatorów</span>
+                </div>
+                `}
+            </div>
+            <button onclick="focusLocation('${loc.id}')" style="width:100%; margin-top:12px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px; font-size:11px; cursor:pointer; font-weight:600; transition:all 0.2s;">
+                📍 Pokaż na mapie
+            </button>
         </div>`;
     }).join('');
 }
