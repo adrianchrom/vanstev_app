@@ -166,8 +166,11 @@
             <div id="eProjSpecificFields" style="display:none;">
                 <div class="form-group">
                     <label>📍 Przypisane lokalizacje pracownicze</label>
+                    <input type="text" id="eProjOccSearch" placeholder="Szukaj po osobach..."
+                        style="width:100%; margin-bottom:8px; padding:6px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:12px;"
+                        oninput="triggerLinkedLocSearch('edit')">
                     <div id="eLinkedLocations"
-                        style="background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:10px; max-height:150px; overflow-y:auto; font-size:12px; display:flex; flex-direction:column; gap:4px;">
+                        style="background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:10px; max-height:220px; overflow-y:auto; font-size:12px; display:flex; flex-direction:column; gap:4px;">
                     </div>
                 </div>
 
@@ -401,8 +404,11 @@
                     <div id="projSpecificFields" style="display:none;">
                         <div class="form-group">
                             <label>📍 Przypisane lokalizacje pracownicze</label>
+                            <input type="text" id="fProjOccSearch" placeholder="Szukaj po osobach..."
+                                style="width:100%; margin-bottom:8px; padding:6px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:12px;"
+                                oninput="triggerLinkedLocSearch('add')">
                             <div id="fLinkedLocations"
-                                style="background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:10px; max-height:150px; overflow-y:auto; font-size:12px; display:flex; flex-direction:column; gap:4px;">
+                                style="background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:10px; max-height:220px; overflow-y:auto; font-size:12px; display:flex; flex-direction:column; gap:4px;">
                             </div>
                         </div>
 

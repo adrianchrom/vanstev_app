@@ -25,6 +25,8 @@ let currentUser = null;
 let eurToPln = 4.3; // Default fallback rate
 let addingType = 'location'; // 'location' or 'project'
 let activeProjectId = null;
+let currentAddSelectedIds = [];
+let currentEditSelectedIds = [];
 
 // ===== LOGIN =====
 const VALID_USERS = ['radek', 'jola', 'kasia', 'tomek', 'przemek', 'mirek'];
@@ -247,16 +249,37 @@ function setAddModeUI(type) {
     document.getElementById('addFormTitleText').textContent = isLoc ? 'Dodaj lokalizację' : 'Dodaj projekt';
 
     if (!isLoc) {
+        if (type === 'project') {
+            document.getElementById('fProjOccSearch').value = '';
+            currentAddSelectedIds = [];
+        }
         renderLinkedLocations('fLinkedLocations', []);
     }
 }
 
-function renderLinkedLocations(containerId, selectedIds) {
+function renderLinkedLocations(containerId, selectedIds, filterQuery = '') {
     const c = document.getElementById(containerId);
     if (!c) return;
-    const locs = locations.filter(l => l.type !== 'project').sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
+    const q = filterQuery.toLowerCase().trim();
+
+    const locs = locations.filter(l => {
+        if (l.type === 'project') return false;
+        if (!q) return true;
+
+        // Match location name
+        if (l.name.toLowerCase().includes(q)) return true;
+
+        // Match occupants
+        if (l.people && l.people.some(p => {
+            const name = typeof p === 'string' ? p : p.name;
+            return name.toLowerCase().includes(q);
+        })) return true;
+
+        return false;
+    }).sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
+
     if (locs.length === 0) {
-        c.innerHTML = '<span style="color:var(--muted);">Brak dostępnych lokalizacji</span>';
+        c.innerHTML = `<span style="color:var(--muted); padding:10px; font-style:italic;">${q ? 'Nie znaleziono pasujących lokalizacji' : 'Brak dostępnych lokalizacji'}</span>`;
         return;
     }
 
@@ -284,12 +307,34 @@ function renderLinkedLocations(containerId, selectedIds) {
     }).join('');
 }
 
+function triggerLinkedLocSearch(mode) {
+    if (mode === 'add') {
+        const q = document.getElementById('fProjOccSearch').value;
+        renderLinkedLocations('fLinkedLocations', currentAddSelectedIds, q);
+    } else {
+        const q = document.getElementById('eProjOccSearch').value;
+        renderLinkedLocations('eLinkedLocations', currentEditSelectedIds, q);
+    }
+}
+
 function toggleLinkedLocationHighlight(checkbox, locId) {
+    const mode = checkbox.closest('#fLinkedLocations') ? 'add' : 'edit';
     const label = checkbox.closest('.linked-loc-item');
+
     if (checkbox.checked) {
         label.classList.add('highlighted');
+        if (mode === 'add') {
+            if (!currentAddSelectedIds.includes(locId)) currentAddSelectedIds.push(locId);
+        } else {
+            if (!currentEditSelectedIds.includes(locId)) currentEditSelectedIds.push(locId);
+        }
     } else {
         label.classList.remove('highlighted');
+        if (mode === 'add') {
+            currentAddSelectedIds = currentAddSelectedIds.filter(id => id !== locId);
+        } else {
+            currentEditSelectedIds = currentEditSelectedIds.filter(id => id !== locId);
+        }
     }
     updateMarkerHighlight(locId, checkbox.checked);
 }
@@ -321,13 +366,11 @@ function clearAllMarkerHighlights() {
 }
 
 function getSelectedLinkedLocations() {
-    const cbs = document.querySelectorAll('#fLinkedLocations .linked-loc-cb:checked');
-    return Array.from(cbs).map(cb => cb.value);
+    return currentAddSelectedIds;
 }
 
 function getEditSelectedLinkedLocations() {
-    const cbs = document.querySelectorAll('#eLinkedLocations .linked-loc-cb:checked');
-    return Array.from(cbs).map(cb => cb.value);
+    return currentEditSelectedIds;
 }
 
 function fillAddressFields(mode, lat, lng) {
@@ -432,19 +475,18 @@ function makeIcon(color = '#E8621A') {
     });
 }
 
-function makeProjectIcon(name = 'P') {
-    const initial = name ? name.charAt(0).toUpperCase() : 'P';
+function makeProjectIcon(name = 'PROJEKT') {
     return L.divIcon({
         className: '',
-        html: `<div style="position:relative;width:46px;height:56px;">
-            <div style="width:46px;height:46px;border-radius:50%;background:#3b82f6;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,0,0,0.35);border:3px solid #fff;">
-                <span style="font-size:24px;line-height:1;margin-top:2px;color:white;font-weight:900;font-family:'Barlow Condensed',sans-serif;">${initial}</span>
+        html: `<div style="position:relative; transform: translate(-50%, -100%); display:flex; flex-direction:column; align-items:center;">
+            <div style="background:#3b82f6; color:white; padding:5px 14px; border-radius:30px; font-family:'Barlow Condensed', sans-serif; font-weight:800; font-size:14px; white-space:nowrap; box-shadow:0 6px 20px rgba(0,0,0,0.45); border:2.5px solid #fff; line-height:1; text-transform:uppercase; letter-spacing:0.5px;">
+                ${name}
             </div>
-            <div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:11px solid #3b82f6;margin:0 auto;margin-top:-2px;"></div>
+            <div style="width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent; border-top:10px solid #3b82f6; margin-top:-1px; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.2));"></div>
         </div>`,
-        iconSize: [46, 56],
-        iconAnchor: [23, 56],
-        popupAnchor: [0, -58]
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+        popupAnchor: [0, -40]
     });
 }
 
@@ -965,9 +1007,10 @@ function openEdit(id, e) {
     if (loc.type === 'project') {
         document.getElementById('eLocSpecificFields').style.display = 'none';
         document.getElementById('eProjSpecificFields').style.display = 'block';
-        const linked = loc.linkedLocations || [];
-        renderLinkedLocations('eLinkedLocations', linked);
-        linked.forEach(lid => updateMarkerHighlight(lid, true));
+        document.getElementById('eProjOccSearch').value = '';
+        currentEditSelectedIds = [...(loc.linkedLocations || [])];
+        renderLinkedLocations('eLinkedLocations', currentEditSelectedIds);
+        currentEditSelectedIds.forEach(lid => updateMarkerHighlight(lid, true));
     } else {
         document.getElementById('eLocSpecificFields').style.display = 'block';
         document.getElementById('eProjSpecificFields').style.display = 'none';
