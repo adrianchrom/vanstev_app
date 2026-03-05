@@ -272,6 +272,12 @@
                             Tylko z wolnymi miejscami
                         </label>
                     </div>
+                    <div id="projectFilterInfo"
+                        style="display:none; margin-bottom:12px; padding:10px; background:var(--blue); color:white; border-radius:12px; font-size:12px; justify-content:space-between; align-items:center; box-shadow:0 4px 12px rgba(59,130,246,0.3);">
+                        <span>Obecnie wyświetlasz: <strong id="activeProjectName"></strong></span>
+                        <button onclick="clearProjectFilter()"
+                            style="background:white; color:var(--blue); border:none; padding:4px 8px; border-radius:6px; font-weight:700; cursor:pointer; font-size:10px;">X</button>
+                    </div>
                     <div class="loc-count" id="locCount">0 lokalizacji</div>
                     <div id="locList"></div>
                     <div class="empty-state" id="emptyState">

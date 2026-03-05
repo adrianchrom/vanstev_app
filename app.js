@@ -24,6 +24,7 @@ let locToDelete = null;
 let currentUser = null;
 let eurToPln = 4.3; // Default fallback rate
 let addingType = 'location'; // 'location' or 'project'
+let activeProjectId = null;
 
 // ===== LOGIN =====
 const VALID_USERS = ['radek', 'jola', 'kasia', 'tomek', 'przemek', 'mirek'];
@@ -517,7 +518,7 @@ function addMarker(loc) {
         m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
     }
     m.bindPopup(makePopupHtml(loc));
-    m.on('click', () => { highlightCard(loc.id); });
+    m.on('click', () => { focusLocation(loc.id); });
     markers[loc.id] = m;
 }
 
@@ -1183,6 +1184,16 @@ function applyFilters() {
     const showOnlyAvailable = document.getElementById('availableFilter').checked;
 
     const filtered = locations.filter(loc => {
+        // Project filter
+        if (activeProjectId) {
+            const project = locations.find(l => l.id === activeProjectId);
+            if (project && project.type === 'project') {
+                if (loc.id !== activeProjectId && !(project.linkedLocations || []).includes(loc.id)) {
+                    return false;
+                }
+            }
+        }
+
         // Person search
         const matchesPerson = !q || (loc.people && loc.people.some(p => {
             const name = typeof p === 'string' ? p : p.name;
@@ -1201,6 +1212,13 @@ function applyFilters() {
     reloadMarkers(filtered);
 }
 
+function clearProjectFilter() {
+    activeProjectId = null;
+    const filterInfo = document.getElementById('projectFilterInfo');
+    if (filterInfo) filterInfo.style.display = 'none';
+    applyFilters();
+}
+
 // ===== HELP MODAL =====
 function openHelp() {
     document.getElementById('helpModal').classList.add('open');
@@ -1214,6 +1232,17 @@ function closeHelp() {
 function focusLocation(id) {
     const loc = locations.find(l => l.id === id);
     if (!loc) return;
+
+    if (loc.type === 'project') {
+        activeProjectId = id;
+        const filterInfo = document.getElementById('projectFilterInfo');
+        const projNameSpan = document.getElementById('activeProjectName');
+        if (filterInfo && projNameSpan) {
+            filterInfo.style.display = 'flex';
+            projNameSpan.textContent = loc.name;
+        }
+        applyFilters();
+    }
 
     // Switch to list tab
     switchTab('list');
