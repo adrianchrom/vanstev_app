@@ -260,11 +260,51 @@ function renderLinkedLocations(containerId, selectedIds) {
     }
     c.innerHTML = locs.map(l => {
         const isChecked = selectedIds.includes(l.id) ? 'checked' : '';
-        return `<label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:2px;">
-            <input type="checkbox" value="${l.id}" ${isChecked} class="linked-loc-cb" style="width:auto; height:auto; margin:0;">
-            <span>[#${l.locNumber || '?'}] ${l.name}</span>
+        const occupants = l.people && l.people.length > 0 ? l.people.join(', ') : 'brak mieszkańców';
+        return `<label class="linked-loc-item ${isChecked ? 'highlighted' : ''}" style="display:flex; flex-direction:column; gap:4px; cursor:pointer; padding:8px; border-radius:8px; border:1px solid transparent; transition: all 0.2s; margin-bottom:4px; background: var(--bg);">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" value="${l.id}" ${isChecked} class="linked-loc-cb" onchange="toggleLinkedLocationHighlight(this, '${l.id}')" style="width:16px; height:16px; margin:0; cursor:pointer;">
+                <span style="font-weight:600; font-size:13px;"><span style="color:var(--accent);">[#${l.locNumber || '?'}]</span> ${l.name}</span>
+            </div>
+            <div style="font-size:11px; color:var(--muted); padding-left:24px;">👤 ${occupants}</div>
         </label>`;
     }).join('');
+}
+
+function toggleLinkedLocationHighlight(checkbox, locId) {
+    const label = checkbox.closest('.linked-loc-item');
+    if (checkbox.checked) {
+        label.classList.add('highlighted');
+    } else {
+        label.classList.remove('highlighted');
+    }
+    updateMarkerHighlight(locId, checkbox.checked);
+}
+
+function updateMarkerHighlight(locId, isHighlighted) {
+    const marker = markers[locId];
+    if (!marker) return;
+    const loc = locations.find(l => l.id === locId);
+    if (!loc) return;
+
+    if (isHighlighted) {
+        // Highlighted icon (Gold/Yellow)
+        marker.setIcon(makeIcon('#fbbf24'));
+        marker.setZIndexOffset(1000);
+    } else {
+        // Back to normal
+        const occ = loc.people ? loc.people.length : 0;
+        const isFull = occ >= loc.capacity;
+        const color = isFull ? '#E8621A' : '#10b981';
+        marker.setIcon(makeIcon(color));
+        marker.setZIndexOffset(0);
+    }
+}
+
+function clearAllMarkerHighlights() {
+    locations.forEach(l => {
+        if (l.type !== 'project') updateMarkerHighlight(l.id, false);
+    });
 }
 
 function getSelectedLinkedLocations() {
@@ -759,6 +799,7 @@ function resetForm() {
     addPeople = []; renderPeopleInputs('addPeopleList', addPeople, 'add');
     pendingLat = null; pendingLng = null;
     if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+    clearAllMarkerHighlights();
 }
 
 // ===== LIST =====
@@ -867,7 +908,9 @@ function openEdit(id, e) {
     if (loc.type === 'project') {
         document.getElementById('eLocSpecificFields').style.display = 'none';
         document.getElementById('eProjSpecificFields').style.display = 'block';
-        renderLinkedLocations('eLinkedLocations', loc.linkedLocations || []);
+        const linked = loc.linkedLocations || [];
+        renderLinkedLocations('eLinkedLocations', linked);
+        linked.forEach(lid => updateMarkerHighlight(lid, true));
     } else {
         document.getElementById('eLocSpecificFields').style.display = 'block';
         document.getElementById('eProjSpecificFields').style.display = 'none';
@@ -945,6 +988,7 @@ function closeEdit() {
     editingId = null;
     document.getElementById('editModal').classList.remove('open');
     if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+    clearAllMarkerHighlights();
 }
 
 // ===== STATS =====

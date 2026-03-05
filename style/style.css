@@ -462,6 +462,26 @@ body {
     color: var(--blue2);
 }
 
+/* Selection list items for project */
+.linked-loc-item {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.linked-loc-item:hover {
+    background: var(--card2) !important;
+    border-color: var(--border) !important;
+}
+
+.linked-loc-item.highlighted {
+    background: rgba(232, 98, 26, 0.1) !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 15px rgba(232, 98, 26, 0.1);
+}
+
+.linked-loc-item.highlighted span {
+    color: var(--text);
+}
+
 /* ===== LOCATION CARDS ===== */
 .loc-count {
     font-size: 12px;
