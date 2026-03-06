@@ -503,6 +503,54 @@ body {
     border-color: var(--blue);
 }
 
+/* Collapsible Sections */
+.list-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.list-section-header:hover {
+    border-color: var(--blue);
+    background: var(--card);
+}
+
+.list-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.list-section-arrow {
+    font-size: 10px;
+    color: var(--muted);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.list-section-header.collapsed .list-section-arrow {
+    transform: rotate(-90deg);
+}
+
+.list-section-content {
+    transition: all 0.3s ease;
+}
+
+.list-section-content.collapsed {
+    display: none;
+}
+
 .loc-card.selected {
     border-color: var(--accent);
     box-shadow: 0 0 0 1px var(--accent);

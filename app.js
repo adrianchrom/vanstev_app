@@ -28,6 +28,10 @@ let activeProjectId = null;
 let currentAddSelectedIds = [];
 let currentEditSelectedIds = [];
 
+// Section collapse state
+let isProjectsCollapsed = false;
+let isQuartersCollapsed = false;
+
 // ===== LOGIN =====
 const VALID_USERS = ['radek', 'jola', 'kasia', 'tomek', 'przemek', 'mirek'];
 const SYSTEM_PASS = 'qazwsx';
@@ -894,45 +898,58 @@ function resetForm() {
     clearAllMarkerHighlights();
 }
 
+function toggleSection(section) {
+    if (section === 'projects') isProjectsCollapsed = !isProjectsCollapsed;
+    else if (section === 'quarters') isQuartersCollapsed = !isQuartersCollapsed;
+    renderList();
+}
+
 // ===== LIST =====
 function renderList(filteredLocs = null) {
     const list = document.getElementById('locList');
     const empty = document.getElementById('emptyState');
     const count = document.getElementById('locCount');
-    const dataToRender = [...(filteredLocs || locations)].sort((a, b) => {
-        if (a.type === 'project' && b.type !== 'project') return -1;
-        if (a.type !== 'project' && b.type === 'project') return 1;
-        // Secondary sort by locNumber if types are the same
-        return (a.locNumber || 0) - (b.locNumber || 0);
-    });
-    count.textContent = dataToRender.length + ' wpis' + (dataToRender.length === 1 ? '' : dataToRender.length < 5 ? 'y' : 'ów');
-    if (!dataToRender.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+
+    const data = (filteredLocs || locations);
+
+    const projects = data.filter(l => l.type === 'project').sort((a, b) => a.name.localeCompare(b.name));
+    const quarters = data.filter(l => l.type !== 'project').sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
+
+    count.textContent = data.length + ' wpis' + (data.length === 1 ? '' : data.length < 5 ? 'y' : 'ów');
+
+    if (!data.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
     empty.style.display = 'none';
+
     const houseIcon = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; color: var(--accent);"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
-    list.innerHTML = dataToRender.map(loc => {
+
+    const formatPerson = (p) => {
+        if (typeof p === 'string') return `<span class="person-chip" style="border-radius:4px;">${p}</span>`;
+        const plate = p.isDriver && p.carPlate ? ` <span class="car-plate">${p.carPlate}</span>` : '';
+        const driverIcon = p.isDriver ? '<span style="margin-left:4px;">🚗</span>' : '';
+        return `<span class="person-chip" style="border-radius:4px;">${driverIcon}${p.name}${plate}</span>`;
+    };
+
+    const renderProjectCard = (loc) => {
         const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
+        const linkedNames = (loc.linkedLocations || []).map(id => {
+            const l = locations.find(x => x.id === id);
+            return l ? `<span class="person-chip" style="border-radius:4px; border-color:var(--blue); color:var(--blue);font-weight:700;">[#${l.locNumber || '?'}] ${l.name}</span>` : '';
+        }).join('');
+        return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')" style="border-left:4px solid var(--blue);">
+            <div class="loc-card-head"><div class="loc-name"><span style="font-size:10px; background:var(--blue); color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">PROJEKT</span>${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
+            ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
+            <div class="loc-badges" style="margin-top:8px;"><span class="badge badge-blue">Projekt</span></div>
+            <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
+            <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title">Przypisane lokalizacje</div>${linkedNames || '<span style="color:var(--muted);font-size:12px;">Brak</span>'}</div>
+        </div>`;
+    };
 
-        if (loc.type === 'project') {
-            const linkedNames = (loc.linkedLocations || []).map(id => {
-                const l = locations.find(x => x.id === id);
-                return l ? `<span class="person-chip" style="border-radius:4px; border-color:var(--blue); color:var(--blue);font-weight:700;">[#${l.locNumber || '?'}] ${l.name}</span>` : '';
-            }).join('');
-            return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')" style="border-left:4px solid var(--blue);">
-                <div class="loc-card-head"><div class="loc-name"><span style="font-size:10px; background:var(--blue); color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">PROJEKT</span>${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
-                ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
-                <div class="loc-badges" style="margin-top:8px;"><span class="badge badge-blue">Projekt</span></div>
-                <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
-                <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title">Przypisane lokalizacje</div>${linkedNames || '<span style="color:var(--muted);font-size:12px;">Brak</span>'}</div>
-            </div>`;
-        }
-
-        const formatPerson = (p) => {
-            if (typeof p === 'string') return `<span class="person-chip" style="border-radius:4px;">${p}</span>`;
-            const plate = p.isDriver && p.carPlate ? ` <span class="car-plate">${p.carPlate}</span>` : '';
-            const driverIcon = p.isDriver ? '<span style="margin-left:4px;">🚗</span>' : '';
-            return `<span class="person-chip" style="border-radius:4px;">${driverIcon}${p.name}${plate}</span>`;
-        };
-
+    const renderQuarterCard = (loc) => {
+        const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
         const numPrefix = loc.locNumber ? `<span style="color:var(--muted); font-size:13px; font-weight:normal;">[#${loc.locNumber}]</span> ` : '';
         const people = loc.people && loc.people.length ? loc.people.map(p => formatPerson(p)).join('') : '<span style="color:var(--muted);font-size:12px;">Brak osób</span>';
         const rs = rentalStatus(loc); const days = calcDays(loc.dateFrom, loc.dateTo);
@@ -955,7 +972,35 @@ function renderList(filteredLocs = null) {
             ${loc.notes ? `<div style="margin-top:6px; font-size:11px; padding:6px; background:var(--bg); border-radius:6px; border-left:3px solid var(--accent);">📝 <em>${loc.notes}</em></div>` : ''}
             <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title">Mieszkańcy</div>${people}</div>
         </div>`;
-    }).join('');
+    };
+
+    let html = '';
+
+    if (projects.length > 0) {
+        html += `
+            <div class="list-section-header ${isProjectsCollapsed ? 'collapsed' : ''}" onclick="toggleSection('projects')">
+                <div class="list-section-title">🏭 Projekty (${projects.length})</div>
+                <div class="list-section-arrow">▼</div>
+            </div>
+            <div class="list-section-content ${isProjectsCollapsed ? 'collapsed' : ''}">
+                ${projects.map(p => renderProjectCard(p)).join('')}
+            </div>
+        `;
+    }
+
+    if (quarters.length > 0) {
+        html += `
+            <div class="list-section-header ${isQuartersCollapsed ? 'collapsed' : ''}" onclick="toggleSection('quarters')">
+                <div class="list-section-title">🏠 Kwatery (${quarters.length})</div>
+                <div class="list-section-arrow">▼</div>
+            </div>
+            <div class="list-section-content ${isQuartersCollapsed ? 'collapsed' : ''}">
+                ${quarters.map(q => renderQuarterCard(q)).join('')}
+            </div>
+        `;
+    }
+
+    list.innerHTML = html;
 }
 
 function focusLoc(id) {
@@ -963,9 +1008,24 @@ function focusLoc(id) {
 }
 
 function highlightCard(id) {
+    const loc = locations.find(l => l.id === id);
+    if (loc) {
+        if (loc.type === 'project' && isProjectsCollapsed) {
+            isProjectsCollapsed = false;
+            renderList();
+        } else if (loc.type !== 'project' && isQuartersCollapsed) {
+            isQuartersCollapsed = false;
+            renderList();
+        }
+    }
+
     document.querySelectorAll('.loc-card').forEach(c => c.classList.remove('selected'));
     const card = document.getElementById('card-' + id);
-    if (card) { card.classList.add('selected'); card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); switchTab('list'); }
+    if (card) {
+        card.classList.add('selected');
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        switchTab('list');
+    }
 }
 
 function deleteLocation(id, e) {
