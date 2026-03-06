@@ -1167,12 +1167,12 @@ function renderStats() {
     const totalQuarters = quarters.length;
     const totalProjects = projects.length;
 
-    // Sum only for quarters (not to duplicate stats or include irrelevant data)
+    // Sum only for quarters (ensure numeric conversion to avoid string concatenation)
     const occupiedDots = quarters.reduce((s, l) => s + (l.people ? l.people.length : 0), 0);
-    const totalCapacity = quarters.reduce((s, l) => s + (l.capacity || 0), 0);
-    const freeSpots = totalCapacity - occupiedDots;
+    const totalCapacity = quarters.reduce((s, l) => s + (Number(l.capacity) || 0), 0);
+    const freeSpots = Math.max(0, totalCapacity - occupiedDots);
 
-    const totalCostPerMonth = quarters.reduce((s, l) => s + parseFloat(l.price || 0), 0);
+    const totalCostPerMonth = quarters.reduce((s, l) => s + (Number(l.price) || 0), 0);
 
     const statsGrid = document.getElementById('statsGrid');
     if (statsGrid) {
@@ -1199,9 +1199,10 @@ function renderStats() {
     const details = document.getElementById('statsDetails');
     if (!details) return;
     if (!locations.length) { details.innerHTML = '<div class="empty-state">...</div>'; return; }
-    details.innerHTML = locations.filter(l => l.type !== 'project').map(loc => {
+    details.innerHTML = quarters.map(loc => {
         const occ = loc.people ? loc.people.length : 0;
-        const pct = Math.round(occ / loc.capacity * 100);
+        const cap = Number(loc.capacity) || 0;
+        const pct = cap > 0 ? Math.round(occ / cap * 100) : 0;
         const price = parseFloat(loc.price || 0);
         const perPerson = occ > 0 ? (price / occ) : 0;
 
