@@ -27,6 +27,7 @@ let addingType = 'location'; // 'location' or 'project'
 let activeProjectId = null;
 let currentAddSelectedIds = [];
 let currentEditSelectedIds = [];
+let roadDistances = {}; // Cache for road distances
 
 // Section collapse state
 let isProjectsCollapsed = true;
@@ -671,7 +672,17 @@ function makePopupHtml(loc) {
         ${dateHtml}
         <div class="popup-row">👥 Miejsc: <span>${loc.capacity}</span></div>
         ${loc.noticePeriod ? `<div class="popup-row">⏳ Wypowiedzenie: <span>${loc.noticePeriod}</span></div>` : ''}
-        <div class="popup-row">💸 Wydano (do dziś): <strong style="color:var(--accent);">€${calcSpentSoFar(loc.dateFrom, loc.price).toFixed(2)}</strong></div>
+        ${(() => {
+            const projects = locations.filter(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
+            if (projects.length === 0) return '';
+            return projects.map(p => {
+                const distKey = `${p.id}_${loc.id}`;
+                const dist = roadDistances[distKey];
+                if (dist === undefined) { fetchRoadDistance(p, loc); return `<div class="popup-row">�️ Do projektu ${p.name}: <span style="font-size:10px; color:var(--muted);">obliczanie...</span></div>`; }
+                return `<div class="popup-row">🛣️ Do projektu ${p.name}: <strong style="color:var(--blue);">${dist} km</strong></div>`;
+            }).join('');
+        })()}
+        <div class="popup-row">�💸 Wydano (do dziś): <strong style="color:var(--accent);">€${calcSpentSoFar(loc.dateFrom, loc.price).toFixed(2)}</strong></div>
         <div class="popup-row" style="margin-bottom:2px;">
             💰 Koszt: <strong style="color:var(--accent);">€${parseFloat(loc.price || 0).toFixed(2)}</strong>
             <span style="font-size:10px; color:var(--muted); margin-left:8px;">(~${fmtPLN(parseFloat(loc.price || 0) * eurToPln, 2)} PLN)</span>
@@ -741,6 +752,31 @@ function calcSpentSoFar(from, monthlyPrice) {
     if (today < start) return 0;
     const diffDays = Math.round((today - start) / 86400000) + 1;
     return (diffDays / 30) * parseFloat(monthlyPrice);
+}
+
+async function fetchRoadDistance(project, quarter) {
+    const key = `${project.id}_${quarter.id}`;
+    if (roadDistances[key] !== undefined) return;
+
+    // Set to null to prevent parallel redundant fetches
+    roadDistances[key] = null;
+
+    try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${quarter.lng},${quarter.lat};${project.lng},${project.lat}?overview=false`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        if (data.routes && data.routes[0]) {
+            const distKm = (data.routes[0].distance / 1000).toFixed(1);
+            roadDistances[key] = distKm;
+            // Trigger partial re-renders where needed
+            renderList();
+        } else {
+            roadDistances[key] = '—';
+        }
+    } catch (e) {
+        console.error("Dist fetch failed", e);
+        roadDistances[key] = '—';
+    }
 }
 
 function rentalStatus(loc) {
@@ -1013,6 +1049,16 @@ function renderList(filteredLocs = null) {
                 <span class="badge badge-blue">${occ}/${loc.capacity} zajętych</span>
                 ${loc.noticePeriod ? `<span class="badge" style="background:rgba(147,51,234,0.15); color:#a855f7; border:1px solid rgba(147,51,234,0.3);">⏳ ${loc.noticePeriod}</span>` : ''}
                 <span class="badge" style="background:rgba(232,98,26,0.1); color:var(--accent); border:1px solid rgba(232,98,26,0.2);">💰 Wydano: €${calcSpentSoFar(loc.dateFrom, loc.price).toFixed(2)}</span>
+                ${(() => {
+                const projects = locations.filter(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
+                return projects.map(p => {
+                    const distKey = `${p.id}_${loc.id}`;
+                    const dist = roadDistances[distKey];
+                    if (dist === undefined) { fetchRoadDistance(p, loc); return ''; }
+                    if (!dist || dist === '—') return '';
+                    return `<span class="badge" style="background:rgba(59,130,246,0.1); color:var(--blue); border:1px solid rgba(59,130,246,0.2);">🛣️ ${dist} km do ${p.name}</span>`;
+                }).join('');
+            })()}
             </div>
             <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
             ${loc.notes ? `<div style="margin-top:6px; font-size:11px; padding:6px; background:var(--bg); border-radius:6px; border-left:3px solid var(--accent);">📝 <em>${loc.notes}</em></div>` : ''}
