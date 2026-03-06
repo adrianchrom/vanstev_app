@@ -1369,79 +1369,96 @@ function renderStats() {
 }
 
 async function downloadLocReport() {
-    if (!window.jspdf) {
+    if (!window.html2pdf) {
         alert("Błąd: Nie można załadować biblioteki PDF. Sprawdź połączenie z internetem.");
         return;
     }
 
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l', 'mm', 'a4'); // Orientacja pozioma (landscape)
-
-    // Nagłówek
-    doc.setFontSize(22);
-    doc.setTextColor(232, 98, 26); // Kolor pomarańczowy VanStev
-    doc.text('RAPORT ZAKWATEROWAŃ VANSTEV', 14, 20);
-
-    doc.setFontSize(11);
-    doc.setTextColor(100);
-    const dateStr = new Date().toLocaleDateString('pl-PL', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-    doc.text(`Data wygenerowania: ${dateStr}`, 14, 28);
-
     const quarters = locations.filter(l => l.type !== 'project').sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-    const tableData = quarters.map(loc => {
+    // Budowanie kontentu HTML raportu
+    let rowsHtml = quarters.map(loc => {
         const occ = loc.people ? loc.people.length : 0;
-        const peopleList = loc.people ? loc.people.map(p => {
-            const name = typeof p === 'string' ? p : p.name;
-            const driver = (typeof p !== 'string' && p.isDriver) ? ' (K)' : '';
-            return name + driver;
-        }).join(', ') : 'Brak';
+        const peopleListHtml = loc.people && loc.people.length > 0 ?
+            loc.people.map(p => {
+                const name = typeof p === 'string' ? p : p.name;
+                const driver = (typeof p !== 'string' && p.isDriver) ? ' <b>(K)</b>' : '';
+                return `<div>• ${name}${driver}</div>`;
+            }).join('') : '<i style="color:#999;">Brak mieszkańców</i>';
 
-        // Znajdź powiązany projekt
         const project = locations.find(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
         const projectName = project ? project.name : '—';
-
         const price = parseFloat(loc.price || 0);
         const perPerson = occ > 0 ? (price / occ).toFixed(2) : '0.00';
 
-        return [
-            `#${loc.locNumber || '?'} ${loc.name}`,
-            projectName,
-            `${occ} / ${loc.capacity}`,
-            peopleList,
-            `€${price.toFixed(2)}`,
-            `€${perPerson}`
-        ];
-    });
+        return `
+            <tr style="border-bottom:1px solid #eee;">
+                <td style="padding:10px; font-weight:700; border-bottom:1px solid #eee;">#${loc.locNumber || '?'} ${loc.name}</td>
+                <td style="padding:10px; border-bottom:1px solid #eee;">${projectName}</td>
+                <td style="padding:10px; text-align:center; border-bottom:1px solid #eee;">${occ} / ${loc.capacity}</td>
+                <td style="padding:10px; border-bottom:1px solid #eee;">${peopleListHtml}</td>
+                <td style="padding:10px; text-align:right; border-bottom:1px solid #eee;">€${price.toFixed(2)}</td>
+                <td style="padding:10px; text-align:right; color:#10b981; font-weight:700; border-bottom:1px solid #eee;">€${perPerson}</td>
+            </tr>
+        `;
+    }).join('');
 
-    doc.autoTable({
-        startY: 35,
-        head: [['Kwatera', 'Projekt', 'Zajętość', 'Mieszkańcy (K=Kierowca)', 'Koszt mies.', 'Koszt / os.']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: { fillColor: [232, 98, 26], textColor: [255, 255, 255] },
-        styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' },
-        columnStyles: {
-            0: { cellWidth: 45 },
-            1: { cellWidth: 40 },
-            2: { cellWidth: 20, halign: 'center' },
-            3: { cellWidth: 100 },
-            4: { cellWidth: 25, halign: 'right' },
-            5: { cellWidth: 25, halign: 'right' }
-        },
-        alternateRowStyles: { fillColor: [245, 245, 245] },
-        margin: { top: 35 }
-    });
+    const reportHtml = `
+        <div style="padding:40px; font-family:'Inter', sans-serif; color:#333; line-height:1.4;">
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
+                table { page-break-inside:auto; }
+                tr { page-break-inside:avoid; page-break-after:auto; line-height:1.2; }
+                thead { display:table-header-group; }
+                tfoot { display:table-footer-group; }
+            </style>
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid #E8621A; padding-bottom:15px; margin-bottom:20px;">
+                <div>
+                    <h1 style="color:#E8621A; margin:0; font-size:24px; font-weight:800; text-transform:uppercase;">Raport Zakwaterowań</h1>
+                    <div style="font-size:12px; color:#666; margin-top:5px;">System zarządzania VanStev</div>
+                </div>
+                <div style="text-align:right; font-size:12px; color:#666;">
+                    Wydrukowano: <b>${dateStr}</b>
+                </div>
+            </div>
 
-    const fileName = `Raport_VanStev_${new Date().toISOString().split('T')[0]}.pdf`;
-    doc.save(fileName);
-    logActivity('Wygenerowano raport PDF', fileName);
+            <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                <thead>
+                    <tr style="background:#E8621A; color:white;">
+                        <th style="padding:10px; text-align:left;">KWATERA</th>
+                        <th style="padding:10px; text-align:left;">PROJEKT</th>
+                        <th style="padding:10px; text-align:center;">ZAJĘTOŚĆ</th>
+                        <th style="padding:10px; text-align:left;">MIESZKAŃCY</th>
+                        <th style="padding:10px; text-align:right;">KOSZT MIES.</th>
+                        <th style="padding:10px; text-align:right;">KOSZT / OS.</th>
+                    </tr>
+                </thead>
+                <tbody style="border-bottom:1px solid #eee;">
+                    ${rowsHtml}
+                </tbody>
+            </table>
+
+            <div style="margin-top:20px; padding-top:15px; border-top:1px solid #eee; display:flex; justify-content:space-between; font-size:10px; color:#777;">
+                <div><b>LEGENDA:</b> (K) = Kierowca</div>
+                <div>Strona 1 z 1</div>
+            </div>
+        </div>
+    `;
+
+    const opt = {
+        margin: 0,
+        filename: `Raport_VanStev_${now.toISOString().split('T')[0]}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+
+    // Konwersja na PDF
+    html2pdf().from(reportHtml).set(opt).save().then(() => {
+        logActivity('Wygenerowano raport PDF (HTML2PDF)', opt.filename);
+    });
 }
 
 // ===== TABS =====
