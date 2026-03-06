@@ -1183,11 +1183,7 @@ function renderStats() {
             </div>
             <div class="stat-card">
                 <div class="stat-val" style="color:var(--accent);">${occupiedDots}</div>
-                <div class="stat-lbl">Miejsc zajętych</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-val" style="color:var(--success);">${freeSpots}</div>
-                <div class="stat-lbl">Miejsc wolnych</div>
+                <div class="stat-lbl">Miejsc zajętych / ${totalCapacity}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-val">€${totalCostPerMonth.toFixed(0)}</div>
