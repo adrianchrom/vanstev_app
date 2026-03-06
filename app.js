@@ -586,10 +586,10 @@ function updateProjectIcons() {
     const zoom = map.getZoom();
     locations.forEach(loc => {
         if (loc.type === 'project' && markers[loc.id]) {
-            const icon = zoom >= 13 ? makeProjectIcon(loc.name) : makeProjectFactoryIcon();
+            const icon = zoom >= 11 ? makeProjectIcon(loc.name) : makeProjectFactoryIcon();
             markers[loc.id].setIcon(icon);
             // Label icon has 0,0 size/anchor, so we need to adjust Z-index for labeling
-            if (zoom >= 13) markers[loc.id].setZIndexOffset(1000);
+            if (zoom >= 11) markers[loc.id].setZIndexOffset(1000);
             else markers[loc.id].setZIndexOffset(0);
         }
     });
@@ -599,9 +599,9 @@ function addMarker(loc) {
     let m;
     if (loc.type === 'project') {
         const zoom = map.getZoom();
-        const icon = zoom >= 13 ? makeProjectIcon(loc.name) : makeProjectFactoryIcon();
+        const icon = zoom >= 11 ? makeProjectIcon(loc.name) : makeProjectFactoryIcon();
         m = L.marker([loc.lat, loc.lng], { icon: icon }).addTo(map);
-        if (zoom >= 13) m.setZIndexOffset(1000);
+        if (zoom >= 11) m.setZIndexOffset(1000);
     } else {
         const occ = loc.people ? loc.people.length : 0;
         const isFull = occ >= loc.capacity;
