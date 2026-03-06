@@ -1368,6 +1368,82 @@ function renderStats() {
     }).join('');
 }
 
+async function downloadLocReport() {
+    if (!window.jspdf) {
+        alert("Błąd: Nie można załadować biblioteki PDF. Sprawdź połączenie z internetem.");
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4'); // Orientacja pozioma (landscape)
+
+    // Nagłówek
+    doc.setFontSize(22);
+    doc.setTextColor(232, 98, 26); // Kolor pomarańczowy VanStev
+    doc.text('RAPORT ZAKWATEROWAŃ VANSTEV', 14, 20);
+
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    const dateStr = new Date().toLocaleDateString('pl-PL', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    doc.text(`Data wygenerowania: ${dateStr}`, 14, 28);
+
+    const quarters = locations.filter(l => l.type !== 'project').sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
+
+    const tableData = quarters.map(loc => {
+        const occ = loc.people ? loc.people.length : 0;
+        const peopleList = loc.people ? loc.people.map(p => {
+            const name = typeof p === 'string' ? p : p.name;
+            const driver = (typeof p !== 'string' && p.isDriver) ? ' (K)' : '';
+            return name + driver;
+        }).join(', ') : 'Brak';
+
+        // Znajdź powiązany projekt
+        const project = locations.find(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
+        const projectName = project ? project.name : '—';
+
+        const price = parseFloat(loc.price || 0);
+        const perPerson = occ > 0 ? (price / occ).toFixed(2) : '0.00';
+
+        return [
+            `#${loc.locNumber || '?'} ${loc.name}`,
+            projectName,
+            `${occ} / ${loc.capacity}`,
+            peopleList,
+            `€${price.toFixed(2)}`,
+            `€${perPerson}`
+        ];
+    });
+
+    doc.autoTable({
+        startY: 35,
+        head: [['Kwatera', 'Projekt', 'Zajętość', 'Mieszkańcy (K=Kierowca)', 'Koszt mies.', 'Koszt / os.']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [232, 98, 26], textColor: [255, 255, 255] },
+        styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' },
+        columnStyles: {
+            0: { cellWidth: 45 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 20, halign: 'center' },
+            3: { cellWidth: 100 },
+            4: { cellWidth: 25, halign: 'right' },
+            5: { cellWidth: 25, halign: 'right' }
+        },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        margin: { top: 35 }
+    });
+
+    const fileName = `Raport_VanStev_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+    logActivity('Wygenerowano raport PDF', fileName);
+}
+
 // ===== TABS =====
 function switchTab(tab) {
     ['list', 'add', 'stats'].forEach(t => {

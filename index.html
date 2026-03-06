@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style/style.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 </head>
 
 <body>
@@ -442,7 +444,13 @@
 
                 <!-- STATS TAB -->
                 <div class="tab-panel" id="panelStats">
-                    <div class="form-title">Statystyki</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <div class="form-title" style="margin-bottom:0;">Statystyki</div>
+                        <button onclick="downloadLocReport()"
+                            style="background:var(--blue); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                            📄 Pobierz Raport (PDF)
+                        </button>
+                    </div>
                     <div class="stat-grid" id="statsGrid"></div>
                     <div id="statsDetails"></div>
                 </div>
