@@ -625,9 +625,14 @@ function makePopupHtml(loc) {
             if (!l) return `Nieznana`;
             const distKey = `${loc.id}_${l.id}`;
             const dist = roadDistances[distKey];
-            if (dist === undefined) { fetchRoadDistance(loc, l); }
-            const distHtml = (dist === undefined || dist === null) ? ` <span style="font-size:9px; color:var(--muted); opacity:0.7;">(liczenie...)</span>` :
-                (dist !== '—' ? ` <span style="color:var(--blue); font-weight:700;">(${dist} km)</span>` : '');
+
+            let distHtml = '';
+            // Only trigger/show distance in popup if this project is active
+            if (activeProjectId === loc.id) {
+                if (dist === undefined) { fetchRoadDistance(loc, l); }
+                distHtml = (dist === undefined || dist === null) ? ` <span style="font-size:9px; color:var(--muted); opacity:0.7;">(liczenie...)</span>` :
+                    (dist !== '—' ? ` <span style="color:var(--blue); font-weight:700;">(${dist} km)</span>` : '');
+            }
             return `[#${l.locNumber || '?'}] ${l.name}${distHtml}`;
         }).join('<br>');
 
@@ -679,14 +684,14 @@ function makePopupHtml(loc) {
         <div class="popup-row">👥 Miejsc: <span>${loc.capacity}</span></div>
         ${loc.noticePeriod ? `<div class="popup-row">⏳ Wypowiedzenie: <span>${loc.noticePeriod}</span></div>` : ''}
         ${(() => {
-            const projects = locations.filter(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
-            if (projects.length === 0) return '';
-            return projects.map(p => {
-                const distKey = `${p.id}_${loc.id}`;
-                const dist = roadDistances[distKey];
-                if (dist === undefined) { fetchRoadDistance(p, loc); return `<div class="popup-row">️ Do projektu ${p.name}: <span style="font-size:10px; color:var(--muted);">obliczanie...</span></div>`; }
-                return `<div class="popup-row">🛣️ Do projektu ${p.name}: <strong style="color:var(--blue);">${dist} km</strong></div>`;
-            }).join('');
+            if (!activeProjectId) return '';
+            const p = locations.find(x => x.id === activeProjectId);
+            if (!p || p.type !== 'project' || !(p.linkedLocations || []).includes(loc.id)) return '';
+
+            const distKey = `${p.id}_${loc.id}`;
+            const dist = roadDistances[distKey];
+            if (dist === undefined) { fetchRoadDistance(p, loc); return `<div class="popup-row">🛣️ Do projektu ${p.name}: <span style="font-size:10px; color:var(--muted);">liczenie...</span></div>`; }
+            return `<div class="popup-row">🛣️ Do projektu ${p.name}: <strong style="color:var(--blue);">${dist} km</strong></div>`;
         })()}
         <div class="popup-row">💸 Wydano (do dziś): <strong style="color:var(--accent);">€${calcSpentSoFar(loc.dateFrom, loc.price).toFixed(2)}</strong></div>
         <div class="popup-row" style="margin-bottom:2px;">
@@ -763,12 +768,19 @@ function calcSpentSoFar(from, monthlyPrice) {
 async function fetchRoadDistance(project, quarter) {
     if (!project.lat || !project.lng || !quarter.lat || !quarter.lng) return;
     const key = `${project.id}_${quarter.id}`;
+
+    // Only fetch for the currently active project
+    if (activeProjectId !== project.id) {
+        if (roadDistances[key] === null) delete roadDistances[key];
+        return;
+    }
+
     if (roadDistances[key] !== undefined) return;
 
     roadDistances[key] = null;
 
-    // Stagger requests to avoid OSRM demo server rate limits
-    await new Promise(r => setTimeout(r, Math.random() * 500));
+    // Stagger requests to avoid OSRM demo server rate limits (demo.project-osrm.org is strict)
+    await new Promise(r => setTimeout(r, Math.random() * 2000));
 
     try {
         const url = `https://router.project-osrm.org/route/v1/driving/${quarter.lng},${quarter.lat};${project.lng},${project.lat}?overview=false`;
@@ -1032,9 +1044,14 @@ function renderList(filteredLocs = null) {
             if (!l) return '';
             const distKey = `${loc.id}_${l.id}`;
             const dist = roadDistances[distKey];
-            if (dist === undefined) { fetchRoadDistance(loc, l); }
-            const distHtml = (dist === undefined || dist === null) ? ` <span style="font-size:9px; color:var(--muted); opacity:0.7;">(liczenie...)</span>` :
-                (dist !== '—' ? ` <strong style="margin-left:4px; color:var(--blue); font-size:11px;">(${dist} km)</strong>` : '');
+
+            let distHtml = '';
+            // Only calculate/show distance if this project is the active one
+            if (loc.id === activeProjectId) {
+                if (dist === undefined) { fetchRoadDistance(loc, l); }
+                distHtml = (dist === undefined || dist === null) ? ` <span style="font-size:9px; color:var(--muted); opacity:0.7;">(liczenie...)</span>` :
+                    (dist !== '—' ? ` <strong style="margin-left:4px; color:var(--blue); font-size:11px;">(${dist} km)</strong>` : '');
+            }
             return `<span class="person-chip" style="border-radius:4px; border-color:var(--blue); color:var(--blue);font-weight:700;">[#${l.locNumber || '?'}] ${l.name}${distHtml}</span>`;
         }).join('');
         return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')" style="border-left:4px solid var(--blue);">
@@ -1068,15 +1085,17 @@ function renderList(filteredLocs = null) {
                 ${loc.noticePeriod ? `<span class="badge" style="background:rgba(147,51,234,0.15); color:#a855f7; border:1px solid rgba(147,51,234,0.3);">⏳ ${loc.noticePeriod}</span>` : ''}
                 <span class="badge" style="background:rgba(232,98,26,0.1); color:var(--accent); border:1px solid rgba(232,98,26,0.2);">💰 Wydano: €${calcSpentSoFar(loc.dateFrom, loc.price).toFixed(2)}</span>
                 ${(() => {
-                const projects = locations.filter(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
-                return projects.map(p => {
-                    const distKey = `${p.id}_${loc.id}`;
-                    const dist = roadDistances[distKey];
-                    if (dist === undefined) { fetchRoadDistance(p, loc); return `<span class="badge" style="opacity:0.6; font-size:10px;">🛣️ liczenie...</span>`; }
-                    if (dist === null) return `<span class="badge" style="opacity:0.6; font-size:10px;">🛣️ liczenie...</span>`;
-                    if (!dist || dist === '—') return '';
-                    return `<span class="badge" style="background:rgba(59,130,246,0.1); color:var(--blue); border:1px solid rgba(59,130,246,0.2);">🛣️ ${dist} km do ${p.name}</span>`;
-                }).join('');
+                // Only calculate distance to the project that is currently active/filtered
+                if (!activeProjectId) return '';
+                const p = locations.find(x => x.id === activeProjectId);
+                if (!p || p.type !== 'project' || !(p.linkedLocations || []).includes(loc.id)) return '';
+
+                const distKey = `${p.id}_${loc.id}`;
+                const dist = roadDistances[distKey];
+                if (dist === undefined) { fetchRoadDistance(p, loc); return `<span class="badge" style="opacity:0.6; font-size:10px;">🛣️ liczenie...</span>`; }
+                if (dist === null) return `<span class="badge" style="opacity:0.6; font-size:10px;">🛣️ liczenie...</span>`;
+                if (!dist || dist === '—') return '';
+                return `<span class="badge" style="background:rgba(59,130,246,0.1); color:var(--blue); border:1px solid rgba(59,130,246,0.2);">🛣️ ${dist} km do ${p.name}</span>`;
             })()}
             </div>
             <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
@@ -1500,6 +1519,7 @@ function applyFilters() {
 
 function clearProjectFilter() {
     activeProjectId = null;
+    roadDistances = {}; // Clear distances when changing filter to ensure fresh calculation
     const filterInfo = document.getElementById('projectFilterInfo');
     if (filterInfo) filterInfo.style.display = 'none';
     applyFilters();
@@ -1520,7 +1540,9 @@ function focusLocation(id) {
     if (!loc) return;
 
     if (loc.type === 'project') {
+        const isNewProject = activeProjectId !== id;
         activeProjectId = id;
+        if (isNewProject) roadDistances = {}; // Start fresh for this project
         const filterInfo = document.getElementById('projectFilterInfo');
         const projNameSpan = document.getElementById('activeProjectName');
         if (filterInfo && projNameSpan) {
