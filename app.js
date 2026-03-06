@@ -192,6 +192,7 @@ function initMap() {
     updateMapTheme();
     updateThemeUI();
     map.on('click', onMapClick);
+    map.on('zoomend', () => reloadMarkers());
     reloadMarkers();
 }
 
@@ -464,7 +465,16 @@ function makeTempIcon() {
     });
 }
 
-function makeIcon(color = '#E8621A') {
+function makeIcon(color = '#E8621A', isSmall = false) {
+    if (isSmall) {
+        return L.divIcon({
+            className: '',
+            html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div>`,
+            iconSize: [12, 12],
+            iconAnchor: [6, 6],
+            popupAnchor: [0, -6]
+        });
+    }
     return L.divIcon({
         className: '',
         html: `<div style="position:relative;width:34px;height:42px;">
@@ -479,7 +489,16 @@ function makeIcon(color = '#E8621A') {
     });
 }
 
-function makeProjectIcon(name = 'PROJEKT') {
+function makeProjectIcon(name = 'PROJEKT', isSmall = false) {
+    if (isSmall) {
+        return L.divIcon({
+            className: '',
+            html: `<div style="width:14px;height:14px;border-radius:50%;background:#3b82f6;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4);"></div>`,
+            iconSize: [14, 14],
+            iconAnchor: [7, 7],
+            popupAnchor: [0, -7]
+        });
+    }
     return L.divIcon({
         className: '',
         html: `<div style="position:relative; transform: translate(-50%, -100%); display:flex; flex-direction:column; align-items:center;">
@@ -567,14 +586,16 @@ document.addEventListener('click', (e) => {
 });
 
 function addMarker(loc) {
+    const currentZoom = map ? map.getZoom() : 7;
+    const isSmall = currentZoom < 11;
     let m;
     if (loc.type === 'project') {
-        m = L.marker([loc.lat, loc.lng], { icon: makeProjectIcon(loc.name) }).addTo(map);
+        m = L.marker([loc.lat, loc.lng], { icon: makeProjectIcon(loc.name, isSmall) }).addTo(map);
     } else {
         const occ = loc.people ? loc.people.length : 0;
         const isFull = occ >= loc.capacity;
         const color = isFull ? '#E8621A' : '#10b981';
-        m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
+        m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color, isSmall) }).addTo(map);
     }
     m.bindPopup(makePopupHtml(loc));
     m.on('click', () => { focusLocation(loc.id); });
