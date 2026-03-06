@@ -626,7 +626,8 @@ function makePopupHtml(loc) {
             const distKey = `${loc.id}_${l.id}`;
             const dist = roadDistances[distKey];
             if (dist === undefined) { fetchRoadDistance(loc, l); }
-            const distHtml = (dist && dist !== '—') ? ` <span style="color:var(--blue); font-weight:700;">(${dist} km)</span>` : '';
+            const distHtml = (dist === undefined || dist === null) ? ` <span style="font-size:9px; color:var(--muted); opacity:0.7;">(liczenie...)</span>` :
+                (dist !== '—' ? ` <span style="color:var(--blue); font-weight:700;">(${dist} km)</span>` : '');
             return `[#${l.locNumber || '?'}] ${l.name}${distHtml}`;
         }).join('<br>');
 
@@ -683,11 +684,11 @@ function makePopupHtml(loc) {
             return projects.map(p => {
                 const distKey = `${p.id}_${loc.id}`;
                 const dist = roadDistances[distKey];
-                if (dist === undefined) { fetchRoadDistance(p, loc); return `<div class="popup-row">�️ Do projektu ${p.name}: <span style="font-size:10px; color:var(--muted);">obliczanie...</span></div>`; }
+                if (dist === undefined) { fetchRoadDistance(p, loc); return `<div class="popup-row">️ Do projektu ${p.name}: <span style="font-size:10px; color:var(--muted);">obliczanie...</span></div>`; }
                 return `<div class="popup-row">🛣️ Do projektu ${p.name}: <strong style="color:var(--blue);">${dist} km</strong></div>`;
             }).join('');
         })()}
-        <div class="popup-row">�💸 Wydano (do dziś): <strong style="color:var(--accent);">€${calcSpentSoFar(loc.dateFrom, loc.price).toFixed(2)}</strong></div>
+        <div class="popup-row">💸 Wydano (do dziś): <strong style="color:var(--accent);">€${calcSpentSoFar(loc.dateFrom, loc.price).toFixed(2)}</strong></div>
         <div class="popup-row" style="margin-bottom:2px;">
             💰 Koszt: <strong style="color:var(--accent);">€${parseFloat(loc.price || 0).toFixed(2)}</strong>
             <span style="font-size:10px; color:var(--muted); margin-left:8px;">(~${fmtPLN(parseFloat(loc.price || 0) * eurToPln, 2)} PLN)</span>
@@ -760,11 +761,14 @@ function calcSpentSoFar(from, monthlyPrice) {
 }
 
 async function fetchRoadDistance(project, quarter) {
+    if (!project.lat || !project.lng || !quarter.lat || !quarter.lng) return;
     const key = `${project.id}_${quarter.id}`;
     if (roadDistances[key] !== undefined) return;
 
-    // Set to null to prevent parallel redundant fetches
     roadDistances[key] = null;
+
+    // Stagger requests to avoid OSRM demo server rate limits
+    await new Promise(r => setTimeout(r, Math.random() * 500));
 
     try {
         const url = `https://router.project-osrm.org/route/v1/driving/${quarter.lng},${quarter.lat};${project.lng},${project.lat}?overview=false`;
@@ -773,14 +777,17 @@ async function fetchRoadDistance(project, quarter) {
         if (data.routes && data.routes[0]) {
             const distKm = (data.routes[0].distance / 1000).toFixed(1);
             roadDistances[key] = distKm;
-            // Trigger partial re-renders where needed
-            renderList();
+            // Trigger UI refresh while keeping current user view/filters
+            if (typeof applyFilters === 'function') applyFilters();
+            else renderList();
         } else {
             roadDistances[key] = '—';
+            if (typeof applyFilters === 'function') applyFilters();
         }
     } catch (e) {
         console.error("Dist fetch failed", e);
         roadDistances[key] = '—';
+        if (typeof applyFilters === 'function') applyFilters();
     }
 }
 
@@ -1026,7 +1033,8 @@ function renderList(filteredLocs = null) {
             const distKey = `${loc.id}_${l.id}`;
             const dist = roadDistances[distKey];
             if (dist === undefined) { fetchRoadDistance(loc, l); }
-            const distHtml = (dist && dist !== '—') ? ` <small style="margin-left:4px; opacity:0.8;">(${dist} km)</small>` : '';
+            const distHtml = (dist === undefined || dist === null) ? ` <span style="font-size:9px; color:var(--muted); opacity:0.7;">(liczenie...)</span>` :
+                (dist !== '—' ? ` <strong style="margin-left:4px; color:var(--blue); font-size:11px;">(${dist} km)</strong>` : '');
             return `<span class="person-chip" style="border-radius:4px; border-color:var(--blue); color:var(--blue);font-weight:700;">[#${l.locNumber || '?'}] ${l.name}${distHtml}</span>`;
         }).join('');
         return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')" style="border-left:4px solid var(--blue);">
@@ -1064,7 +1072,8 @@ function renderList(filteredLocs = null) {
                 return projects.map(p => {
                     const distKey = `${p.id}_${loc.id}`;
                     const dist = roadDistances[distKey];
-                    if (dist === undefined) { fetchRoadDistance(p, loc); return ''; }
+                    if (dist === undefined) { fetchRoadDistance(p, loc); return `<span class="badge" style="opacity:0.6; font-size:10px;">🛣️ liczenie...</span>`; }
+                    if (dist === null) return `<span class="badge" style="opacity:0.6; font-size:10px;">🛣️ liczenie...</span>`;
                     if (!dist || dist === '—') return '';
                     return `<span class="badge" style="background:rgba(59,130,246,0.1); color:var(--blue); border:1px solid rgba(59,130,246,0.2);">🛣️ ${dist} km do ${p.name}</span>`;
                 }).join('');
