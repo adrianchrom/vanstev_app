@@ -622,7 +622,12 @@ function makePopupHtml(loc) {
 
         const linkedNames = (loc.linkedLocations || []).map(id => {
             const l = locations.find(x => x.id === id);
-            return l ? `[#${l.locNumber || '?'}] ${l.name}` : `Nieznana`;
+            if (!l) return `Nieznana`;
+            const distKey = `${loc.id}_${l.id}`;
+            const dist = roadDistances[distKey];
+            if (dist === undefined) { fetchRoadDistance(loc, l); }
+            const distHtml = (dist && dist !== '—') ? ` <span style="color:var(--blue); font-weight:700;">(${dist} km)</span>` : '';
+            return `[#${l.locNumber || '?'}] ${l.name}${distHtml}`;
         }).join('<br>');
 
         return `<div style="min-width:220px;padding:4px;">
@@ -1017,7 +1022,12 @@ function renderList(filteredLocs = null) {
         const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
         const linkedNames = (loc.linkedLocations || []).map(id => {
             const l = locations.find(x => x.id === id);
-            return l ? `<span class="person-chip" style="border-radius:4px; border-color:var(--blue); color:var(--blue);font-weight:700;">[#${l.locNumber || '?'}] ${l.name}</span>` : '';
+            if (!l) return '';
+            const distKey = `${loc.id}_${l.id}`;
+            const dist = roadDistances[distKey];
+            if (dist === undefined) { fetchRoadDistance(loc, l); }
+            const distHtml = (dist && dist !== '—') ? ` <small style="margin-left:4px; opacity:0.8;">(${dist} km)</small>` : '';
+            return `<span class="person-chip" style="border-radius:4px; border-color:var(--blue); color:var(--blue);font-weight:700;">[#${l.locNumber || '?'}] ${l.name}${distHtml}</span>`;
         }).join('');
         return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')" style="border-left:4px solid var(--blue);">
             <div class="loc-card-head"><div class="loc-name"><span style="font-size:10px; background:var(--blue); color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">PROJEKT</span>${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
