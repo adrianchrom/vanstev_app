@@ -670,6 +670,7 @@ function makePopupHtml(loc) {
         ${caregiverHtml}
         ${dateHtml}
         <div class="popup-row">👥 Miejsc: <span>${loc.capacity}</span></div>
+        ${loc.noticePeriod ? `<div class="popup-row">⏳ Wypowiedzenie: <span>${loc.noticePeriod}</span></div>` : ''}
         <div class="popup-row" style="margin-bottom:2px;">
             💰 Koszt: <strong style="color:var(--accent);">€${parseFloat(loc.price || 0).toFixed(2)}</strong>
             <span style="font-size:10px; color:var(--muted); margin-left:8px;">(~${fmtPLN(parseFloat(loc.price || 0) * eurToPln, 2)} PLN)</span>
@@ -887,6 +888,7 @@ function saveLocation() {
             locNumber: maxLocNum + 1,
             capacity, price,
             caregiver: document.getElementById('fCaregiver').value,
+            noticePeriod: document.getElementById('fNoticePeriod').value,
             dateFrom: document.getElementById('fDateFrom').value,
             dateTo: document.getElementById('fDateTo').value,
             isIndefinite: document.getElementById('fIndefinite').checked,
@@ -915,7 +917,7 @@ function showFormErr(msg) {
 }
 
 function resetForm() {
-    ['fName', 'fZip', 'fCity', 'fStreet', 'fHouseNum', 'addressSearch', 'fCapacity', 'fPrice', 'fCaregiver', 'fDateFrom', 'fDateTo', 'fNotes'].forEach(id => {
+    ['fName', 'fZip', 'fCity', 'fStreet', 'fHouseNum', 'addressSearch', 'fCapacity', 'fPrice', 'fCaregiver', 'fNoticePeriod', 'fDateFrom', 'fDateTo', 'fNotes'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -999,6 +1001,7 @@ function renderList(filteredLocs = null) {
                 <span class="badge badge-amber">👥 ${loc.capacity} miejsc</span>
                 <span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)} <small>(~${fmtPLN(parseFloat(loc.price || 0) * eurToPln, 0)} PLN)</small></span>
                 <span class="badge badge-blue">${occ}/${loc.capacity} zajętych</span>
+                ${loc.noticePeriod ? `<span class="badge" style="background:rgba(147,51,234,0.15); color:#a855f7; border:1px solid rgba(147,51,234,0.3);">⏳ ${loc.noticePeriod}</span>` : ''}
             </div>
             <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
             ${loc.notes ? `<div style="margin-top:6px; font-size:11px; padding:6px; background:var(--bg); border-radius:6px; border-left:3px solid var(--accent);">📝 <em>${loc.notes}</em></div>` : ''}
@@ -1115,6 +1118,7 @@ function openEdit(id, e) {
         document.getElementById('eCapacity').value = loc.capacity || '';
         document.getElementById('ePrice').value = loc.price || 0;
         document.getElementById('eCaregiver').value = loc.caregiver || '';
+        document.getElementById('eNoticePeriod').value = loc.noticePeriod || '';
         document.getElementById('eDateFrom').value = loc.dateFrom || '';
         document.getElementById('eDateTo').value = loc.dateTo || '';
         const isIndef = !!loc.isIndefinite;
@@ -1164,6 +1168,7 @@ function saveEdit() {
         Object.assign(updatedData, {
             capacity, price,
             caregiver: document.getElementById('eCaregiver').value,
+            noticePeriod: document.getElementById('eNoticePeriod').value,
             dateFrom: document.getElementById('eDateFrom').value,
             dateTo: document.getElementById('eDateTo').value,
             isIndefinite: document.getElementById('eIndefinite').checked,
