@@ -1161,20 +1161,37 @@ function closeEdit() {
 
 // ===== STATS =====
 function renderStats() {
-    const totalLocs = locations.length;
-    const totalCapacity = locations.reduce((s, l) => s + l.capacity, 0);
-    const totalPeople = locations.reduce((s, l) => s + (l.people ? l.people.length : 0), 0);
-    const totalRevPerMonth = locations.reduce((s, l) => s + parseFloat(l.price || 0), 0);
+    const quarters = locations.filter(l => l.type !== 'project');
+    const projects = locations.filter(l => l.type === 'project');
+
+    const totalQuarters = quarters.length;
+    const totalProjects = projects.length;
+
+    // Sum only for quarters (not to duplicate stats or include irrelevant data)
+    const occupiedDots = quarters.reduce((s, l) => s + (l.people ? l.people.length : 0), 0);
+    const totalCapacity = quarters.reduce((s, l) => s + (l.capacity || 0), 0);
+    const freeSpots = totalCapacity - occupiedDots;
+
+    const totalCostPerMonth = quarters.reduce((s, l) => s + parseFloat(l.price || 0), 0);
 
     const statsGrid = document.getElementById('statsGrid');
     if (statsGrid) {
         statsGrid.innerHTML = `
-            <div class="stat-card"><div class="stat-val">${totalLocs}</div><div class="stat-lbl">Lokalizacji</div></div>
-            <div class="stat-card"><div class="stat-val">${totalCapacity}</div><div class="stat-lbl">Łączna pojemność</div></div>
-            <div class="stat-card"><div class="stat-val">${totalPeople}</div><div class="stat-lbl">Lokatorzy (osoby)</div></div>
             <div class="stat-card">
-                <div class="stat-val">€${totalRevPerMonth.toFixed(0)}</div>
-                <div style="font-size:11px; color:var(--accent2); font-weight:700; margin-top:2px;">~${fmtPLN(totalRevPerMonth * eurToPln, 0)} PLN</div>
+                <div class="stat-val">${totalQuarters} / ${totalProjects}</div>
+                <div class="stat-lbl">Kwatery / Projekty</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" style="color:var(--accent);">${occupiedDots}</div>
+                <div class="stat-lbl">Miejsc zajętych</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" style="color:var(--success);">${freeSpots}</div>
+                <div class="stat-lbl">Miejsc wolnych</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val">€${totalCostPerMonth.toFixed(0)}</div>
+                <div style="font-size:11px; color:var(--accent2); font-weight:700; margin-top:2px;">~${fmtPLN(totalCostPerMonth * eurToPln, 0)} PLN</div>
                 <div class="stat-lbl" style="margin-top:4px;">Koszt miesięczny (suma)</div>
             </div>
         `;
