@@ -1409,8 +1409,9 @@ async function downloadLocReport() {
         <div style="padding:40px; font-family:'Inter', sans-serif; color:#333; line-height:1.4;">
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
-                table { page-break-inside:auto; }
-                tr { page-break-inside:avoid; page-break-after:auto; line-height:1.2; }
+                table { page-break-inside:auto; width: 100%; border-collapse: collapse; }
+                tr { page-break-inside:avoid; page-break-after:auto; }
+                td, th { page-break-inside:avoid; }
                 thead { display:table-header-group; }
                 tfoot { display:table-footer-group; }
             </style>
@@ -1448,11 +1449,12 @@ async function downloadLocReport() {
     `;
 
     const opt = {
-        margin: 0,
+        margin: [10, 10, 10, 10], // Marginesy w mm: góra, lewo, dół, prawo
         filename: `Raport_VanStev_${now.toISOString().split('T')[0]}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
     // Konwersja na PDF
