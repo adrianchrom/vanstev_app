@@ -29,8 +29,8 @@ let currentAddSelectedIds = [];
 let currentEditSelectedIds = [];
 
 // Section collapse state
-let isProjectsCollapsed = false;
-let isQuartersCollapsed = false;
+let isProjectsCollapsed = true;
+let isQuartersCollapsed = true;
 
 // ===== LOGIN =====
 const VALID_USERS = ['radek', 'jola', 'kasia', 'tomek', 'przemek', 'mirek'];
