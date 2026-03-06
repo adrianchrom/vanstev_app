@@ -192,7 +192,7 @@ function initMap() {
     updateMapTheme();
     updateThemeUI();
     map.on('click', onMapClick);
-    map.on('zoomend', () => reloadMarkers());
+    map.on('zoomend', updateProjectIcons);
     reloadMarkers();
 }
 
@@ -465,16 +465,7 @@ function makeTempIcon() {
     });
 }
 
-function makeIcon(color = '#E8621A', isSmall = false) {
-    if (isSmall) {
-        return L.divIcon({
-            className: '',
-            html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div>`,
-            iconSize: [12, 12],
-            iconAnchor: [6, 6],
-            popupAnchor: [0, -6]
-        });
-    }
+function makeIcon(color = '#E8621A') {
     return L.divIcon({
         className: '',
         html: `<div style="position:relative;width:34px;height:42px;">
@@ -489,16 +480,7 @@ function makeIcon(color = '#E8621A', isSmall = false) {
     });
 }
 
-function makeProjectIcon(name = 'PROJEKT', isSmall = false) {
-    if (isSmall) {
-        return L.divIcon({
-            className: '',
-            html: `<div style="width:14px;height:14px;border-radius:50%;background:#3b82f6;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4);"></div>`,
-            iconSize: [14, 14],
-            iconAnchor: [7, 7],
-            popupAnchor: [0, -7]
-        });
-    }
+function makeProjectIcon(name = 'PROJEKT') {
     return L.divIcon({
         className: '',
         html: `<div style="position:relative; transform: translate(-50%, -100%); display:flex; flex-direction:column; align-items:center;">
@@ -510,6 +492,21 @@ function makeProjectIcon(name = 'PROJEKT', isSmall = false) {
         iconSize: [0, 0],
         iconAnchor: [0, 0],
         popupAnchor: [0, -40]
+    });
+}
+
+function makeProjectFactoryIcon() {
+    return L.divIcon({
+        className: '',
+        html: `<div style="position:relative;width:34px;height:42px;">
+            <div style="width:34px;height:34px;border-radius:12px;background:#3b82f6;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(0,0,0,0.3);border:2.5px solid #fff;">
+                <span style="font-size:18px;">🏭</span>
+            </div>
+            <div style="width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:11px solid #3b82f6;margin:0 auto;"></div>
+        </div>`,
+        iconSize: [34, 45],
+        iconAnchor: [17, 45],
+        popupAnchor: [0, -47]
     });
 }
 
@@ -585,17 +582,31 @@ document.addEventListener('click', (e) => {
     }
 });
 
+function updateProjectIcons() {
+    const zoom = map.getZoom();
+    locations.forEach(loc => {
+        if (loc.type === 'project' && markers[loc.id]) {
+            const icon = zoom >= 13 ? makeProjectIcon(loc.name) : makeProjectFactoryIcon();
+            markers[loc.id].setIcon(icon);
+            // Label icon has 0,0 size/anchor, so we need to adjust Z-index for labeling
+            if (zoom >= 13) markers[loc.id].setZIndexOffset(1000);
+            else markers[loc.id].setZIndexOffset(0);
+        }
+    });
+}
+
 function addMarker(loc) {
-    const currentZoom = map ? map.getZoom() : 7;
-    const isSmall = currentZoom < 11;
     let m;
     if (loc.type === 'project') {
-        m = L.marker([loc.lat, loc.lng], { icon: makeProjectIcon(loc.name, isSmall) }).addTo(map);
+        const zoom = map.getZoom();
+        const icon = zoom >= 13 ? makeProjectIcon(loc.name) : makeProjectFactoryIcon();
+        m = L.marker([loc.lat, loc.lng], { icon: icon }).addTo(map);
+        if (zoom >= 13) m.setZIndexOffset(1000);
     } else {
         const occ = loc.people ? loc.people.length : 0;
         const isFull = occ >= loc.capacity;
         const color = isFull ? '#E8621A' : '#10b981';
-        m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color, isSmall) }).addTo(map);
+        m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
     }
     m.bindPopup(makePopupHtml(loc));
     m.on('click', () => { focusLocation(loc.id); });
