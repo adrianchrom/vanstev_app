@@ -671,6 +671,7 @@ function makePopupHtml(loc) {
         ${dateHtml}
         <div class="popup-row">👥 Miejsc: <span>${loc.capacity}</span></div>
         ${loc.noticePeriod ? `<div class="popup-row">⏳ Wypowiedzenie: <span>${loc.noticePeriod}</span></div>` : ''}
+        <div class="popup-row">💸 Wydano (do dziś): <strong style="color:var(--accent);">€${calcSpentSoFar(loc.dateFrom, loc.price).toFixed(2)}</strong></div>
         <div class="popup-row" style="margin-bottom:2px;">
             💰 Koszt: <strong style="color:var(--accent);">€${parseFloat(loc.price || 0).toFixed(2)}</strong>
             <span style="font-size:10px; color:var(--muted); margin-left:8px;">(~${fmtPLN(parseFloat(loc.price || 0) * eurToPln, 2)} PLN)</span>
@@ -731,6 +732,15 @@ function calcDays(from, to) {
     if (!from || !to) return null;
     const d = (new Date(to) - new Date(from)) / 86400000;
     return d > 0 ? Math.round(d) : null;
+}
+
+function calcSpentSoFar(from, monthlyPrice) {
+    if (!from || !monthlyPrice) return 0;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const start = new Date(from); start.setHours(0, 0, 0, 0);
+    if (today < start) return 0;
+    const diffDays = Math.round((today - start) / 86400000) + 1;
+    return (diffDays / 30) * parseFloat(monthlyPrice);
 }
 
 function rentalStatus(loc) {
@@ -1002,6 +1012,7 @@ function renderList(filteredLocs = null) {
                 <span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)} <small>(~${fmtPLN(parseFloat(loc.price || 0) * eurToPln, 0)} PLN)</small></span>
                 <span class="badge badge-blue">${occ}/${loc.capacity} zajętych</span>
                 ${loc.noticePeriod ? `<span class="badge" style="background:rgba(147,51,234,0.15); color:#a855f7; border:1px solid rgba(147,51,234,0.3);">⏳ ${loc.noticePeriod}</span>` : ''}
+                <span class="badge" style="background:rgba(232,98,26,0.1); color:var(--accent); border:1px solid rgba(232,98,26,0.2);">💰 Wydano: €${calcSpentSoFar(loc.dateFrom, loc.price).toFixed(2)}</span>
             </div>
             <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
             ${loc.notes ? `<div style="margin-top:6px; font-size:11px; padding:6px; background:var(--bg); border-radius:6px; border-left:3px solid var(--accent);">📝 <em>${loc.notes}</em></div>` : ''}
