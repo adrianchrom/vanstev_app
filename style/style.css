@@ -237,7 +237,7 @@ body {
 
 /* ===== SIDEBAR ===== */
 .sidebar {
-    width: 420px;
+    width: 500px;
     background: var(--card);
     border-left: 1px solid var(--border);
     display: flex;
@@ -645,16 +645,20 @@ body {
 }
 
 .person-chip {
-    display: inline-flex;
+    display: flex;
+    width: fit-content;
+    max-width: 100%;
     align-items: center;
     gap: 6px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border);
     border-radius: 20px;
-    padding: 3px 10px;
-    font-size: 12px;
-    margin: 2px 3px 2px 0;
+    padding: 3px 12px;
+    font-size: 13px;
+    margin: 4px 0;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .driver-info {
