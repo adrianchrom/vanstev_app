@@ -34,7 +34,7 @@ let isProjectsCollapsed = true;
 let isQuartersCollapsed = true;
 
 // ===== LOGIN =====
-const VALID_USERS = ['radek', 'jola', 'kasia', 'tomek', 'przemek', 'mirek'];
+const VALID_USERS = ['radek', 'szymon', 'kasia', 'tomek', 'przemek', 'mirek'];
 const SYSTEM_PASS = 'qazwsx';
 
 function doLogin() {
@@ -1502,7 +1502,7 @@ async function renderAdminPanel() {
 
     adminList.innerHTML = '<div style="color:var(--muted); font-size:12px; padding:10px;">Łączenie z bazą...</div>';
 
-    const users = ['Radek', 'Jola', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Admin'];
+    const users = ['Radek', 'Szymon', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Admin'];
     let allActs = [];
     let usersData = {};
 
