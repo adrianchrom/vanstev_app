@@ -291,9 +291,9 @@ function renderLinkedLocations(containerId, selectedIds, filterQuery = '') {
 
     const formatOccupant = (p) => {
         if (typeof p === 'string') return `<span style="display:inline-block; border:1px solid var(--border); background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; margin:1px;">${p}</span>`;
-        const driverIcon = p.isDriver ? '🚗 ' : '';
+        const driverIcon = p.isDriver ? ' 🚗' : '';
         const plate = p.isDriver && p.carPlate ? ` (${p.carPlate})` : '';
-        return `<span style="display:inline-block; border:1px solid var(--border); background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; margin:1px;">${driverIcon}${p.name}${plate}</span>`;
+        return `<span style="display:inline-block; border:1px solid var(--border); background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; margin:1px;">${p.name}${driverIcon}${plate}</span>`;
     };
 
     c.innerHTML = locs.map(l => {
@@ -650,8 +650,8 @@ function makePopupHtml(loc) {
     const formatPerson = (p) => {
         if (typeof p === 'string') return `<span class="person-chip" style="border-radius:4px;">${p}</span>`;
         const plate = p.isDriver && p.carPlate ? ` <span class="car-plate">${p.carPlate}</span>` : '';
-        const driverIcon = p.isDriver ? '<span style="margin-left:4px;">🚗</span>' : '';
-        return `<span class="person-chip" style="border-radius:4px;">${driverIcon}${p.name}${plate}</span>`;
+        const driverIcon = p.isDriver ? '<span style="margin-left:8px;">🚗</span>' : '';
+        return `<span class="person-chip" style="border-radius:4px;">${p.name}${driverIcon}${plate}</span>`;
     };
 
     const peopleHtml = loc.people && loc.people.length > 0
@@ -1033,8 +1033,8 @@ function renderList(filteredLocs = null) {
     const formatPerson = (p) => {
         if (typeof p === 'string') return `<span class="person-chip" style="border-radius:4px;">${p}</span>`;
         const plate = p.isDriver && p.carPlate ? ` <span class="car-plate">${p.carPlate}</span>` : '';
-        const driverIcon = p.isDriver ? '<span style="margin-left:4px;">🚗</span>' : '';
-        return `<span class="person-chip" style="border-radius:4px;">${driverIcon}${p.name}${plate}</span>`;
+        const driverIcon = p.isDriver ? '<span style="margin-left:8px;">🚗</span>' : '';
+        return `<span class="person-chip" style="border-radius:4px;">${p.name}${driverIcon}${plate}</span>`;
     };
 
     const renderProjectCard = (loc) => {
