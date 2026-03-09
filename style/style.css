@@ -237,7 +237,7 @@ body {
 
 /* ===== SIDEBAR ===== */
 .sidebar {
-    width: 370px;
+    width: 420px;
     background: var(--card);
     border-left: 1px solid var(--border);
     display: flex;
@@ -654,6 +654,7 @@ body {
     padding: 3px 10px;
     font-size: 12px;
     margin: 2px 3px 2px 0;
+    white-space: nowrap;
 }
 
 .driver-info {
