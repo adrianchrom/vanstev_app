@@ -683,7 +683,7 @@ body {
 
 .people-row {
     display: grid !important;
-    grid-template-columns: 1fr auto auto auto !important;
+    grid-template-columns: 1fr auto auto auto auto !important;
     gap: 6px;
     align-items: center;
     margin-bottom: 8px;

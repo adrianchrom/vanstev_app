@@ -293,7 +293,8 @@ function renderLinkedLocations(containerId, selectedIds, filterQuery = '') {
         if (typeof p === 'string') return `<span style="display:inline-block; border:1px solid var(--border); background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; margin:1px;">${p}</span>`;
         const driverIcon = p.isDriver ? ' 🚗' : '';
         const plate = p.isDriver && p.carPlate ? ` (${p.carPlate})` : '';
-        return `<span style="display:inline-block; border:1px solid var(--border); background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; margin:1px;">${p.name}${driverIcon}${plate}</span>`;
+        const car = p.isDriver && p.carDesc ? ` (${p.carDesc})` : '';
+        return `<span style="display:inline-block; border:1px solid var(--border); background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; margin:1px;">${p.name}${driverIcon}${plate}${car}</span>`;
     };
 
     c.innerHTML = locs.map(l => {
@@ -650,8 +651,9 @@ function makePopupHtml(loc) {
     const formatPerson = (p) => {
         if (typeof p === 'string') return `<span class="person-chip" style="border-radius:4px;">${p}</span>`;
         const plate = p.isDriver && p.carPlate ? ` <span class="car-plate">${p.carPlate}</span>` : '';
+        const carLink = p.isDriver && p.carDesc ? ` <span style="font-size:11px; opacity:0.8; margin-left:4px;">(${p.carDesc})</span>` : '';
         const driverIcon = p.isDriver ? '<span style="margin-left:8px;">🚗</span>' : '';
-        return `<span class="person-chip" style="border-radius:4px;">${p.name}${driverIcon}${plate}</span>`;
+        return `<span class="person-chip" style="border-radius:4px;">${p.name}${driverIcon}${plate}${carLink}</span>`;
     };
 
     const peopleHtml = loc.people && loc.people.length > 0
@@ -887,10 +889,10 @@ function updateEditTotalCost() {
 }
 
 // ===== ADD FORM =====
-let addPeople = []; // Array of objects {name, isDriver, carPlate}
+let addPeople = []; // Array of objects {name, isDriver, carPlate, carDesc}
 
 function addNewPerson() {
-    addPeople.push({ name: '', isDriver: false, carPlate: '' });
+    addPeople.push({ name: '', isDriver: false, carPlate: '', carDesc: '' });
     renderPeopleInputs('addPeopleList', addPeople, 'add');
 }
 
@@ -900,7 +902,7 @@ function renderPeopleInputs(containerId, arr, mode) {
     c.innerHTML = '';
     arr.forEach((p, i) => {
         if (typeof p === 'string') {
-            arr[i] = { name: p, isDriver: false, carPlate: '' };
+            arr[i] = { name: p, isDriver: false, carPlate: '', carDesc: '' };
             p = arr[i];
         }
         const row = document.createElement('div');
@@ -911,7 +913,10 @@ function renderPeopleInputs(containerId, arr, mode) {
                 <input type="checkbox" ${p.isDriver ? 'checked' : ''} onchange="updatePersonField('${mode}',${i},'isDriver',this.checked); renderPeopleInputs('${containerId}', ${mode === 'add' ? 'addPeople' : 'editPeople'}, '${mode}')"/>
                 Kierowca
             </label>
-            ${p.isDriver ? `<input type="text" value="${p.carPlate || ''}" placeholder="Nr rej." style="width:80px; text-transform:uppercase;" oninput="updatePersonField('${mode}',${i},'carPlate',this.value.toUpperCase())"/>` : '<div></div>'}
+            ${p.isDriver ? `
+                <input type="text" value="${p.carPlate || ''}" placeholder="Nr rej." style="width:80px; text-transform:uppercase;" oninput="updatePersonField('${mode}',${i},'carPlate',this.value.toUpperCase())"/>
+                <input type="text" value="${p.carDesc || ''}" placeholder="Samochód" style="width:100px;" oninput="updatePersonField('${mode}',${i},'carDesc',this.value)"/>
+            ` : '<div></div><div></div>'}
             <button onclick="removePerson('${mode}',${i})">×</button>
         `;
         c.appendChild(row);
@@ -1033,8 +1038,9 @@ function renderList(filteredLocs = null) {
     const formatPerson = (p) => {
         if (typeof p === 'string') return `<span class="person-chip" style="border-radius:4px;">${p}</span>`;
         const plate = p.isDriver && p.carPlate ? ` <span class="car-plate">${p.carPlate}</span>` : '';
+        const car = p.isDriver && p.carDesc ? ` <span style="font-size:11px; opacity:0.8; margin-left:4px;">(${p.carDesc})</span>` : '';
         const driverIcon = p.isDriver ? '<span style="margin-left:8px;">🚗</span>' : '';
-        return `<span class="person-chip" style="border-radius:4px;">${p.name}${driverIcon}${plate}</span>`;
+        return `<span class="person-chip" style="border-radius:4px;">${p.name}${driverIcon}${plate}${car}</span>`;
     };
 
     const renderProjectCard = (loc) => {
@@ -1221,8 +1227,8 @@ function openEdit(id, e) {
         document.getElementById('eDateTo').disabled = isIndef;
 
         editPeople = (loc.people || []).map(p => {
-            if (typeof p === 'string') return { name: p, isDriver: false, carPlate: '' };
-            return { ...p };
+            if (typeof p === 'string') return { name: p, isDriver: false, carPlate: '', carDesc: '' };
+            return { carPlate: '', carDesc: '', ...p };
         });
         renderPeopleInputs('editPeopleList', editPeople, 'edit');
         updateEditTotalCost();
@@ -1237,7 +1243,7 @@ function openEdit(id, e) {
     document.getElementById('editModal').classList.add('open');
 }
 
-function addEditPerson() { editPeople.push({ name: '', isDriver: false, carPlate: '' }); renderPeopleInputs('editPeopleList', editPeople, 'edit'); }
+function addEditPerson() { editPeople.push({ name: '', isDriver: false, carPlate: '', carDesc: '' }); renderPeopleInputs('editPeopleList', editPeople, 'edit'); }
 
 function saveEdit() {
     const type = document.getElementById('eType').value;
@@ -1385,7 +1391,9 @@ async function downloadLocReport() {
             loc.people.map(p => {
                 const name = typeof p === 'string' ? p : p.name;
                 const driver = (typeof p !== 'string' && p.isDriver) ? ' <b>(K)</b>' : '';
-                return `<div>• ${name}${driver}</div>`;
+                const plate = (typeof p !== 'string' && p.carPlate) ? ` [${p.carPlate}]` : '';
+                const car = (typeof p !== 'string' && p.carDesc) ? ` (${p.carDesc})` : '';
+                return `<div>• ${name}${driver}${plate}${car}</div>`;
             }).join('') : '<i style="color:#999;">Brak mieszkańców</i>';
 
         const project = locations.find(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
@@ -1596,8 +1604,10 @@ function applyFilters() {
 
         // Person search
         const matchesPerson = !q || (loc.people && loc.people.some(p => {
-            const name = typeof p === 'string' ? p : p.name;
-            return name.toLowerCase().includes(q);
+            const name = (typeof p === 'string' ? p : p.name || '').toLowerCase();
+            const plate = (typeof p !== 'string' && p.carPlate ? p.carPlate : '').toLowerCase();
+            const car = (typeof p !== 'string' && p.carDesc ? p.carDesc : '').toLowerCase();
+            return name.includes(q) || plate.includes(q) || car.includes(q);
         }));
 
         // Availability filter
