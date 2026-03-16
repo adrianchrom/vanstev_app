@@ -1524,8 +1524,13 @@ async function renderAdminPanel() {
         let html = '';
         users.forEach(u => {
             const isExpanded = !!adminExpandedUsers[u];
-            const limit = isExpanded ? 15 : 3;
-            const userActs = adminAllActs.filter(a => a.user === u).slice(0, limit);
+            const limit = isExpanded ? 30 : 3;
+            // Filter out system login/logout actions
+            const userActs = adminAllActs.filter(a =>
+                a.user === u &&
+                !['Zalogowano', 'Wylogowano'].includes(a.action)
+            ).slice(0, limit);
+
             const status = adminUsersData[u] || {};
             const isOnline = status.online === true;
 
@@ -1535,23 +1540,22 @@ async function renderAdminPanel() {
                 if (diff > 10 && isOnline) effectivelyOnline = false;
             }
 
-            const loginTime = status.lastLogin ? fmtTime(status.lastLogin.toDate()) : 'Brak danych';
+            const loginTime = status.lastSeen ? fmtTime(status.lastSeen.toDate()) : (status.lastLogin ? fmtTime(status.lastLogin.toDate()) : 'Brak danych');
 
             html += `
                 <div style="background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:15px; margin-bottom:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
                     <div style="font-weight:700; font-size:15px; color:var(--accent); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                        <span>👤 ${u}</span>
+                        <div style="display:flex; flex-direction:column; gap:2px;">
+                            <span>👤 ${u}</span>
+                            <span style="font-size:10px; color:var(--muted); font-weight:500;">Ostatnio widziany: ${loginTime}</span>
+                        </div>
                         <div style="display:flex; align-items:center; gap:8px; background:var(--bg); padding:4px 10px; border-radius:20px; border:1px solid var(--border);">
                             <span style="width:10px; height:10px; border-radius:50%; background:${effectivelyOnline ? 'var(--success)' : '#4b5563'}; box-shadow:${effectivelyOnline ? '0 0 10px var(--success)' : 'none'};"></span>
                             <span style="font-size:11px; font-weight:600; color:${effectivelyOnline ? 'var(--success)' : 'var(--muted)'};">${effectivelyOnline ? 'ONLINE' : 'OFFLINE'}</span>
                         </div>
                     </div>
-                    <div style="font-size:12px; color:var(--muted); margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed var(--border); display:flex; flex-direction:column; gap:2px;">
-                        <div>Wejście: <strong style="color:var(--text);">${loginTime}</strong></div>
-                        ${status.lastSeen ? `<div style="font-size:10px; opacity:0.8;">Ostatni ruch: ${fmtTime(status.lastSeen.toDate())}</div>` : ''}
-                    </div>
                     
-                    <div style="font-size:10px; color:var(--muted); margin-bottom:6px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Ostatnia aktywność:</div>
+                    <div style="font-size:10px; color:var(--muted); margin:12px 0 6px 0; padding-top:10px; border-top:1px dashed var(--border); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Ostatnie zmiany (kwatery/projekty):</div>
                     <div class="admin-activity-list ${isExpanded ? 'expanded' : ''}">
                         ${userActs.length ? userActs.map(a => `
                             <div style="font-size:12px; background:var(--bg); padding:8px 12px; border-radius:8px; border:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start;">
@@ -1561,10 +1565,10 @@ async function renderAdminPanel() {
                                 </div>
                                 <span style="font-size:10px; color:var(--muted); background:var(--card2); padding:2px 6px; border-radius:4px;">${a.timestamp ? fmtTime(a.timestamp.toDate()) : '...'}</span>
                             </div>
-                        `).join('') : '<div style="font-size:12px; color:var(--muted); font-style:italic; padding:10px; text-align:center; background:var(--bg); border-radius:8px;">Brak zarejestrowanych akcji</div>'}
+                        `).join('') : '<div style="font-size:12px; color:var(--muted); font-style:italic; padding:10px; text-align:center; background:var(--bg); border-radius:8px;">Brak zmian w kwaterach/projektach</div>'}
                     </div>
                     <button class="expand-act-btn ${isExpanded ? 'expanded' : ''}" onclick="toggleAdminActivity('${u}')">
-                        ${isExpanded ? 'Pokaż mniej' : 'Pokaż wszystkie 15 zmian'}
+                        ${isExpanded ? 'Pokaż mniej' : 'Pokaż wszystkie 30 zmian'}
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                     </button>
                 </div>
@@ -1584,7 +1588,7 @@ async function renderAdminPanel() {
     });
 
     // Nasłuchiwanie aktywności
-    adminUnsubActivity = db.collection('activity').orderBy('timestamp', 'desc').limit(200).onSnapshot(snap => {
+    adminUnsubActivity = db.collection('activity').orderBy('timestamp', 'desc').limit(400).onSnapshot(snap => {
         adminAllActs = snap.docs.map(d => d.data());
         updateUI();
     }, err => {
