@@ -34,8 +34,15 @@ let isProjectsCollapsed = true;
 let isQuartersCollapsed = true;
 
 // ===== LOGIN =====
-const VALID_USERS = ['radek', 'szymon', 'kasia', 'tomek', 'przemek', 'mirek'];
-const SYSTEM_PASS = 'qazwsx';
+const USER_PASSWORDS = {
+    'admin': 'sH4Il&KYF6',
+    'radek': 'c0(Pdds#sJ',
+    'szymon': ')Cq!iFZK80',
+    'kasia': '%sfK78F%^!',
+    'tomek': 'ru0DWy9^8^',
+    'przemek': 'wgB6x^%kt9',
+    'mirek': 'yV3r5P*#TU'
+};
 
 function doLogin() {
     const user = document.getElementById('loginEmail').value.trim().toLowerCase();
@@ -43,10 +50,7 @@ function doLogin() {
     const err = document.getElementById('loginErr');
 
     let isAuthorized = false;
-    // Sprawdź Admina lub standardowych użytkowników
-    if (user === 'admin' && pass === 'system02') {
-        isAuthorized = true;
-    } else if (VALID_USERS.includes(user) && pass === SYSTEM_PASS) {
+    if (USER_PASSWORDS[user] && USER_PASSWORDS[user] === pass) {
         isAuthorized = true;
     }
 
@@ -56,6 +60,8 @@ function doLogin() {
     }
     const userName = user.charAt(0).toUpperCase() + user.slice(1);
     localStorage.setItem('vs_user', userName);
+    // Resetuj status wymuszonego wylogowania przy nowym logowaniu
+    db.collection('users').doc(userName).set({ forceLogout: false }, { merge: true });
     setupApp(userName);
 }
 
@@ -70,6 +76,16 @@ function setupApp(userName) {
     } else {
         document.getElementById('adminBtn').style.display = 'none';
     }
+
+    // Monitoruj czy Admin wymusił wylogowanie
+    if (window.vsLogoutMonitor) window.vsLogoutMonitor();
+    window.vsLogoutMonitor = db.collection('users').doc(currentUser).onSnapshot(doc => {
+        const data = doc.data();
+        if (data && data.forceLogout === true) {
+            console.log("Zdalne wylogowanie wymuszone przez Admina.");
+            doLogout();
+        }
+    });
 
     // Aktualizuj status użytkownika
     const userRef = db.collection('users').doc(currentUser);
@@ -132,6 +148,10 @@ function doLogout() {
         }, { merge: true });
     }
     if (window.vsHeartbeat) clearInterval(window.vsHeartbeat);
+    if (window.vsLogoutMonitor && typeof window.vsLogoutMonitor === 'function') {
+        window.vsLogoutMonitor();
+        window.vsLogoutMonitor = null;
+    }
     localStorage.removeItem('vs_user');
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
@@ -1509,6 +1529,17 @@ function toggleAdminActivity(user) {
     if (adminUIUpdater) adminUIUpdater();
 }
 
+function forceUserLogout(user) {
+    if (!confirm(`Czy na pewno chcesz wylogować użytkownika ${user}?`)) return;
+    db.collection('users').doc(user).set({
+        forceLogout: true,
+        online: false
+    }, { merge: true }).then(() => {
+        logActivity('Admin wylogował użytkownika', user);
+        alert(`Wysłano żądanie wylogowania dla: ${user}`);
+    });
+}
+
 async function renderAdminPanel() {
     if (currentUser !== 'Admin') return;
     const adminList = document.getElementById('adminUserList');
@@ -1546,7 +1577,10 @@ async function renderAdminPanel() {
                 <div style="background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:15px; margin-bottom:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
                     <div style="font-weight:700; font-size:15px; color:var(--accent); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
                         <div style="display:flex; flex-direction:column; gap:2px;">
-                            <span>👤 ${u}</span>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span>👤 ${u}</span>
+                                ${u !== 'Admin' ? `<button onclick="forceUserLogout('${u}')" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:2px 6px; font-size:9px; cursor:pointer; font-weight:700; text-transform:uppercase;">Wyloguj</button>` : ''}
+                            </div>
                             <span style="font-size:10px; color:var(--muted); font-weight:500;">Ostatnio widziany: ${loginTime}</span>
                         </div>
                         <div style="display:flex; align-items:center; gap:8px; background:var(--bg); padding:4px 10px; border-radius:20px; border:1px solid var(--border);">
