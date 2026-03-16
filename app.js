@@ -1499,6 +1499,15 @@ function closeAdmin() {
 
 let adminUnsubUsers = null;
 let adminUnsubActivity = null;
+let adminUsersData = {};
+let adminAllActs = [];
+let adminExpandedUsers = {};
+let adminUIUpdater = null;
+
+function toggleAdminActivity(user) {
+    adminExpandedUsers[user] = !adminExpandedUsers[user];
+    if (adminUIUpdater) adminUIUpdater();
+}
 
 async function renderAdminPanel() {
     if (currentUser !== 'Admin') return;
@@ -1511,17 +1520,15 @@ async function renderAdminPanel() {
     adminList.innerHTML = '<div style="color:var(--muted); font-size:12px; padding:10px;">Łączenie z bazą...</div>';
 
     const users = ['Radek', 'Szymon', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Admin'];
-    let allActs = [];
-    let usersData = {};
-
     const updateUI = () => {
         let html = '';
         users.forEach(u => {
-            const userActs = allActs.filter(a => a.user === u).slice(0, 3);
-            const status = usersData[u] || {};
+            const isExpanded = !!adminExpandedUsers[u];
+            const limit = isExpanded ? 15 : 3;
+            const userActs = adminAllActs.filter(a => a.user === u).slice(0, limit);
+            const status = adminUsersData[u] || {};
             const isOnline = status.online === true;
 
-            // Sprawdź czy lastSeen nie jest starszy niż 10 minut (zapas) -> alternatywa dla online
             let effectivelyOnline = isOnline;
             if (status.lastSeen) {
                 const diff = (new Date() - status.lastSeen.toDate()) / 1000 / 60;
@@ -1545,7 +1552,7 @@ async function renderAdminPanel() {
                     </div>
                     
                     <div style="font-size:10px; color:var(--muted); margin-bottom:6px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Ostatnia aktywność:</div>
-                    <div style="display:flex; flex-direction:column; gap:6px;">
+                    <div class="admin-activity-list ${isExpanded ? 'expanded' : ''}">
                         ${userActs.length ? userActs.map(a => `
                             <div style="font-size:12px; background:var(--bg); padding:8px 12px; border-radius:8px; border:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start;">
                                 <div style="display:flex; flex-direction:column;">
@@ -1556,15 +1563,21 @@ async function renderAdminPanel() {
                             </div>
                         `).join('') : '<div style="font-size:12px; color:var(--muted); font-style:italic; padding:10px; text-align:center; background:var(--bg); border-radius:8px;">Brak zarejestrowanych akcji</div>'}
                     </div>
+                    <button class="expand-act-btn ${isExpanded ? 'expanded' : ''}" onclick="toggleAdminActivity('${u}')">
+                        ${isExpanded ? 'Pokaż mniej' : 'Pokaż wszystkie 15 zmian'}
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
                 </div>
             `;
         });
         adminList.innerHTML = html;
     };
 
+    adminUIUpdater = updateUI;
+
     // Nasłuchiwanie użytkowników
     adminUnsubUsers = db.collection('users').onSnapshot(snap => {
-        snap.forEach(d => { usersData[d.id] = d.data(); });
+        snap.forEach(d => { adminUsersData[d.id] = d.data(); });
         updateUI();
     }, err => {
         console.error("Admin Users Error:", err);
@@ -1572,7 +1585,7 @@ async function renderAdminPanel() {
 
     // Nasłuchiwanie aktywności
     adminUnsubActivity = db.collection('activity').orderBy('timestamp', 'desc').limit(200).onSnapshot(snap => {
-        allActs = snap.docs.map(d => d.data());
+        adminAllActs = snap.docs.map(d => d.data());
         updateUI();
     }, err => {
         console.error("Admin Activity Error:", err);

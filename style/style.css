@@ -1215,3 +1215,50 @@ body.light-mode .caregiver-badge {
 #adminModal.open {
     display: flex;
 }
+
+/* ===== ADMIN PANEL ENHANCEMENTS ===== */
+.admin-activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 220px;
+    overflow: hidden;
+    transition: max-height 0.4s ease-in-out;
+}
+
+.admin-activity-list.expanded {
+    max-height: 1200px;
+}
+
+.expand-act-btn {
+    width: 100%;
+    background: var(--bg);
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    padding: 8px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    outline: none;
+}
+
+.expand-act-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(232, 98, 26, 0.05);
+}
+
+.expand-act-btn svg {
+    transition: transform 0.3s ease;
+}
+
+.expand-act-btn.expanded svg {
+    transform: rotate(180deg);
+}
