@@ -25,6 +25,7 @@ let currentUser = null;
 let eurToPln = 4.3; // Default fallback rate
 let addingType = 'location'; // 'location' or 'project'
 let activeProjectId = null;
+let activeQuarterId = null;
 let currentAddSelectedIds = [];
 let currentEditSelectedIds = [];
 let roadDistances = {}; // Cache for road distances
@@ -1653,6 +1654,15 @@ function applyFilters() {
             }
         }
 
+        // Quarter filter
+        if (activeQuarterId) {
+            const isSelectedQuarter = loc.id === activeQuarterId;
+            const isProjectLinkedToThisQuarter = loc.type === 'project' && (loc.linkedLocations || []).includes(activeQuarterId);
+            if (!isSelectedQuarter && !isProjectLinkedToThisQuarter) {
+                return false;
+            }
+        }
+
         // Person search
         const matchesPerson = !q || (loc.people && loc.people.some(p => {
             const name = (typeof p === 'string' ? p : p.name || '').toLowerCase();
@@ -1675,6 +1685,7 @@ function applyFilters() {
 
 function clearProjectFilter() {
     activeProjectId = null;
+    activeQuarterId = null;
     roadDistances = {}; // Clear distances when changing filter to ensure fresh calculation
     const filterInfo = document.getElementById('projectFilterInfo');
     if (filterInfo) filterInfo.style.display = 'none';
@@ -1698,12 +1709,23 @@ function focusLocation(id) {
     if (loc.type === 'project') {
         const isNewProject = activeProjectId !== id;
         activeProjectId = id;
+        activeQuarterId = null;
         if (isNewProject) roadDistances = {}; // Start fresh for this project
         const filterInfo = document.getElementById('projectFilterInfo');
         const projNameSpan = document.getElementById('activeProjectName');
         if (filterInfo && projNameSpan) {
             filterInfo.style.display = 'flex';
             projNameSpan.textContent = loc.name;
+        }
+        applyFilters();
+    } else {
+        activeQuarterId = id;
+        activeProjectId = null;
+        const filterInfo = document.getElementById('projectFilterInfo');
+        const projNameSpan = document.getElementById('activeProjectName');
+        if (filterInfo && projNameSpan) {
+            filterInfo.style.display = 'flex';
+            projNameSpan.textContent = `Kwatera: ${loc.name}`;
         }
         applyFilters();
     }
