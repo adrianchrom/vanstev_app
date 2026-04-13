@@ -596,6 +596,18 @@ body {
     color: var(--danger);
 }
 
+.loc-card.not-working,
+.loc-card.not-working:hover {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: var(--danger);
+}
+
+.person-chip.not-working {
+    border-color: var(--danger);
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+}
+
 .loc-badges {
     display: flex;
     gap: 6px;
