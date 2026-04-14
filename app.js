@@ -629,7 +629,7 @@ function addMarker(loc) {
         const occ = loc.people ? loc.people.length : 0;
         const isFull = occ >= loc.capacity;
         const hasNotWorking = loc.people && loc.people.some(p => p.isWorking === false);
-        const color = hasNotWorking ? '#ef4444' : (isFull ? '#E8621A' : '#10b981');
+        const color = hasNotWorking ? '#ff0000' : (isFull ? '#E8621A' : '#10b981');
         m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
     }
     m.bindPopup(makePopupHtml(loc));

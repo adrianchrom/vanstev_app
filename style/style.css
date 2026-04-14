@@ -924,7 +924,7 @@ body.light-mode .caregiver-badge {
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 28px;
-    width: 420px;
+    width: 600px;
     max-height: 85vh;
     overflow-y: auto;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
