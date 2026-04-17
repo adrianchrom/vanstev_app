@@ -1459,11 +1459,43 @@ function renderStats() {
     }).join('');
 }
 
-function downloadExcelReport() {
-    if (!window.XLSX) {
-        alert("Błąd: Nie można załadować biblioteki Excel. Sprawdź połączenie z internetem.");
+async function downloadExcelReport() {
+    if (typeof ExcelJS === 'undefined') {
+        alert("Błąd: Biblioteka ExcelJS nie została załadowana.");
         return;
     }
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Raport');
+
+    // Kolumny
+    worksheet.columns = [
+        { header: 'Podmiot wynajmujący', key: 'podmiot', width: 40 },
+        { header: 'Przedmiot umowy', key: 'przedmiot', width: 50 },
+        { header: 'Miesięczna opłata w PLN', key: 'oplata', width: 25 },
+        { header: 'waluta zobowiązania', key: 'waluta', width: 20 },
+        { header: 'termin obowiązywania', key: 'termin', width: 30 },
+        { header: 'okres wypowiedzenia', key: 'okres', width: 25 }
+    ];
+
+    // Styl nagłówka
+    const headerRow = worksheet.getRow(1);
+    headerRow.height = 30;
+    headerRow.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+    headerRow.eachCell((cell) => {
+        cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE8621A' } // Kolor VanStev Orange
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+        };
+    });
 
     const rawQuarters = locations.filter(l => l.type !== 'project');
     const quartersRows = rawQuarters.filter(l => l.type !== 'office' && !(l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
@@ -1471,40 +1503,46 @@ function downloadExcelReport() {
     
     const allItems = [...quartersRows, ...officesRows];
 
-    const data = allItems.map(loc => {
+    allItems.forEach(loc => {
         const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
         const dateToFmt = loc.isIndefinite ? 'Nieokreślony' : fmtDate(loc.dateTo);
         const term = (loc.dateFrom || loc.dateTo || loc.isIndefinite) ? `${fmtDate(loc.dateFrom)} - ${dateToFmt}` : '—';
         const isOffice = loc.type === 'office' || (loc.name && loc.name.toUpperCase().includes('VANSTEV - BIURO'));
         
-        return {
-            "Podmiot wynajmujący": "VAN STEV spk. z.o.o sk",
-            "Przedmiot umowy": isOffice ? `Biuro: ${fullAddr}` : `Kwatera: ${fullAddr}`,
-            "Miesięczna opłata w PLN": isOffice ? 0 : parseFloat((parseFloat(loc.price || 0) * eurToPln).toFixed(2)),
-            "waluta zobowiązania": "PLN",
-            "termin obowiązywania": term,
-            "okres wypowiedzenia": loc.noticePeriod || '—'
+        const rowData = {
+            podmiot: "VAN STEV Sp. z o.o. sp. k.",
+            przedmiot: isOffice ? `Biuro: ${fullAddr}` : `Kwatera: ${fullAddr}`,
+            oplata: isOffice ? 0 : parseFloat((parseFloat(loc.price || 0) * eurToPln).toFixed(2)),
+            waluta: "PLN",
+            termin: term,
+            okres: loc.noticePeriod || '—'
         };
+
+        const row = worksheet.addRow(rowData);
+        row.height = 25; // Wyższe wiersze (odstępy)
+        row.eachCell((cell) => {
+            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            cell.border = {
+                top: { style: 'thin', color: { argb: 'FFEEEEEE' } },
+                left: { style: 'thin', color: { argb: 'FFEEEEEE' } },
+                bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } },
+                right: { style: 'thin', color: { argb: 'FFEEEEEE' } }
+            };
+        });
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Raport");
+    // Eksport pliku
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    const dateStr = new Date().toISOString().split('T')[0];
+    anchor.download = `Raport_VanStev_${dateStr}.xlsx`;
+    anchor.click();
+    window.URL.revokeObjectURL(url);
 
-    // Dostosowanie szerokości kolumn
-    const wscols = [
-        { wch: 30 }, // Podmiot
-        { wch: 40 }, // Przedmiot
-        { wch: 20 }, // Opłata
-        { wch: 15 }, // Waluta
-        { wch: 25 }, // Termin
-        { wch: 20 }  // Wypowiedzenie
-    ];
-    worksheet['!cols'] = wscols;
-
-    const fileName = `Raport_VanStev_${new Date().toISOString().split('T')[0]}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
-    logActivity('Wygenerowano raport Excel', fileName);
+    logActivity('Wygenerowano raport Excel (ExcelJS)', anchor.download);
 }
 
 async function downloadLocReport() {
