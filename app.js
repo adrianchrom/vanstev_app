@@ -629,7 +629,10 @@ function addMarker(loc) {
         const occ = loc.people ? loc.people.length : 0;
         const isFull = occ >= loc.capacity;
         const hasNotWorking = loc.people && loc.people.some(p => p.isWorking === false);
-        const color = hasNotWorking ? '#ff0000' : (isFull ? '#E8621A' : '#10b981');
+        let color = hasNotWorking ? '#ff0000' : (isFull ? '#E8621A' : '#10b981');
+
+        if (loc.name && loc.name.toUpperCase().includes('VANSTEV - BIURO')) color = '#a855f7';
+
         m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
     }
     m.bindPopup(makePopupHtml(loc));
