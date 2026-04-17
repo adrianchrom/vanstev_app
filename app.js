@@ -1465,12 +1465,17 @@ async function downloadLocReport() {
         return;
     }
 
-    const quarters = locations.filter(l => l.type !== 'project').sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
+    const rawQuarters = locations.filter(l => l.type !== 'project');
+    const quartersRows = rawQuarters.filter(l => l.type !== 'office' && !(l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
+    const officesRows = rawQuarters.filter(l => l.type === 'office' || (l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => a.name.localeCompare(b.name));
+    
+    const allItems = [...quartersRows, ...officesRows];
+
     const now = new Date();
     const dateStr = now.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
     // Budowanie kontentu HTML raportu
-    let rowsHtml = quarters.map(loc => {
+    let rowsHtml = allItems.map(loc => {
         const occ = loc.people ? loc.people.length : 0;
         const peopleListHtml = loc.people && loc.people.length > 0 ?
             loc.people.map(p => {
@@ -1482,14 +1487,17 @@ async function downloadLocReport() {
             }).join('') : '<i style="color:#999;">Brak mieszkańców</i>';
 
         const project = locations.find(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
-        const projectName = project ? project.name : '—';
+        const isOffice = loc.type === 'office' || (loc.name && loc.name.toUpperCase().includes('VANSTEV - BIURO'));
+        const projectName = isOffice ? 'BIURO' : (project ? project.name : '—');
         const price = parseFloat(loc.price || 0);
         const perPerson = occ > 0 ? (price / occ).toFixed(2) : '0.00';
 
         const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
 
+        const rowStyle = isOffice ? 'background:#fdf2f8;' : '';
+
         return `
-            <tr style="border-bottom:1px solid #eee;">
+            <tr style="border-bottom:1px solid #eee; ${rowStyle}">
                 <td style="padding:10px; border-bottom:1px solid #eee;">
                     <span style="font-weight:700;">#${loc.locNumber || '?'} ${loc.name}</span><br>
                     <span style="font-size:10px; color:#444; display:inline-block; margin-top:3px;">📍 ${fullAddr || 'Brak danych adresowych'}</span>
