@@ -1478,10 +1478,10 @@ function downloadExcelReport() {
         const isOffice = loc.type === 'office' || (loc.name && loc.name.toUpperCase().includes('VANSTEV - BIURO'));
         
         return {
-            "Podmiot wynajmujący": loc.name,
-            "Przedmiot umowy": fullAddr,
+            "Podmiot wynajmujący": "VAN STEV spk. z.o.o sk",
+            "Przedmiot umowy": isOffice ? `Biuro: ${fullAddr}` : `Kwatera: ${fullAddr}`,
             "Miesięczna opłata w PLN": isOffice ? 0 : parseFloat((parseFloat(loc.price || 0) * eurToPln).toFixed(2)),
-            "waluta zobowiązania": "EUR",
+            "waluta zobowiązania": "PLN",
             "termin obowiązywania": term,
             "okres wypowiedzenia": loc.noticePeriod || '—'
         };
