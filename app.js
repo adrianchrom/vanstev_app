@@ -1439,9 +1439,14 @@ async function downloadLocReport() {
         const price = parseFloat(loc.price || 0);
         const perPerson = occ > 0 ? (price / occ).toFixed(2) : '0.00';
 
+        const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
+
         return `
             <tr style="border-bottom:1px solid #eee;">
-                <td style="padding:10px; font-weight:700; border-bottom:1px solid #eee;">#${loc.locNumber || '?'} ${loc.name}</td>
+                <td style="padding:10px; border-bottom:1px solid #eee;">
+                    <div style="font-weight:700;">#${loc.locNumber || '?'} ${loc.name}</div>
+                    <div style="font-size:9px; color:#666; margin-top:2px;">📍 ${fullAddr}</div>
+                </td>
                 <td style="padding:10px; border-bottom:1px solid #eee;">${projectName}</td>
                 <td style="padding:10px; text-align:center; border-bottom:1px solid #eee;">${occ} / ${loc.capacity}</td>
                 <td style="padding:10px; border-bottom:1px solid #eee;">${peopleListHtml}</td>
