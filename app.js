@@ -1459,6 +1459,54 @@ function renderStats() {
     }).join('');
 }
 
+function downloadExcelReport() {
+    if (!window.XLSX) {
+        alert("Błąd: Nie można załadować biblioteki Excel. Sprawdź połączenie z internetem.");
+        return;
+    }
+
+    const rawQuarters = locations.filter(l => l.type !== 'project');
+    const quartersRows = rawQuarters.filter(l => l.type !== 'office' && !(l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
+    const officesRows = rawQuarters.filter(l => l.type === 'office' || (l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => a.name.localeCompare(b.name));
+    
+    const allItems = [...quartersRows, ...officesRows];
+
+    const data = allItems.map(loc => {
+        const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
+        const dateToFmt = loc.isIndefinite ? 'Nieokreślony' : fmtDate(loc.dateTo);
+        const term = (loc.dateFrom || loc.dateTo || loc.isIndefinite) ? `${fmtDate(loc.dateFrom)} - ${dateToFmt}` : '—';
+        const isOffice = loc.type === 'office' || (loc.name && loc.name.toUpperCase().includes('VANSTEV - BIURO'));
+        
+        return {
+            "Podmiot wynajmujący": loc.name,
+            "Przedmiot umowy": fullAddr,
+            "Miesięczna opłata w PLN": isOffice ? 0 : parseFloat((parseFloat(loc.price || 0) * eurToPln).toFixed(2)),
+            "waluta zobowiązania": "EUR",
+            "termin obowiązywania": term,
+            "okres wypowiedzenia": loc.noticePeriod || '—'
+        };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Raport");
+
+    // Dostosowanie szerokości kolumn
+    const wscols = [
+        { wch: 30 }, // Podmiot
+        { wch: 40 }, // Przedmiot
+        { wch: 20 }, // Opłata
+        { wch: 15 }, // Waluta
+        { wch: 25 }, // Termin
+        { wch: 20 }  // Wypowiedzenie
+    ];
+    worksheet['!cols'] = wscols;
+
+    const fileName = `Raport_VanStev_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    logActivity('Wygenerowano raport Excel', fileName);
+}
+
 async function downloadLocReport() {
     if (!window.html2pdf) {
         alert("Błąd: Nie można załadować biblioteki PDF. Sprawdź połączenie z internetem.");
