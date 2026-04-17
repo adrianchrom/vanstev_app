@@ -1444,8 +1444,8 @@ async function downloadLocReport() {
         return `
             <tr style="border-bottom:1px solid #eee;">
                 <td style="padding:10px; border-bottom:1px solid #eee;">
-                    <div style="font-weight:700;">#${loc.locNumber || '?'} ${loc.name}</div>
-                    <div style="font-size:9px; color:#666; margin-top:2px;">📍 ${fullAddr}</div>
+                    <span style="font-weight:700;">#${loc.locNumber || '?'} ${loc.name}</span><br>
+                    <span style="font-size:10px; color:#444; display:inline-block; margin-top:3px;">📍 ${fullAddr || 'Brak danych adresowych'}</span>
                 </td>
                 <td style="padding:10px; border-bottom:1px solid #eee;">${projectName}</td>
                 <td style="padding:10px; text-align:center; border-bottom:1px solid #eee;">${occ} / ${loc.capacity}</td>
