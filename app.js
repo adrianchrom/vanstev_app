@@ -1512,7 +1512,7 @@ async function downloadExcelReport() {
         const rowData = {
             podmiot: "VAN STEV Sp. z o.o. sp. k.",
             przedmiot: isOffice ? `Biuro: ${fullAddr}` : `Kwatera: ${fullAddr}`,
-            oplata: isOffice ? 0 : parseFloat((parseFloat(loc.price || 0) * eurToPln).toFixed(2)),
+            oplata: parseFloat((parseFloat(loc.price || 0) * eurToPln).toFixed(2)),
             waluta: "PLN",
             termin: term,
             okres: loc.noticePeriod || '—'
@@ -1826,20 +1826,26 @@ function applyFilters() {
             }
         }
 
-        // Person search
-        const matchesPerson = !q || (loc.people && loc.people.some(p => {
-            const name = (typeof p === 'string' ? p : p.name || '').toLowerCase();
-            const plate = (typeof p !== 'string' && p.carPlate ? p.carPlate : '').toLowerCase();
-            const car = (typeof p !== 'string' && p.carDesc ? p.carDesc : '').toLowerCase();
-            return name.includes(q) || plate.includes(q) || car.includes(q);
-        }));
+        // Query search (person, name, address, zip)
+        const matchesQuery = !q || (
+            (loc.name || '').toLowerCase().includes(q) ||
+            (loc.street || '').toLowerCase().includes(q) ||
+            (loc.city || '').toLowerCase().includes(q) ||
+            (loc.zip || '').toLowerCase().includes(q) ||
+            (loc.people && loc.people.some(p => {
+                const name = (typeof p === 'string' ? p : p.name || '').toLowerCase();
+                const plate = (typeof p !== 'string' && p.carPlate ? p.carPlate : '').toLowerCase();
+                const car = (typeof p !== 'string' && p.carDesc ? p.carDesc : '').toLowerCase();
+                return name.includes(q) || plate.includes(q) || car.includes(q);
+            }))
+        );
 
         // Availability filter
         const occ = loc.people ? loc.people.length : 0;
         const hasSpace = occ < loc.capacity;
         const matchesAvailability = !showOnlyAvailable || hasSpace;
 
-        return matchesPerson && matchesAvailability;
+        return matchesQuery && matchesAvailability;
     });
 
     renderList(filtered);
