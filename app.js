@@ -33,6 +33,7 @@ let roadDistances = {}; // Cache for road distances
 // Section collapse state
 let isProjectsCollapsed = true;
 let isQuartersCollapsed = true;
+let isOfficesCollapsed = false;
 
 // ===== LOGIN =====
 const USER_PASSWORDS = {
@@ -625,6 +626,9 @@ function addMarker(loc) {
         const icon = zoom >= 11 ? makeProjectIcon(loc.name) : makeProjectFactoryIcon();
         m = L.marker([loc.lat, loc.lng], { icon: icon }).addTo(map);
         if (zoom >= 11) m.setZIndexOffset(1000);
+    } else if (loc.type === 'office') {
+        const color = '#a855f7'; // Purple for office
+        m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
     } else {
         const occ = loc.people ? loc.people.length : 0;
         const isFull = occ >= loc.capacity;
@@ -670,6 +674,21 @@ function makePopupHtml(loc) {
             ${addedByHtml}
             <div style="margin-top:8px; font-size:11px; color:var(--muted); font-weight:600;">PRZYPISANE LOKALIZACJE:</div>
             <div style="font-size:12px; margin-top:4px;">${linkedNames || '<span style="color:var(--muted)">Brak</span>'}</div>
+        </div>`;
+    }
+
+    if (loc.type === 'office') {
+        const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
+        const addrHtml = fullAddr ? `<div class="popup-row">🏡 <span style="font-size:11px;">${fullAddr}</span></div>` : '';
+        const addedByHtml = loc.addedBy ? `<div class="popup-row" style="opacity:0.6; font-size:11px;">✍️ Dodał(a): <span>${loc.addedBy}</span></div>` : '';
+
+        return `<div style="min-width:220px;padding:4px;">
+            <div class="popup-name" style="color:#a855f7;"><span style="font-size:10px; background:#a855f7; color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">BIURO</span>${loc.name}</div>
+            <span class="badge" style="background:rgba(168,85,247,0.15); color:#a855f7; border:1px solid rgba(168,85,247,0.3); margin-bottom:8px;">Biuro firmowe</span>
+            ${addrHtml}
+            <div class="popup-row" style="font-size:11px;">📌 <span>${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span></div>
+            ${addedByHtml}
+            ${loc.notes ? `<div class="popup-row" style="margin-top:4px; font-style:italic; color:var(--muted);">📝 Uwagi: <span>${loc.notes}</span></div>` : ''}
         </div>`;
     }
 
@@ -1046,6 +1065,7 @@ function resetForm() {
 function toggleSection(section) {
     if (section === 'projects') isProjectsCollapsed = !isProjectsCollapsed;
     else if (section === 'quarters') isQuartersCollapsed = !isQuartersCollapsed;
+    else if (section === 'offices') isOfficesCollapsed = !isOfficesCollapsed;
     renderList();
 }
 
@@ -1058,7 +1078,8 @@ function renderList(filteredLocs = null) {
     const data = (filteredLocs || locations);
 
     const projects = data.filter(l => l.type === 'project').sort((a, b) => a.name.localeCompare(b.name));
-    const quarters = data.filter(l => l.type !== 'project').sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
+    const quarters = data.filter(l => l.type !== 'project' && l.type !== 'office').sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
+    const offices = data.filter(l => l.type === 'office' || (l.type !== 'project' && l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => a.name.localeCompare(b.name));
 
     count.textContent = data.length + ' wpis' + (data.length === 1 ? '' : data.length < 5 ? 'y' : 'ów');
 
@@ -1151,7 +1172,30 @@ function renderList(filteredLocs = null) {
         </div>`;
     };
 
+    const renderOfficeCard = (loc) => {
+        const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
+        return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')" style="border-left:4px solid #a855f7;">
+            <div class="loc-card-head"><div class="loc-name"><span style="font-size:10px; background:#a855f7; color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">BIURO</span>${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
+            ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
+            <div class="loc-badges" style="margin-top:8px;"><span class="badge" style="background:rgba(168,85,247,0.15); color:#a855f7; border:1px solid rgba(168,85,247,0.3);">Biuro</span></div>
+            <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
+            ${loc.notes ? `<div style="margin-top:6px; font-size:11px; padding:6px; background:var(--bg); border-radius:6px; border-left:3px solid #a855f7;">📝 <em>${loc.notes}</em></div>` : ''}
+        </div>`;
+    };
+
     let html = '';
+
+    if (offices.length > 0) {
+        html += `
+            <div class="list-section-header ${isOfficesCollapsed ? 'collapsed' : ''}" onclick="toggleSection('offices')">
+                <div class="list-section-title">🏢 Biura (${offices.length})</div>
+                <div class="list-section-arrow">▼</div>
+            </div>
+            <div class="list-section-content ${isOfficesCollapsed ? 'collapsed' : ''}">
+                ${offices.map(o => renderOfficeCard(o)).join('')}
+            </div>
+        `;
+    }
 
     if (projects.length > 0) {
         html += `
