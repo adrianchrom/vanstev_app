@@ -1288,9 +1288,32 @@ function openEdit(id, e) {
     document.getElementById('eStreet').value = loc.street || '';
     document.getElementById('eHouseNum').value = loc.houseNum || '';
 
-    document.getElementById('eType').value = loc.type === 'project' ? 'project' : 'location';
+    document.getElementById('eType').value = loc.type || 'location';
+    if (currentUser === 'Admin') {
+        document.getElementById('adminTypeField').style.display = 'block';
+    } else {
+        document.getElementById('adminTypeField').style.display = 'none';
+    }
 
-    if (loc.type === 'project') {
+    toggleEditType();
+
+    editLat = loc.lat;
+    editLng = loc.lng;
+    document.getElementById('eCoordDisplay').style.display = 'block';
+    document.getElementById('eCoordTxt').textContent = editLat.toFixed(5) + ', ' + editLng.toFixed(5);
+    document.getElementById('eNotes').value = loc.notes || '';
+
+    document.getElementById('editModal').classList.add('open');
+}
+
+function addEditPerson() { editPeople.push({ name: '', isDriver: false, carPlate: '', carDesc: '', isWorking: true }); renderPeopleInputs('editPeopleList', editPeople, 'edit'); }
+
+function toggleEditType() {
+    const type = document.getElementById('eType').value;
+    const loc = locations.find(l => l.id === editingId);
+    if (!loc) return;
+
+    if (type === 'project') {
         document.getElementById('eLocSpecificFields').style.display = 'none';
         document.getElementById('eProjSpecificFields').style.display = 'block';
         document.getElementById('eProjOccSearch').value = '';
@@ -1298,8 +1321,14 @@ function openEdit(id, e) {
         renderLinkedLocations('eLinkedLocations', currentEditSelectedIds);
         currentEditSelectedIds.forEach(lid => updateMarkerHighlight(lid, true));
     } else {
+        // location or office
         document.getElementById('eLocSpecificFields').style.display = 'block';
         document.getElementById('eProjSpecificFields').style.display = 'none';
+
+        // Hide capacity and people for office
+        const isOffice = (type === 'office');
+        document.getElementById('eCapacitySection').style.display = isOffice ? 'none' : 'block';
+        document.getElementById('ePeopleSection').style.display = isOffice ? 'none' : 'block';
 
         document.getElementById('eCapacity').value = loc.capacity || '';
         document.getElementById('ePrice').value = loc.price || 0;
@@ -1318,17 +1347,7 @@ function openEdit(id, e) {
         renderPeopleInputs('editPeopleList', editPeople, 'edit');
         updateEditTotalCost();
     }
-
-    editLat = loc.lat;
-    editLng = loc.lng;
-    document.getElementById('eCoordDisplay').style.display = 'block';
-    document.getElementById('eCoordTxt').textContent = editLat.toFixed(5) + ', ' + editLng.toFixed(5);
-    document.getElementById('eNotes').value = loc.notes || '';
-
-    document.getElementById('editModal').classList.add('open');
 }
-
-function addEditPerson() { editPeople.push({ name: '', isDriver: false, carPlate: '', carDesc: '', isWorking: true }); renderPeopleInputs('editPeopleList', editPeople, 'edit'); }
 
 function saveEdit() {
     const type = document.getElementById('eType').value;
@@ -1343,13 +1362,14 @@ function saveEdit() {
     const updatedData = {
         name, zip, city, street, houseNum,
         lat: editLat, lng: editLng,
+        type: type, // Record the type!
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    if (type === 'location') {
-        const capacity = parseInt(document.getElementById('eCapacity').value);
+    if (type === 'location' || type === 'office') {
+        const capacity = parseInt(document.getElementById('eCapacity').value) || 0;
         const price = parseFloat(document.getElementById('ePrice').value);
-        if (!capacity || isNaN(price)) { alert('Wypełnij wszystkie wymagane pola.'); return; }
+        if (isNaN(price)) { alert('Wypełnij cenę.'); return; }
 
         Object.assign(updatedData, {
             capacity, price,
@@ -1361,7 +1381,7 @@ function saveEdit() {
             people: [...editPeople].filter(p => p.name.trim()),
             notes: document.getElementById('eNotes').value.trim()
         });
-    } else {
+    } else if (type === 'project') {
         Object.assign(updatedData, {
             linkedLocations: getEditSelectedLinkedLocations()
         });

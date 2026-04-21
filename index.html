@@ -111,10 +111,17 @@
                     style="position:static; width:100%; margin-top:8px; height:32px;">📍 Pobierz współrzędne z
                     adresu</button>
             </div>
-            <input type="hidden" id="eType" value="location" />
+            <div class="form-group" id="adminTypeField" style="display:none;">
+                <label>Typ obiektu (Tylko Admin)</label>
+                <select id="eType" onchange="toggleEditType()" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text);">
+                    <option value="location">🏠 Kwatera</option>
+                    <option value="office">🏢 Biuro</option>
+                    <option value="project">🏗️ Projekt</option>
+                </select>
+            </div>
 
             <div id="eLocSpecificFields">
-                <div class="form-group">
+                <div class="form-group" id="eCapacitySection">
                     <label>Liczba miejsc (osób)</label>
                     <input type="number" id="eCapacity" min="1" max="50" placeholder="np. 8" />
                 </div>
@@ -170,10 +177,12 @@
                     <textarea id="eNotes" placeholder="Dodatkowe informacje..." rows="3"
                         style="width:100%; border-radius:8px; border:1.5px solid var(--border); background:var(--bg); color:var(--text); padding:10px; font-family:inherit; font-size:13px; resize:vertical;"></textarea>
                 </div>
-                <div class="form-group">
-                    <label>Osoby zamieszkałe</label>
-                    <div class="people-area" id="editPeopleList"></div>
-                    <button class="add-person-btn" onclick="addEditPerson()">+ Dodaj osobę</button>
+                <div id="ePeopleSection">
+                    <div class="form-group">
+                        <label>Osoby zamieszkałe</label>
+                        <div class="people-area" id="editPeopleList"></div>
+                        <button class="add-person-btn" onclick="addEditPerson()">+ Dodaj osobę</button>
+                    </div>
                 </div>
             </div>
 
