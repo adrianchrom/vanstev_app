@@ -1103,6 +1103,12 @@ function renderList(filteredLocs = null) {
         return `<span class="person-chip ${cls}" style="border-radius:4px;">${workIcon}${p.name}${driverIcon}${plate}${car}</span>`;
     };
 
+    const toggleDetailsHtml = (id) => {
+        return `<button class="expand-btn" onclick="toggleDetails('${id}', event)">
+            🔽 Rozwiń
+        </button>`;
+    };
+
     const renderProjectCard = (loc) => {
         const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
         const linkedNames = (loc.linkedLocations || []).map(id => {
@@ -1121,11 +1127,22 @@ function renderList(filteredLocs = null) {
             return `<span class="person-chip" style="border-radius:4px; border-color:var(--blue); color:var(--blue);font-weight:700;">[#${l.locNumber || '?'}] ${l.name}${distHtml}</span>`;
         }).join('');
         return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')" style="border-left:4px solid var(--blue);">
-            <div class="loc-card-head"><div class="loc-name"><span style="font-size:10px; background:var(--blue); color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">PROJEKT</span>${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
+            <div class="loc-card-head">
+                <div class="loc-name"><span style="font-size:10px; background:var(--blue); color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">PROJEKT</span>${loc.name}</div>
+                <div class="loc-actions">
+                    <button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button>
+                    <button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button>
+                </div>
+            </div>
             ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
             <div class="loc-badges" style="margin-top:8px;"><span class="badge badge-blue">Projekt</span></div>
-            <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
-            <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title">Przypisane lokalizacje</div>${linkedNames || '<span style="color:var(--muted);font-size:12px;">Brak</span>'}</div>
+            
+            ${toggleDetailsHtml(loc.id)}
+            
+            <div class="loc-card-details" id="details-${loc.id}">
+                <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
+                <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title">Przypisane lokalizacje</div>${linkedNames || '<span style="color:var(--muted);font-size:12px;">Brak</span>'}</div>
+            </div>
         </div>`;
     };
 
@@ -1143,32 +1160,27 @@ function renderList(filteredLocs = null) {
         return `<div class="loc-card ${nwClass}" id="card-${loc.id}" onclick="focusLoc('${loc.id}')">
             <div class="loc-card-head"><div class="loc-name">${houseIcon} ${numPrefix}${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
             ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
-            ${(loc.dateFrom || loc.dateTo || loc.isIndefinite) ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;">📅 ${fmtDate(loc.dateFrom)} → ${dateToFmt}${months ? ` &bull; ${months} m-cy &bull; <strong style="color:var(--accent);">€${totalCost.toFixed(2)}</strong>` : ''}</div>` : ''}
             <div class="loc-badges" style="margin-top:8px;">
                 <span class="rental-badge ${rs.cls}">${rs.label}</span>
-                ${loc.caregiver ? `<span class="caregiver-badge">👤 ${loc.caregiver}</span>` : ''}
-                <span class="badge badge-amber">👥 ${loc.capacity} miejsc</span>
-                <span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)} <small>(~${fmtPLN(parseFloat(loc.price || 0) * eurToPln, 0)} PLN)</small></span>
-                <span class="badge badge-blue">${occ}/${loc.capacity} zajętych</span>
-                ${loc.noticePeriod ? `<span class="badge" style="background:rgba(147,51,234,0.15); color:#a855f7; border:1px solid rgba(147,51,234,0.3);">⏳ ${loc.noticePeriod}</span>` : ''}
-                <span class="badge" style="background:rgba(232,98,26,0.1); color:var(--accent); border:1px solid rgba(232,98,26,0.2);">💰 Wydano: €${calcSpentSoFar(loc.dateFrom, loc.price).toFixed(2)}</span>
-                ${(() => {
-                // Only calculate distance to the project that is currently active/filtered
-                if (!activeProjectId) return '';
-                const p = locations.find(x => x.id === activeProjectId);
-                if (!p || p.type !== 'project' || !(p.linkedLocations || []).includes(loc.id)) return '';
-
-                const distKey = `${p.id}_${loc.id}`;
-                const dist = roadDistances[distKey];
-                if (dist === undefined) { fetchRoadDistance(p, loc); return `<span class="badge" style="opacity:0.6; font-size:10px;">🛣️ liczenie...</span>`; }
-                if (dist === null) return `<span class="badge" style="opacity:0.6; font-size:10px;">🛣️ liczenie...</span>`;
-                if (!dist || dist === '—') return '';
-                return `<span class="badge" style="background:rgba(59,130,246,0.1); color:var(--blue); border:1px solid rgba(59,130,246,0.2);">🛣️ ${dist} km do ${p.name}</span>`;
-            })()}
+                <span class="badge badge-amber">👥 ${occ}/${loc.capacity}</span>
+                <span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(0)}</span>
             </div>
-            <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
-            ${loc.notes ? `<div style="margin-top:6px; font-size:11px; padding:6px; background:var(--bg); border-radius:6px; border-left:3px solid var(--accent);">📝 <em>${loc.notes}</em></div>` : ''}
-            <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title">Mieszkańcy</div>${people}</div>
+            
+            ${toggleDetailsHtml(loc.id)}
+            
+            <div class="loc-card-details" id="details-${loc.id}">
+                ${(loc.dateFrom || loc.dateTo || loc.isIndefinite) ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;">📅 ${fmtDate(loc.dateFrom)} → ${dateToFmt}${months ? ` &bull; ${months} m-cy &bull; <strong style="color:var(--accent);">€${totalCost.toFixed(2)}</strong>` : ''}</div>` : ''}
+                <div class="loc-badges" style="margin-top:8px;">
+                    ${loc.caregiver ? `<span class="caregiver-badge">👤 ${loc.caregiver}</span>` : ''}
+                    <span class="badge badge-amber">👥 ${loc.capacity} miejsc</span>
+                    <span class="badge badge-green">💸 €${parseFloat(loc.price || 0).toFixed(2)} <small>(~${fmtPLN(parseFloat(loc.price || 0) * eurToPln, 0)} PLN)</small></span>
+                    ${loc.noticePeriod ? `<span class="badge" style="background:rgba(147,51,234,0.15); color:#a855f7; border:1px solid rgba(147,51,234,0.3);">⏳ ${loc.noticePeriod}</span>` : ''}
+                    <span class="badge" style="background:rgba(232,98,26,0.1); color:var(--accent); border:1px solid rgba(232,98,26,0.2);">💰 Wydano: €${calcSpentSoFar(loc.dateFrom, loc.price).toFixed(2)}</span>
+                </div>
+                <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
+                ${loc.notes ? `<div style="margin-top:6px; font-size:11px; padding:6px; background:var(--bg); border-radius:6px; border-left:3px solid var(--accent);">📝 <em>${loc.notes}</em></div>` : ''}
+                <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title">Mieszkańcy</div>${people}</div>
+            </div>
         </div>`;
     };
 
@@ -1178,8 +1190,13 @@ function renderList(filteredLocs = null) {
             <div class="loc-card-head"><div class="loc-name"><span style="font-size:10px; background:#a855f7; color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">BIURO</span>${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
             ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
             <div class="loc-badges" style="margin-top:8px;"><span class="badge" style="background:rgba(168,85,247,0.15); color:#a855f7; border:1px solid rgba(168,85,247,0.3);">Biuro</span></div>
-            <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
-            ${loc.notes ? `<div style="margin-top:6px; font-size:11px; padding:6px; background:var(--bg); border-radius:6px; border-left:3px solid #a855f7;">📝 <em>${loc.notes}</em></div>` : ''}
+            
+            ${toggleDetailsHtml(loc.id)}
+            
+            <div class="loc-card-details" id="details-${loc.id}">
+                <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
+                ${loc.notes ? `<div style="margin-top:6px; font-size:11px; padding:6px; background:var(--bg); border-radius:6px; border-left:3px solid #a855f7;">📝 <em>${loc.notes}</em></div>` : ''}
+            </div>
         </div>`;
     };
 
@@ -1226,6 +1243,19 @@ function renderList(filteredLocs = null) {
 
 function focusLoc(id) {
     focusLocation(id);
+}
+
+function toggleDetails(id, event) {
+    event?.stopPropagation();
+    const details = document.getElementById(`details-${id}`);
+    const btn = event?.currentTarget;
+    if (details) {
+        const isActive = details.classList.toggle('active');
+        if (btn) {
+            btn.innerHTML = isActive ? '🔼 Zwiń' : '🔽 Rozwiń';
+            btn.classList.toggle('active', isActive);
+        }
+    }
 }
 
 function highlightCard(id) {
