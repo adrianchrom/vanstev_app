@@ -1258,6 +1258,13 @@ function toggleDetails(id, event) {
     }
 }
 
+function toggleSidebarHeight() {
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) {
+        sidebar.classList.toggle('collapsed');
+    }
+}
+
 function highlightCard(id) {
     const loc = locations.find(l => l.id === id);
     if (loc) {
@@ -1965,4 +1972,11 @@ function focusLocation(id) {
 
     // Highlight in session
     highlightCard(id);
+}
+
+function toggleSidebarHeight() {
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) {
+        sidebar.classList.toggle('collapsed');
+    }
 }
