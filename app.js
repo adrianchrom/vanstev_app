@@ -1441,8 +1441,14 @@ function closeEdit() {
 
 // ===== STATS =====
 function renderStats() {
-    const offices = locations.filter(l => l.type && l.type.toLowerCase() === 'office');
-    const projects = locations.filter(l => l.type && l.type.toLowerCase() === 'project');
+    const offices = locations.filter(l => 
+        (l.type && l.type.toLowerCase() === 'office') || 
+        (l.name && l.name.toLowerCase().includes('biuro'))
+    );
+    const projects = locations.filter(l => 
+        (l.type && l.type.toLowerCase() === 'project') && 
+        !(l.name && l.name.toLowerCase().includes('biuro'))
+    );
     const quarters = locations.filter(l => !offices.includes(l) && !projects.includes(l));
 
     let totalWorking = 0;
