@@ -1464,8 +1464,9 @@ function renderStats() {
     });
 
     const totalCapacity = quarters.reduce((s, l) => s + (Number(l.capacity) || 0), 0);
-    const totalCost = locations.filter(l => l.type !== 'project').reduce((s, l) => s + (Number(l.price) || 0), 0);
-    const avgCostPerPerson = totalOccupants > 0 ? (totalCost / totalOccupants) : 0;
+    const quartersCost = quarters.reduce((s, l) => s + (Number(l.price) || 0), 0);
+    const officesCost = offices.reduce((s, l) => s + (Number(l.price) || 0), 0);
+    const avgCostPerPerson = totalOccupants > 0 ? (quartersCost / totalOccupants) : 0;
 
     const statsGrid = document.getElementById('statsGrid');
     if (statsGrid) {
@@ -1502,12 +1503,16 @@ function renderStats() {
             <div class="stat-card" style="border-top: 4px solid var(--blue);">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <div>
-                        <div class="stat-val" style="color:var(--blue);">€${totalCost.toFixed(0)}</div>
-                        <div class="stat-lbl">Miesięczne koszty</div>
+                        <div class="stat-val" style="color:var(--blue);">€${quartersCost.toFixed(0)}</div>
+                        <div class="stat-lbl">Koszty kwater</div>
                     </div>
                     <div style="background:rgba(59,130,246,0.1); padding:8px; border-radius:10px; font-size:20px;">💶</div>
                 </div>
-                <div style="margin-top:8px; font-size:12px; color:var(--accent2); font-weight:800;">~ ${fmtPLN(totalCost * eurToPln, 0)} PLN</div>
+                <div style="margin-top:8px; font-size:12px; color:var(--accent2); font-weight:800;">~ ${fmtPLN(quartersCost * eurToPln, 0)} PLN</div>
+                <div style="margin-top:10px; border-top:1px dashed var(--border); padding-top:8px; font-size:10px; color:var(--muted); display:flex; justify-content:space-between;">
+                    <span>🏢 Biura:</span>
+                    <span>€${officesCost.toFixed(2)} (${fmtPLN(officesCost * eurToPln, 0)} PLN)</span>
+                </div>
             </div>
 
             <div class="stat-card" style="border-top: 4px solid var(--accent2);">
