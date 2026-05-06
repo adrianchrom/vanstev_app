@@ -1530,29 +1530,37 @@ function renderStats() {
     const details = document.getElementById('statsDetails');
     if (!details) return;
     if (!locations.length) { details.innerHTML = '<div class="empty-state">...</div>'; return; }
-    details.innerHTML = quarters.map(loc => {
+    const visibleLocs = [...quarters, ...offices].sort((a, b) => {
+        if (a.type === b.type) return (a.locNumber || 0) - (b.locNumber || 0);
+        return a.type === 'office' ? -1 : 1; // Offices first or vice versa? Let's stay flexible
+    });
+
+    details.innerHTML = visibleLocs.map(loc => {
+        const isOffice = loc.type === 'office';
         const occ = loc.people ? loc.people.length : 0;
         const cap = Number(loc.capacity) || 0;
         const pct = cap > 0 ? Math.round(occ / cap * 100) : 0;
         const price = parseFloat(loc.price || 0);
         const perPerson = occ > 0 ? (price / occ) : 0;
 
-        return `<div style="background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:10px;">
+        return `<div style="background:var(--card2); border:1px solid ${isOffice ? '#a855f7' : 'var(--border)'}; border-radius:12px; padding:12px; margin-bottom:10px;">
             <div style="font-size:13px; font-weight:700; display:flex; justify-content:space-between;">
-                <span>🏠 ${loc.name}</span>
-                <span style="color:var(--muted); font-size:11px;">#${loc.locNumber || '?'}</span>
+                <span>${isOffice ? '🏢' : '🏠'} ${loc.name}</span>
+                <span style="color:var(--muted); font-size:11px;">${isOffice ? 'BIURO' : '#' + (loc.locNumber || '?')}</span>
             </div>
+            ${!isOffice ? `
             <div style="font-size:11px; color:var(--muted); margin-top:4px;">Zajętość: ${occ}/${loc.capacity} (${pct}%)</div>
             <div style="height:6px; background:var(--bg); border-radius:3px; overflow:hidden; margin:8px 0;">
                 <div style="height:100%; width:${pct}%; background:linear-gradient(90deg, var(--accent), var(--accent2));"></div>
             </div>
+            ` : `<div style="margin:12px 0;"></div>`}
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
                 <div>
-                    <div style="font-size:9px; color:var(--muted); text-transform:uppercase; font-weight:700; margin-bottom:4px;">Koszt całkowity:</div>
-                    <div style="font-size:14px; color:var(--accent); font-weight:800;">€${price.toFixed(2)}</div>
+                    <div style="font-size:9px; color:var(--muted); text-transform:uppercase; font-weight:700; margin-bottom:4px;">Koszt miesięczny:</div>
+                    <div style="font-size:14px; color:${isOffice ? '#a855f7' : 'var(--accent)'}; font-weight:800;">€${price.toFixed(2)}</div>
                     <div style="font-size:11px; color:var(--muted); font-weight:600;">~${fmtPLN(price * eurToPln, 0)} PLN</div>
                 </div>
-                ${occ > 0 ? `
+                ${!isOffice ? (occ > 0 ? `
                 <div style="border-left:1px dashed var(--border); padding-left:10px;">
                     <div style="font-size:9px; color:var(--muted); text-transform:uppercase; font-weight:700; margin-bottom:4px;">Na 1 osobę:</div>
                     <div style="font-size:14px; color:var(--success); font-weight:800;">€${perPerson.toFixed(2)}</div>
@@ -1561,6 +1569,11 @@ function renderStats() {
                 ` : `
                 <div style="border-left:1px dashed var(--border); padding-left:10px; display:flex; align-items:center;">
                     <span style="font-size:10px; color:var(--danger); font-style:italic;">Brak lokatorów</span>
+                </div>
+                `) : `
+                <div style="border-left:1px dashed var(--border); padding-left:10px;">
+                    <div style="font-size:9px; color:var(--muted); text-transform:uppercase; font-weight:700; margin-bottom:4px;">Typ:</div>
+                    <div style="font-size:12px; color:var(--text); font-weight:600;">Biuro firmowe</div>
                 </div>
                 `}
             </div>
