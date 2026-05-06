@@ -1441,34 +1441,84 @@ function closeEdit() {
 
 // ===== STATS =====
 function renderStats() {
-    const quarters = locations.filter(l => l.type !== 'project');
+    const quarters = locations.filter(l => l.type === 'location' || !l.type || l.type === undefined);
+    const offices = locations.filter(l => l.type === 'office');
     const projects = locations.filter(l => l.type === 'project');
 
-    const totalQuarters = quarters.length;
-    const totalProjects = projects.length;
+    let totalWorking = 0;
+    let totalNotWorking = 0;
+    let totalOccupants = 0;
+    
+    locations.forEach(loc => {
+        if (loc.type === 'project') return;
+        if (loc.people && loc.people.length > 0) {
+            loc.people.forEach(p => {
+                totalOccupants++;
+                if (typeof p === 'object' && p.isWorking === false) {
+                    totalNotWorking++;
+                } else {
+                    totalWorking++;
+                }
+            });
+        }
+    });
 
-    // Sum only for quarters (ensure numeric conversion to avoid string concatenation)
-    const occupiedDots = quarters.reduce((s, l) => s + (l.people ? l.people.length : 0), 0);
     const totalCapacity = quarters.reduce((s, l) => s + (Number(l.capacity) || 0), 0);
-    const freeSpots = Math.max(0, totalCapacity - occupiedDots);
-
-    const totalCostPerMonth = quarters.reduce((s, l) => s + (Number(l.price) || 0), 0);
+    const totalCost = locations.filter(l => l.type !== 'project').reduce((s, l) => s + (Number(l.price) || 0), 0);
+    const avgCostPerPerson = totalOccupants > 0 ? (totalCost / totalOccupants) : 0;
 
     const statsGrid = document.getElementById('statsGrid');
     if (statsGrid) {
+        statsGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
         statsGrid.innerHTML = `
-            <div class="stat-card">
-                <div class="stat-val">${totalQuarters} / ${totalProjects}</div>
-                <div class="stat-lbl">Kwatery / Projekty</div>
+            <div class="stat-card" style="border-top: 4px solid var(--accent);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <div class="stat-val">${totalOccupants}</div>
+                        <div class="stat-lbl">Mieszkańcy (Suma)</div>
+                    </div>
+                    <div style="background:rgba(232,98,26,0.1); padding:8px; border-radius:10px; font-size:20px;">👥</div>
+                </div>
+                <div style="margin-top:12px; display:flex; gap:10px; font-size:11px;">
+                    <span style="color:var(--success);">● ${totalWorking} Pracujących</span>
+                    <span style="color:var(--danger);">● ${totalNotWorking} Niepracujących</span>
+                </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-val" style="color:var(--accent);">${occupiedDots}</div>
-                <div class="stat-lbl">Miejsc zajętych / ${totalCapacity}</div>
+            
+            <div class="stat-card" style="border-top: 4px solid var(--success);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <div class="stat-val" style="color:var(--success);">${totalCapacity - totalOccupants}</div>
+                        <div class="stat-lbl">Wolne miejsca</div>
+                    </div>
+                    <div style="background:rgba(16,185,129,0.1); padding:8px; border-radius:10px; font-size:20px;">🏠</div>
+                </div>
+                <div style="margin-top:12px; height:4px; background:var(--bg); border-radius:2px; overflow:hidden;">
+                    <div style="height:100%; width:${(totalOccupants / (totalCapacity || 1) * 100).toFixed(0)}%; background:var(--success);"></div>
+                </div>
+                <div style="margin-top:6px; font-size:10px; color:var(--muted);">Obłożenie: ${(totalOccupants / (totalCapacity || 1) * 100).toFixed(1)}%</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-val">€${totalCostPerMonth.toFixed(0)}</div>
-                <div style="font-size:11px; color:var(--accent2); font-weight:700; margin-top:2px;">~${fmtPLN(totalCostPerMonth * eurToPln, 0)} PLN</div>
-                <div class="stat-lbl" style="margin-top:4px;">Koszt miesięczny (suma)</div>
+
+            <div class="stat-card" style="border-top: 4px solid var(--blue);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <div class="stat-val" style="color:var(--blue);">€${totalCost.toFixed(0)}</div>
+                        <div class="stat-lbl">Miesięczne koszty</div>
+                    </div>
+                    <div style="background:rgba(59,130,246,0.1); padding:8px; border-radius:10px; font-size:20px;">💶</div>
+                </div>
+                <div style="margin-top:8px; font-size:12px; color:var(--accent2); font-weight:800;">~ ${fmtPLN(totalCost * eurToPln, 0)} PLN</div>
+            </div>
+
+            <div class="stat-card" style="border-top: 4px solid var(--accent2);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <div class="stat-val" style="color:var(--accent2);">€${avgCostPerPerson.toFixed(2)}</div>
+                        <div class="stat-lbl">Koszt / 1 osobę</div>
+                    </div>
+                    <div style="background:rgba(251,191,36,0.1); padding:8px; border-radius:10px; font-size:20px;">📊</div>
+                </div>
+                <div style="margin-top:8px; font-size:12px; color:var(--muted);">Średni koszt utrzymania mieszkańca</div>
             </div>
         `;
     }
