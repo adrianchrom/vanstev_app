@@ -1441,9 +1441,9 @@ function closeEdit() {
 
 // ===== STATS =====
 function renderStats() {
-    const quarters = locations.filter(l => l.type === 'location' || !l.type || l.type === undefined);
-    const offices = locations.filter(l => l.type === 'office');
-    const projects = locations.filter(l => l.type === 'project');
+    const offices = locations.filter(l => l.type && l.type.toLowerCase() === 'office');
+    const projects = locations.filter(l => l.type && l.type.toLowerCase() === 'project');
+    const quarters = locations.filter(l => !offices.includes(l) && !projects.includes(l));
 
     let totalWorking = 0;
     let totalNotWorking = 0;
