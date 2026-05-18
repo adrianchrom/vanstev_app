@@ -177,22 +177,48 @@ function updateThemeUI() {
     }
 }
 
+let layersControl = null;
+let googleRoadmap, googleSatellite, standardLayer;
+
 function updateMapTheme() {
     if (!map) return;
     const isLight = document.body.classList.contains('light-mode');
-    // Remove existing tile layers
-    map.eachLayer(layer => {
-        if (layer instanceof L.TileLayer) map.removeLayer(layer);
-    });
+    
+    if (!googleRoadmap) {
+        googleRoadmap = L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+            attribution: '&copy; Google'
+        });
+        googleSatellite = L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+            attribution: '&copy; Google'
+        });
+    }
 
     const url = isLight
         ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
         : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 
-    L.tileLayer(url, {
-        attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-        subdomains: 'abcd', maxZoom: 19
-    }).addTo(map);
+    if (standardLayer) {
+        standardLayer.setUrl(url);
+    } else {
+        standardLayer = L.tileLayer(url, {
+            attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+            subdomains: 'abcd', maxZoom: 19
+        });
+    }
+
+    if (!layersControl) {
+        const baseMaps = {
+            "Standardowy": standardLayer,
+            "Google Mapa": googleRoadmap,
+            "Google Satelita": googleSatellite
+        };
+        standardLayer.addTo(map);
+        layersControl = L.control.layers(baseMaps).addTo(map);
+    }
 }
 
 // Apply theme on load
