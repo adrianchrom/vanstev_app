@@ -461,15 +461,18 @@
                 <div class="tab-panel" id="panelStats">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                         <div class="form-title" style="margin-bottom:0;">Statystyki</div>
-                        <div style="display:flex; gap:8px;">
-                            <button onclick="downloadExcelReport()"
-                                style="background:var(--success); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
-                                📗 Pobierz Excel
+                        <div class="export-dropdown-wrap">
+                            <button onclick="toggleExportMenu(event)" class="export-main-btn">
+                                📥 Pobierz Raport
                             </button>
-                            <button onclick="downloadLocReport()"
-                                style="background:var(--blue); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
-                                📄 Pobierz Raport (PDF)
-                            </button>
+                            <div id="exportMenu" class="export-menu">
+                                <div class="export-item" onclick="downloadLocReport()">
+                                    <span>📄</span> Plik PDF (Raport)
+                                </div>
+                                <div class="export-item" onclick="downloadExcelReport()">
+                                    <span>📗</span> Plik Excel (Zestawienie)
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="stat-grid" id="statsGrid"></div>

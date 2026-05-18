@@ -2080,3 +2080,14 @@ function toggleSidebarHeight() {
         sidebar.classList.toggle('collapsed');
     }
 }
+
+function toggleExportMenu(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById('exportMenu');
+    if (menu) menu.classList.toggle('active');
+}
+
+document.addEventListener('click', () => {
+    const menu = document.getElementById('exportMenu');
+    if (menu) menu.classList.remove('active');
+});
