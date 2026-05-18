@@ -1702,11 +1702,21 @@ async function downloadExcelReport() {
     logActivity('Wygenerowano raport Excel (ExcelJS)', anchor.download);
 }
 
-async function downloadLocReport() {
-    if (!window.html2pdf) {
+function showReportMenu() {
+    openModal('reportModal');
+}
+
+async function generateLocReport(format) {
+    if (format === 'pdf' && !window.html2pdf) {
         alert("Błąd: Nie można załadować biblioteki PDF. Sprawdź połączenie z internetem.");
         return;
     }
+    if (format === 'excel' && typeof ExcelJS === 'undefined') {
+        alert("Błąd: Biblioteka ExcelJS nie została załadowana.");
+        return;
+    }
+
+    closeModal('reportModal');
 
     const rawQuarters = locations.filter(l => l.type !== 'project');
     const quartersRows = rawQuarters.filter(l => l.type !== 'office' && !(l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
@@ -1797,19 +1807,89 @@ async function downloadLocReport() {
         </div>
     `;
 
-    const opt = {
-        margin: [10, 10, 10, 10], // Marginesy w mm: góra, lewo, dół, prawo
-        filename: `Raport_VanStev_${now.toISOString().split('T')[0]}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-    };
+    if (format === 'pdf') {
+        const opt = {
+            margin: [10, 10, 10, 10],
+            filename: `Raport_VanStev_${now.toISOString().split('T')[0]}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        };
 
-    // Konwersja na PDF
-    html2pdf().from(reportHtml).set(opt).save().then(() => {
-        logActivity('Wygenerowano raport PDF (HTML2PDF)', opt.filename);
-    });
+        html2pdf().from(reportHtml).set(opt).save().then(() => {
+            logActivity('Wygenerowano raport PDF (HTML2PDF)', opt.filename);
+        });
+    } else if (format === 'excel') {
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Raport Zakwaterowań');
+
+        sheet.columns = [
+            { header: 'LP', key: 'lp', width: 8 },
+            { header: 'KWATERA / BIURO', key: 'name', width: 40 },
+            { header: 'ADRES', key: 'address', width: 50 },
+            { header: 'PROJEKT', key: 'project', width: 30 },
+            { header: 'ZAJĘTOŚĆ', key: 'occ', width: 15 },
+            { header: 'MIESZKAŃCY', key: 'people', width: 60 },
+            { header: 'KOSZT MIES. (€)', key: 'price', width: 15 },
+            { header: 'KOSZT / OS. (€)', key: 'perPerson', width: 15 }
+        ];
+
+        allItems.forEach((loc, index) => {
+            const occ = loc.people ? loc.people.length : 0;
+            const project = locations.find(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
+            const isOffice = loc.type === 'office' || (loc.name && loc.name.toUpperCase().includes('VANSTEV - BIURO'));
+            const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
+            const price = parseFloat(loc.price || 0);
+            const perPerson = occ > 0 ? (price / occ) : 0;
+
+            const peopleText = loc.people ? loc.people.map(p => {
+                const name = typeof p === 'string' ? p : p.name;
+                const driver = (typeof p !== 'string' && p.isDriver) ? ' (K)' : '';
+                const plate = (typeof p !== 'string' && p.carPlate) ? ` [${p.carPlate}]` : '';
+                return `${name}${driver}${plate}`;
+            }).join(', ') : '';
+
+            const row = sheet.addRow({
+                lp: index + 1,
+                name: loc.name,
+                address: fullAddr,
+                project: isOffice ? 'BIURO' : (project ? project.name : '—'),
+                occ: `${occ} / ${loc.capacity || 0}`,
+                people: peopleText,
+                price: price,
+                perPerson: perPerson
+            });
+
+            if (isOffice) {
+                row.getCell('name').font = { color: { argb: 'FFa855f7' }, bold: true };
+            }
+        });
+
+        sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8621A' } };
+        
+        sheet.eachRow((row) => {
+            row.eachCell(cell => {
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                cell.alignment = { vertical: 'middle', wrapText: true };
+            });
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Raport_VanStev_Zakwaterowania_${now.toISOString().split('T')[0]}.xlsx`;
+        a.click();
+        logActivity('Wygenerowano raport Excel (Szczegółowy)', a.download);
+    }
 }
 
 // ===== TABS =====
@@ -2080,14 +2160,3 @@ function toggleSidebarHeight() {
         sidebar.classList.toggle('collapsed');
     }
 }
-
-function toggleExportMenu(e) {
-    if (e) e.stopPropagation();
-    const menu = document.getElementById('exportMenu');
-    if (menu) menu.classList.toggle('active');
-}
-
-document.addEventListener('click', () => {
-    const menu = document.getElementById('exportMenu');
-    if (menu) menu.classList.remove('active');
-});

@@ -69,6 +69,19 @@
         </div>
     </div>
 
+    <!-- ===== REPORT CHOICE MODAL ===== -->
+    <div id="reportModal" class="modal-overlay">
+        <div class="modal-box" style="max-width:320px; text-align:center;">
+            <div class="form-title">Wybierz format raportu</div>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:20px;">Wybierz w jakim formacie chcesz pobrać szczegółowe zestawienie lokalizacji i mieszkańców.</p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button onclick="generateLocReport('pdf')" class="login-btn" style="background:var(--blue);">📄 Pobierz jako PDF</button>
+                <button onclick="generateLocReport('excel')" class="login-btn" style="background:var(--success);">📗 Pobierz jako Excel</button>
+                <button onclick="closeModal('reportModal')" class="login-btn" style="background:var(--bg); color:var(--text); border:1px solid var(--border); margin-top:10px;">Anuluj</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== EDIT MODAL ===== -->
     <div id="editModal">
         <div class="modal-box">
@@ -461,18 +474,15 @@
                 <div class="tab-panel" id="panelStats">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                         <div class="form-title" style="margin-bottom:0;">Statystyki</div>
-                        <div class="export-dropdown-wrap">
-                            <button onclick="toggleExportMenu(event)" class="export-main-btn">
-                                📥 Pobierz Raport
+                        <div style="display:flex; gap:8px;">
+                            <button onclick="downloadExcelReport()"
+                                style="background:var(--success); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                                📗 Pobierz Excel
                             </button>
-                            <div id="exportMenu" class="export-menu">
-                                <div class="export-item" onclick="downloadLocReport()">
-                                    <span>📄</span> Plik PDF (Raport)
-                                </div>
-                                <div class="export-item" onclick="downloadExcelReport()">
-                                    <span>📗</span> Plik Excel (Zestawienie)
-                                </div>
-                            </div>
+                            <button onclick="showReportMenu()"
+                                style="background:var(--blue); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                                📄 Pobierz Raport (PDF/Excel)
+                            </button>
                         </div>
                     </div>
                     <div class="stat-grid" id="statsGrid"></div>
