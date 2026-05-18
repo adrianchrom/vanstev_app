@@ -1702,21 +1702,95 @@ async function downloadExcelReport() {
     logActivity('Wygenerowano raport Excel (ExcelJS)', anchor.download);
 }
 
-function showReportMenu() {
-    openModal('reportModal');
-}
-
-async function generateLocReport(format) {
-    if (format === 'pdf' && !window.html2pdf) {
-        alert("Błąd: Nie można załadować biblioteki PDF. Sprawdź połączenie z internetem.");
-        return;
-    }
-    if (format === 'excel' && typeof ExcelJS === 'undefined') {
+async function downloadLocExcelReport() {
+    if (typeof ExcelJS === 'undefined') {
         alert("Błąd: Biblioteka ExcelJS nie została załadowana.");
         return;
     }
 
-    closeModal('reportModal');
+    const rawQuarters = locations.filter(l => l.type !== 'project');
+    const quartersRows = rawQuarters.filter(l => l.type !== 'office' && !(l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
+    const officesRows = rawQuarters.filter(l => l.type === 'office' || (l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => a.name.localeCompare(b.name));
+    const allItems = [...quartersRows, ...officesRows];
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Raport Szczegółowy');
+
+    worksheet.columns = [
+        { header: 'LP', key: 'lp', width: 8 },
+        { header: 'KWATERA / ADRES', key: 'name', width: 45 },
+        { header: 'PROJEKT', key: 'project', width: 25 },
+        { header: 'ZAJĘTOŚĆ', key: 'occ', width: 15 },
+        { header: 'MIESZKAŃCY', key: 'people', width: 60 },
+        { header: 'KOSZT MIES. (EUR)', key: 'price', width: 20 },
+        { header: 'KOSZT / OS. (EUR)', key: 'perPerson', width: 20 }
+    ];
+
+    const headerRow = worksheet.getRow(1);
+    headerRow.height = 30;
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } }; // Blue color for distinguish
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+
+    allItems.forEach((loc, index) => {
+        const occ = loc.people ? loc.people.length : 0;
+        const peopleList = loc.people && loc.people.length > 0 ?
+            loc.people.map(p => {
+                const name = typeof p === 'string' ? p : p.name;
+                const driver = (typeof p !== 'string' && p.isDriver) ? ' (K)' : '';
+                const plate = (typeof p !== 'string' && p.carPlate) ? ` [${p.carPlate}]` : '';
+                return `${name}${driver}${plate}`;
+            }).join(', ') : 'Brak';
+
+        const project = locations.find(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
+        const isOffice = loc.type === 'office' || (loc.name && loc.name.toUpperCase().includes('VANSTEV - BIURO'));
+        const projectName = isOffice ? 'BIURO' : (project ? project.name : '—');
+        
+        const price = parseFloat(loc.price || 0);
+        const perPerson = occ > 0 ? (price / occ) : 0;
+        const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
+
+        const row = worksheet.addRow({
+            lp: loc.locNumber || (index + 1),
+            name: `${loc.name}\n${fullAddr}`,
+            project: projectName,
+            occ: `${occ} / ${loc.capacity}`,
+            people: peopleList,
+            price: price.toFixed(2),
+            perPerson: perPerson.toFixed(2)
+        });
+
+        row.getCell('name').alignment = { wrapText: true, vertical: 'middle' };
+        row.getCell('people').alignment = { wrapText: true, vertical: 'middle' };
+        row.eachCell((cell) => {
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            cell.alignment = cell.alignment || { vertical: 'middle' };
+        });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    const now = new Date();
+    anchor.download = `Raport_Szczegolowy_${now.toISOString().split('T')[0]}.xlsx`;
+    anchor.click();
+    window.URL.revokeObjectURL(url);
+}
+
+async function downloadLocReport() {
+    if (!window.html2pdf) {
+        alert("Błąd: Nie można załadować biblioteki PDF. Sprawdź połączenie z internetem.");
+        return;
+    }
 
     const rawQuarters = locations.filter(l => l.type !== 'project');
     const quartersRows = rawQuarters.filter(l => l.type !== 'office' && !(l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
@@ -1807,89 +1881,19 @@ async function generateLocReport(format) {
         </div>
     `;
 
-    if (format === 'pdf') {
-        const opt = {
-            margin: [10, 10, 10, 10],
-            filename: `Raport_VanStev_${now.toISOString().split('T')[0]}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, logging: false },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-        };
+    const opt = {
+        margin: [10, 10, 10, 10], // Marginesy w mm: góra, lewo, dół, prawo
+        filename: `Raport_VanStev_${now.toISOString().split('T')[0]}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
 
-        html2pdf().from(reportHtml).set(opt).save().then(() => {
-            logActivity('Wygenerowano raport PDF (HTML2PDF)', opt.filename);
-        });
-    } else if (format === 'excel') {
-        const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet('Raport Zakwaterowań');
-
-        sheet.columns = [
-            { header: 'LP', key: 'lp', width: 8 },
-            { header: 'KWATERA / BIURO', key: 'name', width: 40 },
-            { header: 'ADRES', key: 'address', width: 50 },
-            { header: 'PROJEKT', key: 'project', width: 30 },
-            { header: 'ZAJĘTOŚĆ', key: 'occ', width: 15 },
-            { header: 'MIESZKAŃCY', key: 'people', width: 60 },
-            { header: 'KOSZT MIES. (€)', key: 'price', width: 15 },
-            { header: 'KOSZT / OS. (€)', key: 'perPerson', width: 15 }
-        ];
-
-        allItems.forEach((loc, index) => {
-            const occ = loc.people ? loc.people.length : 0;
-            const project = locations.find(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
-            const isOffice = loc.type === 'office' || (loc.name && loc.name.toUpperCase().includes('VANSTEV - BIURO'));
-            const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
-            const price = parseFloat(loc.price || 0);
-            const perPerson = occ > 0 ? (price / occ) : 0;
-
-            const peopleText = loc.people ? loc.people.map(p => {
-                const name = typeof p === 'string' ? p : p.name;
-                const driver = (typeof p !== 'string' && p.isDriver) ? ' (K)' : '';
-                const plate = (typeof p !== 'string' && p.carPlate) ? ` [${p.carPlate}]` : '';
-                return `${name}${driver}${plate}`;
-            }).join(', ') : '';
-
-            const row = sheet.addRow({
-                lp: index + 1,
-                name: loc.name,
-                address: fullAddr,
-                project: isOffice ? 'BIURO' : (project ? project.name : '—'),
-                occ: `${occ} / ${loc.capacity || 0}`,
-                people: peopleText,
-                price: price,
-                perPerson: perPerson
-            });
-
-            if (isOffice) {
-                row.getCell('name').font = { color: { argb: 'FFa855f7' }, bold: true };
-            }
-        });
-
-        sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8621A' } };
-        
-        sheet.eachRow((row) => {
-            row.eachCell(cell => {
-                cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
-                };
-                cell.alignment = { vertical: 'middle', wrapText: true };
-            });
-        });
-
-        const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Raport_VanStev_Zakwaterowania_${now.toISOString().split('T')[0]}.xlsx`;
-        a.click();
-        logActivity('Wygenerowano raport Excel (Szczegółowy)', a.download);
-    }
+    // Konwersja na PDF
+    html2pdf().from(reportHtml).set(opt).save().then(() => {
+        logActivity('Wygenerowano raport PDF (HTML2PDF)', opt.filename);
+    });
 }
 
 // ===== TABS =====
