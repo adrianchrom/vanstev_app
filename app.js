@@ -647,7 +647,10 @@ function updateProjectIcons() {
 
 function addMarker(loc) {
     let m;
-    if (loc.type === 'project') {
+    if (loc.isArchived) {
+        const color = '#64748b'; // Muted grey for archived
+        m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
+    } else if (loc.type === 'project') {
         const zoom = map.getZoom();
         const icon = zoom >= 11 ? makeProjectIcon(loc.name) : makeProjectFactoryIcon();
         m = L.marker([loc.lat, loc.lng], { icon: icon }).addTo(map);
@@ -671,6 +674,24 @@ function addMarker(loc) {
 }
 
 function makePopupHtml(loc) {
+    if (loc.isArchived) {
+        const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
+        const addrHtml = fullAddr ? `<div class="popup-row">🏡 <span style="font-size:11px;">${fullAddr}</span></div>` : '';
+        const dateFromStr = fmtDate(loc.dateFrom);
+        const dateToStr = loc.isIndefinite ? 'Nieokreślony' : fmtDate(loc.dateTo);
+        const cost = calcArchiveCost(loc);
+        const houseIcon = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; color: var(--muted);"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
+        const numPrefix = loc.locNumber ? `<span style="color:var(--muted); font-size:13px; font-weight:normal;">[#${loc.locNumber}]</span> ` : '';
+        return `<div style="min-width:220px;padding:4px;">
+            <div class="popup-name" style="color: var(--muted);">${loc.type === 'office' ? '🏢' : houseIcon} ${numPrefix}${loc.name}</div>
+            <span class="badge" style="background:rgba(100,116,139,0.15); color:var(--muted); border:1px solid rgba(100,116,139,0.3); margin-bottom:8px;">Archiwum (Zakończony wynajem)</span>
+            ${addrHtml}
+            <div class="popup-row">📅 Okres: <span>${dateFromStr} → ${dateToStr}</span></div>
+            <div class="popup-row">💰 Koszt: <strong style="color:var(--accent);">€${cost.toFixed(2)}</strong> <span style="font-size:10px; color:var(--muted); margin-left:4px;">(~${fmtPLN(cost * eurToPln, 0)} PLN)</span></div>
+            <div class="popup-row" style="font-size:11px;">📌 <span>${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span></div>
+        </div>`;
+    }
+
     if (loc.type === 'project') {
         const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
         const addrHtml = fullAddr ? `<div class="popup-row">🏡 <span style="font-size:11px;">${fullAddr}</span></div>` : '';
@@ -809,6 +830,7 @@ function initDataSync() {
         locations = rawDocs;
         applyFilters();
         renderStats();
+        renderArchive();
         if (currentUser === 'Admin') renderAdminPanel();
     }, error => {
         console.error("Błąd synchronizacji:", error);
@@ -1048,6 +1070,7 @@ function saveLocation() {
             dateFrom: document.getElementById('fDateFrom').value,
             dateTo: document.getElementById('fDateTo').value,
             isIndefinite: document.getElementById('fIndefinite').checked,
+            isArchived: document.getElementById('fRentalEnded')?.checked || false,
             people: [...addPeople].filter(p => p.name.trim()),
             notes: document.getElementById('fNotes').value.trim()
         });
@@ -1082,6 +1105,8 @@ function resetForm() {
     document.getElementById('coordDisplay').style.display = 'none';
     document.getElementById('fIndefinite').checked = false;
     document.getElementById('fDateTo').disabled = false;
+    const fRentalEndedCb = document.getElementById('fRentalEnded');
+    if (fRentalEndedCb) fRentalEndedCb.checked = false;
     addPeople = []; renderPeopleInputs('addPeopleList', addPeople, 'add');
     pendingLat = null; pendingLng = null;
     if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
@@ -1403,6 +1428,10 @@ function toggleEditType() {
         document.getElementById('eIndefinite').checked = isIndef;
         document.getElementById('eDateTo').disabled = isIndef;
 
+        const isRentalEnded = !!loc.isArchived;
+        const eRentalEndedCb = document.getElementById('eRentalEnded');
+        if (eRentalEndedCb) eRentalEndedCb.checked = isRentalEnded;
+
         editPeople = (loc.people || []).map(p => {
             if (typeof p === 'string') return { name: p, isDriver: false, carPlate: '', carDesc: '', isWorking: true };
             return { carPlate: '', carDesc: '', isWorking: true, ...p };
@@ -1441,6 +1470,7 @@ function saveEdit() {
             dateFrom: document.getElementById('eDateFrom').value,
             dateTo: document.getElementById('eDateTo').value,
             isIndefinite: document.getElementById('eIndefinite').checked,
+            isArchived: document.getElementById('eRentalEnded')?.checked || false,
             people: [...editPeople].filter(p => p.name.trim()),
             notes: document.getElementById('eNotes').value.trim()
         });
@@ -1467,21 +1497,22 @@ function closeEdit() {
 
 // ===== STATS =====
 function renderStats() {
-    const offices = locations.filter(l => 
+    const activeLocations = locations.filter(l => !l.isArchived);
+    const offices = activeLocations.filter(l => 
         (l.type && l.type.toLowerCase() === 'office') || 
         (l.name && l.name.toLowerCase().includes('biuro'))
     );
-    const projects = locations.filter(l => 
+    const projects = activeLocations.filter(l => 
         (l.type && l.type.toLowerCase() === 'project') && 
         !(l.name && l.name.toLowerCase().includes('biuro'))
     );
-    const quarters = locations.filter(l => !offices.includes(l) && !projects.includes(l));
+    const quarters = activeLocations.filter(l => !offices.includes(l) && !projects.includes(l));
 
     let totalWorking = 0;
     let totalNotWorking = 0;
     let totalOccupants = 0;
     
-    locations.forEach(loc => {
+    activeLocations.forEach(loc => {
         if (loc.type === 'project') return;
         if (loc.people && loc.people.length > 0) {
             loc.people.forEach(p => {
@@ -1654,7 +1685,7 @@ async function downloadExcelReport() {
         };
     });
 
-    const rawQuarters = locations.filter(l => l.type !== 'project');
+    const rawQuarters = locations.filter(l => l.type !== 'project' && !l.isArchived);
     const quartersRows = rawQuarters.filter(l => l.type !== 'office' && !(l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
     const officesRows = rawQuarters.filter(l => l.type === 'office' || (l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => a.name.localeCompare(b.name));
     
@@ -1708,7 +1739,7 @@ async function downloadLocExcelReport() {
         return;
     }
 
-    const rawQuarters = locations.filter(l => l.type !== 'project');
+    const rawQuarters = locations.filter(l => l.type !== 'project' && !l.isArchived);
     const quartersRows = rawQuarters.filter(l => l.type !== 'office' && !(l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
     const officesRows = rawQuarters.filter(l => l.type === 'office' || (l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => a.name.localeCompare(b.name));
     const allItems = [...quartersRows, ...officesRows];
@@ -1792,7 +1823,7 @@ async function downloadLocReport() {
         return;
     }
 
-    const rawQuarters = locations.filter(l => l.type !== 'project');
+    const rawQuarters = locations.filter(l => l.type !== 'project' && !l.isArchived);
     const quartersRows = rawQuarters.filter(l => l.type !== 'office' && !(l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
     const officesRows = rawQuarters.filter(l => l.type === 'office' || (l.name && l.name.toUpperCase().includes('VANSTEV - BIURO'))).sort((a, b) => a.name.localeCompare(b.name));
     
@@ -1898,7 +1929,7 @@ async function downloadLocReport() {
 
 // ===== TABS =====
 function switchTab(tab) {
-    ['list', 'add', 'stats'].forEach(t => {
+    ['list', 'add', 'stats', 'archive'].forEach(t => {
         const panel = document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1));
         const tabEl = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
         if (panel) panel.classList.remove('active');
@@ -1909,6 +1940,79 @@ function switchTab(tab) {
     if (activePanel) activePanel.classList.add('active');
     if (activeTab) activeTab.classList.add('active');
     if (tab === 'admin') openAdmin();
+    if (tab === 'archive') renderArchive();
+}
+
+function calcArchiveCost(loc) {
+    const price = parseFloat(loc.price || 0);
+    if (!loc.dateFrom) return 0;
+    const end = loc.dateTo ? new Date(loc.dateTo) : new Date();
+    const start = new Date(loc.dateFrom);
+    const days = (end - start) / 86400000;
+    if (days <= 0) return 0;
+    const months = days / 30;
+    return months * price;
+}
+
+function renderArchive() {
+    const list = document.getElementById('archiveList');
+    const empty = document.getElementById('emptyArchiveState');
+    const count = document.getElementById('archiveCount');
+
+    const archived = locations.filter(l => l.isArchived === true).sort((a, b) => a.name.localeCompare(b.name));
+
+    if (count) {
+        count.textContent = archived.length + ' wpis' + (archived.length === 1 ? '' : archived.length < 5 ? 'y' : 'ów') + ' w archiwum';
+    }
+
+    if (!archived.length) {
+        if (list) list.innerHTML = '';
+        if (empty) empty.style.display = 'block';
+        return;
+    }
+    if (empty) empty.style.display = 'none';
+
+    const houseIcon = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; color: var(--muted);"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
+
+    const toggleDetailsHtml = (id) => {
+        return `<button class="expand-btn" onclick="toggleDetails('${id}', event)">
+            🔽 Rozwiń
+        </button>`;
+    };
+
+    if (list) {
+        list.innerHTML = archived.map(loc => {
+            const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
+            const numPrefix = loc.locNumber ? `<span style="color:var(--muted); font-size:13px; font-weight:normal;">[#${loc.locNumber}]</span> ` : '';
+            const dateFromStr = fmtDate(loc.dateFrom);
+            const dateToStr = loc.isIndefinite ? 'Nieokreślony' : fmtDate(loc.dateTo);
+            
+            const cost = calcArchiveCost(loc);
+            const isOffice = loc.type === 'office';
+
+            return `<div class="loc-card archived-card" id="card-${loc.id}" onclick="focusLocation('${loc.id}')" style="border-left: 4px solid var(--muted); opacity: 0.85;">
+                <div class="loc-card-head">
+                    <div class="loc-name" style="color: var(--muted);">${isOffice ? '🏢' : houseIcon} ${numPrefix}${loc.name} <span style="font-size:10px; background:var(--muted); color:var(--bg); padding:2px 6px; border-radius:10px; margin-left:6px; font-weight:bold;">ARCHIWUM</span></div>
+                    <div class="loc-actions">
+                        <button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button>
+                        <button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button>
+                    </div>
+                </div>
+                ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
+                <div style="margin-top:10px; padding:10px; background:var(--bg); border-radius:8px; border:1px solid var(--border); font-size:12px; display:flex; flex-direction:column; gap:6px;">
+                    <div>📅 <strong>Okres wynajmu:</strong> ${dateFromStr} — ${dateToStr}</div>
+                    <div>💰 <strong>Koszt całkowity:</strong> <strong style="color:var(--accent);">€${cost.toFixed(2)}</strong> <span style="color:var(--muted); font-size:11px;">(~${fmtPLN(cost * eurToPln, 0)} PLN)</span></div>
+                </div>
+                
+                ${toggleDetailsHtml(loc.id)}
+                
+                <div class="loc-card-details" id="details-${loc.id}">
+                    <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
+                    ${loc.notes ? `<div style="margin-top:6px; font-size:11px; padding:6px; background:var(--bg); border-radius:6px; border-left:3px solid var(--muted);">📝 <em>${loc.notes}</em></div>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    }
 }
 
 function openAdmin() {
@@ -2048,6 +2152,7 @@ function applyFilters() {
     const showOnlyAvailable = document.getElementById('availableFilter').checked;
 
     const filtered = locations.filter(loc => {
+        if (loc.isArchived) return false;
         // Project filter
         if (activeProjectId) {
             const project = locations.find(l => l.id === activeProjectId);

@@ -151,6 +151,10 @@
                         </div>
                     </div>
                     <div id="eTotalCost" class="total-cost-bar" style="display:none;"></div>
+                    <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                        <input type="checkbox" id="eRentalEnded" style="width: auto; margin: 0; cursor: pointer;" />
+                        <label for="eRentalEnded" style="margin: 0; text-transform: none; font-size: 13px; cursor: pointer; color: var(--text);">Zakończony wynajem (Przenieś do archiwum)</label>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Opiekun pobytu</label>
@@ -284,6 +288,7 @@
                     <div class="stab active" onclick="switchTab('list')" id="tabList">📋 Lokalizacje</div>
                     <div class="stab" onclick="switchTab('add')" id="tabAdd">➕ Dodaj</div>
                     <div class="stab" onclick="switchTab('stats')" id="tabStats">📊 Statystyki</div>
+                    <div class="stab" onclick="switchTab('archive')" id="tabArchive">📁 Archiwum</div>
                 </div>
 
                 <!-- LIST TAB -->
@@ -405,6 +410,10 @@
                                 </div>
                             </div>
                             <div id="fTotalCost" class="total-cost-bar" style="display:none;"></div>
+                            <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                                <input type="checkbox" id="fRentalEnded" style="width: auto; margin: 0; cursor: pointer;" />
+                                <label for="fRentalEnded" style="margin: 0; text-transform: none; font-size: 13px; cursor: pointer; color: var(--text);">Zakończony wynajem (Przenieś do archiwum)</label>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label>Opiekun pobytu</label>
@@ -478,6 +487,17 @@
                     </div>
                     <div class="stat-grid" id="statsGrid"></div>
                     <div id="statsDetails"></div>
+                </div>
+
+                <!-- ARCHIVE TAB -->
+                <div class="tab-panel" id="panelArchive">
+                    <div class="form-title">📁 Archiwum Wynajmów</div>
+                    <div class="loc-count" id="archiveCount">0 lokalizacji w archiwum</div>
+                    <div id="archiveList"></div>
+                    <div class="empty-state" id="emptyArchiveState">
+                        <div class="empty-icon">📁</div>
+                        <div class="empty-txt">Brak zakończonych wynajmów.</div>
+                    </div>
                 </div>
             </div>
         </div>
