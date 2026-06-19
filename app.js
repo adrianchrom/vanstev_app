@@ -317,6 +317,7 @@ function renderLinkedLocations(containerId, selectedIds, filterQuery = '') {
     const q = filterQuery.toLowerCase().trim();
 
     const locs = locations.filter(l => {
+        if (l.isArchived) return false;
         if (l.type === 'project') return false;
         if (!q) return true;
 
@@ -563,7 +564,7 @@ function makeProjectFactoryIcon() {
 function reloadMarkers(data = null) {
     Object.values(markers).forEach(m => map.removeLayer(m));
     markers = {};
-    const dataToUse = data || locations;
+    const dataToUse = (data || locations).filter(l => !l.isArchived);
     dataToUse.forEach(loc => addMarker(loc));
 }
 
@@ -697,21 +698,22 @@ function makePopupHtml(loc) {
         const addrHtml = fullAddr ? `<div class="popup-row">🏡 <span style="font-size:11px;">${fullAddr}</span></div>` : '';
         const addedByHtml = loc.addedBy ? `<div class="popup-row" style="opacity:0.6; font-size:11px;">✍️ Dodał(a): <span>${loc.addedBy}</span></div>` : '';
 
-        const linkedNames = (loc.linkedLocations || []).map(id => {
-            const l = locations.find(x => x.id === id);
-            if (!l) return `Nieznana`;
-            const distKey = `${loc.id}_${l.id}`;
-            const dist = roadDistances[distKey];
+        const linkedNames = (loc.linkedLocations || [])
+            .map(id => locations.find(x => x.id === id))
+            .filter(l => l && !l.isArchived)
+            .map(l => {
+                const distKey = `${loc.id}_${l.id}`;
+                const dist = roadDistances[distKey];
 
-            let distHtml = '';
-            // Only trigger/show distance in popup if this project is active
-            if (activeProjectId === loc.id) {
-                if (dist === undefined) { fetchRoadDistance(loc, l); }
-                distHtml = (dist === undefined || dist === null) ? ` <span style="font-size:9px; color:var(--muted); opacity:0.7;">(liczenie...)</span>` :
-                    (dist !== '—' ? ` <span style="color:var(--blue); font-weight:700;">(${dist} km)</span>` : '');
-            }
-            return `[#${l.locNumber || '?'}] ${l.name}${distHtml}`;
-        }).join('<br>');
+                let distHtml = '';
+                // Only trigger/show distance in popup if this project is active
+                if (activeProjectId === loc.id) {
+                    if (dist === undefined) { fetchRoadDistance(loc, l); }
+                    distHtml = (dist === undefined || dist === null) ? ` <span style="font-size:9px; color:var(--muted); opacity:0.7;">(liczenie...)</span>` :
+                        (dist !== '—' ? ` <span style="color:var(--blue); font-weight:700;">(${dist} km)</span>` : '');
+                }
+                return `[#${l.locNumber || '?'}] ${l.name}${distHtml}`;
+            }).join('<br>');
 
         return `<div style="min-width:220px;padding:4px;">
             <div class="popup-name" style="color:var(--blue);"><span style="font-size:10px; background:var(--blue); color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">PROJEKT</span>${loc.name}</div>
@@ -1126,7 +1128,7 @@ function renderList(filteredLocs = null) {
     const empty = document.getElementById('emptyState');
     const count = document.getElementById('locCount');
 
-    const data = (filteredLocs || locations);
+    const data = (filteredLocs || locations).filter(l => !l.isArchived);
 
     const projects = data.filter(l => l.type === 'project').sort((a, b) => a.name.localeCompare(b.name));
     const quarters = data.filter(l => l.type !== 'project' && l.type !== 'office').sort((a, b) => (a.locNumber || 0) - (b.locNumber || 0));
@@ -1162,21 +1164,22 @@ function renderList(filteredLocs = null) {
 
     const renderProjectCard = (loc) => {
         const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
-        const linkedNames = (loc.linkedLocations || []).map(id => {
-            const l = locations.find(x => x.id === id);
-            if (!l) return '';
-            const distKey = `${loc.id}_${l.id}`;
-            const dist = roadDistances[distKey];
+        const linkedNames = (loc.linkedLocations || [])
+            .map(id => locations.find(x => x.id === id))
+            .filter(l => l && !l.isArchived)
+            .map(l => {
+                const distKey = `${loc.id}_${l.id}`;
+                const dist = roadDistances[distKey];
 
-            let distHtml = '';
-            // Only calculate/show distance if this project is the active one
-            if (loc.id === activeProjectId) {
-                if (dist === undefined) { fetchRoadDistance(loc, l); }
-                distHtml = (dist === undefined || dist === null) ? ` <span style="font-size:9px; color:var(--muted); opacity:0.7;">(liczenie...)</span>` :
-                    (dist !== '—' ? ` <strong style="margin-left:4px; color:var(--blue); font-size:11px;">(${dist} km)</strong>` : '');
-            }
-            return `<span class="person-chip" style="border-radius:4px; border-color:var(--blue); color:var(--blue);font-weight:700;">[#${l.locNumber || '?'}] ${l.name}${distHtml}</span>`;
-        }).join('');
+                let distHtml = '';
+                // Only calculate/show distance if this project is the active one
+                if (loc.id === activeProjectId) {
+                    if (dist === undefined) { fetchRoadDistance(loc, l); }
+                    distHtml = (dist === undefined || dist === null) ? ` <span style="font-size:9px; color:var(--muted); opacity:0.7;">(liczenie...)</span>` :
+                        (dist !== '—' ? ` <strong style="margin-left:4px; color:var(--blue); font-size:11px;">(${dist} km)</strong>` : '');
+                }
+                return `<span class="person-chip" style="border-radius:4px; border-color:var(--blue); color:var(--blue);font-weight:700;">[#${l.locNumber || '?'}] ${l.name}${distHtml}</span>`;
+            }).join('');
         return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')" style="border-left:4px solid var(--blue);">
             <div class="loc-card-head">
                 <div class="loc-name"><span style="font-size:10px; background:var(--blue); color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">PROJEKT</span>${loc.name}</div>
