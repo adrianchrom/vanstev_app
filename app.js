@@ -2171,12 +2171,23 @@ async function renderAdminPanel() {
                     <div style="font-size:10px; color:var(--muted); margin:12px 0 6px 0; padding-top:10px; border-top:1px dashed var(--border); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Ostatnie zmiany (kwatery/projekty):</div>
                     <div class="admin-activity-list ${isExpanded ? 'expanded' : ''}">
                         ${userActs.length ? userActs.map(a => {
-                            const isDeleted = a.action === 'Usunięto lokalizację';
-                            const restoreBtn = (isDeleted && a.extraData) ? `
-                                <button onclick="restoreLocation('${a.id}')" style="margin-top:6px; background:var(--success); color:white; border:none; border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:4px; align-self:flex-start;">
-                                    ↩️ Przywróć
-                                </button>
-                            ` : '';
+                            const isDeleted = a.action && a.action.includes('Usunięto');
+                            let restoreBtn = '';
+                            if (isDeleted) {
+                                if (a.extraData) {
+                                    restoreBtn = `
+                                        <button onclick="restoreLocation('${a.id}')" style="margin-top:6px; background:var(--success); color:white; border:none; border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:4px; align-self:flex-start;">
+                                            ↩️ Przywróć
+                                        </button>
+                                    `;
+                                } else {
+                                    restoreBtn = `
+                                        <button disabled style="margin-top:6px; background:var(--muted); color:white; border:none; border-radius:6px; padding:4px 10px; font-size:11px; cursor:not-allowed; font-weight:700; display:inline-flex; align-items:center; gap:4px; align-self:flex-start; opacity:0.7;" title="Brak danych zapasowych w bazie. Możliwe że lokalizacja została usunięta przed wprowadzeniem funkcji kopii zapasowej.">
+                                            ↩️ Przywróć (Brak kopii)
+                                        </button>
+                                    `;
+                                }
+                            }
 
                             let changesHtml = '';
                             if (a.changes && a.changes.length > 0) {
