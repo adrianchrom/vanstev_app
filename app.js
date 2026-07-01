@@ -839,7 +839,7 @@ function initDataSync() {
     });
 }
 
-function logActivity(action, details, extraData = null) {
+function logActivity(action, details, extraData = null, changes = null) {
     if (!currentUser) return;
     const docData = {
         user: currentUser,
@@ -849,6 +849,9 @@ function logActivity(action, details, extraData = null) {
     };
     if (extraData) {
         docData.extraData = extraData;
+    }
+    if (changes) {
+        docData.changes = changes;
     }
     db.collection('activity').add(docData);
 }
@@ -1543,8 +1546,7 @@ function saveEdit() {
 
     db.collection('locations').doc(editingId).update(updatedData)
         .then(() => {
-            const detailStr = `<strong>${name}</strong>` + (diffs.length > 0 ? `<br><span style="display:inline-block; margin-top:4px; padding-left:8px; border-left:2px solid var(--accent); color:var(--text); font-size:11px; font-weight:normal;">${diffs.join('<br>')}</span>` : ' (brak zmian)');
-            logActivity('Edytowano lokalizację', detailStr);
+            logActivity('Edytowano lokalizację', name, null, diffs);
             closeEdit();
         })
         .catch(err => alert("Błąd edycji: " + err.message));
@@ -2175,14 +2177,24 @@ async function renderAdminPanel() {
                                     ↩️ Przywróć
                                 </button>
                             ` : '';
+
+                            let changesHtml = '';
+                            if (a.changes && a.changes.length > 0) {
+                                changesHtml = `
+                                    <div style="margin-top:6px; padding-left:8px; border-left:2px solid var(--accent); display:flex; flex-direction:column; gap:3px;">
+                                        ${a.changes.map(ch => `<span style="font-size:11px; color:var(--text); font-weight:500;">➔ ${ch}</span>`).join('')}
+                                    </div>
+                                `;
+                            }
+
                             return `
                                 <div style="font-size:12px; background:var(--bg); padding:8px 12px; border-radius:8px; border:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start;">
-                                    <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">
-                                        <span style="font-weight:600; color:var(--text);">${a.action}</span>
-                                        <span style="font-size:11px; color:var(--muted);">${a.details}</span>
+                                    <div style="display:flex; flex-direction:column; gap:2px; align-items:flex-start; width:100%; margin-right:10px;">
+                                        <span style="font-weight:700; color:var(--text);">${a.action}: <span style="font-weight:normal; color:var(--muted);">${a.details || ''}</span></span>
+                                        ${changesHtml}
                                         ${restoreBtn}
                                     </div>
-                                    <span style="font-size:10px; color:var(--muted); background:var(--card2); padding:2px 6px; border-radius:4px;">${a.timestamp ? fmtTime(a.timestamp.toDate()) : '...'}</span>
+                                    <span style="font-size:10px; color:var(--muted); background:var(--card2); padding:2px 6px; border-radius:4px; white-space:nowrap;">${a.timestamp ? fmtTime(a.timestamp.toDate()) : '...'}</span>
                                 </div>
                             `;
                         }).join('') : '<div style="font-size:12px; color:var(--muted); font-style:italic; padding:10px; text-align:center; background:var(--bg); border-radius:8px;">Brak zmian w kwaterach/projektach</div>'}
