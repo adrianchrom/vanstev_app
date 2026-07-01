@@ -839,14 +839,18 @@ function initDataSync() {
     });
 }
 
-function logActivity(action, details) {
+function logActivity(action, details, extraData = null) {
     if (!currentUser) return;
-    db.collection('activity').add({
+    const docData = {
         user: currentUser,
         action: action,
         details: details,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    };
+    if (extraData) {
+        docData.extraData = extraData;
+    }
+    db.collection('activity').add(docData);
 }
 
 function calcDays(from, to) {
@@ -1353,10 +1357,11 @@ function closeConfirmDelete() {
 
 document.getElementById('confirmDeleteBtn')?.addEventListener('click', () => {
     if (!locToDelete) return;
-    const locName = locations.find(l => l.id === locToDelete)?.name || 'Nieznana';
+    const loc = locations.find(l => l.id === locToDelete);
+    const locName = loc?.name || 'Nieznana';
     db.collection('locations').doc(locToDelete).delete()
         .then(() => {
-            logActivity('Usunięto lokalizację', locName);
+            logActivity('Usunięto lokalizację', locName, loc);
             closeConfirmDelete();
         })
         .catch(err => {
@@ -1461,31 +1466,85 @@ function saveEdit() {
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
+    const oldLoc = locations.find(l => l.id === editingId);
+    const diffs = [];
+    if (oldLoc) {
+        if ((oldLoc.name || '') !== name) diffs.push(`Nazwa: "${oldLoc.name || ''}" ➔ "${name}"`);
+        if ((oldLoc.type || '') !== type) diffs.push(`Typ: "${oldLoc.type || ''}" ➔ "${type}"`);
+        if ((oldLoc.zip || '') !== zip) diffs.push(`Kod pocztowy: "${oldLoc.zip || ''}" ➔ "${zip}"`);
+        if ((oldLoc.city || '') !== city) diffs.push(`Miejscowość: "${oldLoc.city || ''}" ➔ "${city}"`);
+        if ((oldLoc.street || '') !== street) diffs.push(`Ulica: "${oldLoc.street || ''}" ➔ "${street}"`);
+        if ((oldLoc.houseNum || '') !== houseNum) diffs.push(`Nr domu: "${oldLoc.houseNum || ''}" ➔ "${houseNum}"`);
+    }
+
     if (type === 'location' || type === 'office') {
         const capacity = parseInt(document.getElementById('eCapacity').value) || 0;
         const price = parseFloat(document.getElementById('ePrice').value);
         if (isNaN(price)) { alert('Wypełnij cenę.'); return; }
 
+        const caregiver = document.getElementById('eCaregiver').value;
+        const noticePeriod = document.getElementById('eNoticePeriod').value;
+        const dateFrom = document.getElementById('eDateFrom').value;
+        const dateTo = document.getElementById('eDateTo').value;
+        const isIndefinite = document.getElementById('eIndefinite').checked;
+        const isArchived = document.getElementById('eRentalEnded')?.checked || false;
+        const notes = document.getElementById('eNotes').value.trim();
+
+        if (oldLoc) {
+            if ((oldLoc.capacity || 0) !== capacity) diffs.push(`Miejsca: ${oldLoc.capacity || 0} ➔ ${capacity}`);
+            if (parseFloat(oldLoc.price || 0) !== price) diffs.push(`Cena: €${parseFloat(oldLoc.price || 0)} ➔ €${price}`);
+            if ((oldLoc.caregiver || '') !== caregiver) diffs.push(`Opiekun: "${oldLoc.caregiver || ''}" ➔ "${caregiver}"`);
+            if ((oldLoc.noticePeriod || '') !== noticePeriod) diffs.push(`Wypowiedzenie: "${oldLoc.noticePeriod || ''}" ➔ "${noticePeriod}"`);
+            if ((oldLoc.dateFrom || '') !== dateFrom) diffs.push(`Od: "${oldLoc.dateFrom || ''}" ➔ "${dateFrom}"`);
+            if ((oldLoc.dateTo || '') !== dateTo) diffs.push(`Do: "${oldLoc.dateTo || ''}" ➔ "${dateTo}"`);
+            if (!!oldLoc.isIndefinite !== isIndefinite) diffs.push(`Czas nieokreślony: ${!!oldLoc.isIndefinite} ➔ ${isIndefinite}`);
+            if (!!oldLoc.isArchived !== isArchived) diffs.push(`Zarchiwizowany: ${!!oldLoc.isArchived} ➔ ${isArchived}`);
+            if ((oldLoc.notes || '') !== notes) diffs.push(`Uwagi: "${oldLoc.notes || ''}" ➔ "${notes}"`);
+            
+            // Compare people list
+            const oldPeople = oldLoc.people || [];
+            const newPeople = [...editPeople].filter(p => p.name.trim());
+            const oldPeopleStr = oldPeople.map(p => {
+                if (typeof p === 'string') return p;
+                const driver = p.isDriver ? ' (kierowca)' : '';
+                return p.name + driver;
+            }).join(', ');
+            const newPeopleStr = newPeople.map(p => {
+                const driver = p.isDriver ? ' (kierowca)' : '';
+                return p.name + driver;
+            }).join(', ');
+            
+            if (oldPeopleStr !== newPeopleStr) {
+                diffs.push(`Mieszkańcy: [${oldPeopleStr || 'brak'}] ➔ [${newPeopleStr || 'brak'}]`);
+            }
+        }
+
         Object.assign(updatedData, {
-            capacity, price,
-            caregiver: document.getElementById('eCaregiver').value,
-            noticePeriod: document.getElementById('eNoticePeriod').value,
-            dateFrom: document.getElementById('eDateFrom').value,
-            dateTo: document.getElementById('eDateTo').value,
-            isIndefinite: document.getElementById('eIndefinite').checked,
-            isArchived: document.getElementById('eRentalEnded')?.checked || false,
+            capacity, price, caregiver, noticePeriod, dateFrom, dateTo, isIndefinite, isArchived,
             people: [...editPeople].filter(p => p.name.trim()),
-            notes: document.getElementById('eNotes').value.trim()
+            notes
         });
     } else if (type === 'project') {
-        Object.assign(updatedData, {
-            linkedLocations: getEditSelectedLinkedLocations()
-        });
+        const linkedLocations = getEditSelectedLinkedLocations();
+        if (oldLoc) {
+            const oldLinked = oldLoc.linkedLocations || [];
+            const getLinkedNames = (ids) => ids.map(id => {
+                const l = locations.find(x => x.id === id);
+                return l ? l.name : id;
+            }).join(', ');
+            const oldLinkedStr = getLinkedNames(oldLinked);
+            const newLinkedStr = getLinkedNames(linkedLocations);
+            if (oldLinkedStr !== newLinkedStr) {
+                diffs.push(`Przypisane lokalizacje: [${oldLinkedStr || 'brak'}] ➔ [${newLinkedStr || 'brak'}]`);
+            }
+        }
+        Object.assign(updatedData, { linkedLocations });
     }
 
     db.collection('locations').doc(editingId).update(updatedData)
         .then(() => {
-            logActivity('Edytowano lokalizację', name);
+            const detailStr = `<strong>${name}</strong>` + (diffs.length > 0 ? `<br><span style="display:inline-block; margin-top:4px; padding-left:8px; border-left:2px solid var(--accent); color:var(--text); font-size:11px; font-weight:normal;">${diffs.join('<br>')}</span>` : ' (brak zmian)');
+            logActivity('Edytowano lokalizację', detailStr);
             closeEdit();
         })
         .catch(err => alert("Błąd edycji: " + err.message));
@@ -2084,13 +2143,19 @@ async function renderAdminPanel() {
             }
 
             const loginTime = status.lastSeen ? fmtTime(status.lastSeen.toDate()) : (status.lastLogin ? fmtTime(status.lastLogin.toDate()) : 'Brak danych');
+            const pwd = USER_PASSWORDS[u.toLowerCase()] || 'Brak';
 
             html += `
                 <div style="background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:15px; margin-bottom:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
                     <div style="font-weight:700; font-size:15px; color:var(--accent); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
                         <div style="display:flex; flex-direction:column; gap:2px;">
-                            <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                                 <span>👤 ${u}</span>
+                                <span style="font-size:11px; color:var(--muted); font-weight:normal; background:var(--bg); padding:2px 6px; border-radius:6px; border:1px solid var(--border); display:inline-flex; align-items:center; gap:4px; margin-left:4px;">
+                                    🔑 <span class="admin-password-field" data-user="${u}" style="font-family:monospace; display:none;">${pwd}</span>
+                                    <span class="admin-password-placeholder" data-user="${u}" style="letter-spacing:2px; font-size:8px; vertical-align:middle;">••••••••</span>
+                                    <button onclick="togglePasswordView('${u}', this)" style="background:none; border:none; color:var(--accent); cursor:pointer; font-size:11px; padding:0; line-height:1; outline:none;">👁️</button>
+                                </span>
                                 ${u !== 'Admin' ? `<button onclick="forceUserLogout('${u}')" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:2px 6px; font-size:9px; cursor:pointer; font-weight:700; text-transform:uppercase;">Wyloguj</button>` : ''}
                             </div>
                             <span style="font-size:10px; color:var(--muted); font-weight:500;">Ostatnio widziany: ${loginTime}</span>
@@ -2103,15 +2168,24 @@ async function renderAdminPanel() {
                     
                     <div style="font-size:10px; color:var(--muted); margin:12px 0 6px 0; padding-top:10px; border-top:1px dashed var(--border); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Ostatnie zmiany (kwatery/projekty):</div>
                     <div class="admin-activity-list ${isExpanded ? 'expanded' : ''}">
-                        ${userActs.length ? userActs.map(a => `
-                            <div style="font-size:12px; background:var(--bg); padding:8px 12px; border-radius:8px; border:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start;">
-                                <div style="display:flex; flex-direction:column;">
-                                    <span style="font-weight:600; color:var(--text);">${a.action}</span>
-                                    <span style="font-size:11px; color:var(--muted);">${a.details}</span>
+                        ${userActs.length ? userActs.map(a => {
+                            const isDeleted = a.action === 'Usunięto lokalizację';
+                            const restoreBtn = (isDeleted && a.extraData) ? `
+                                <button onclick="restoreLocation('${a.id}')" style="margin-top:6px; background:var(--success); color:white; border:none; border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:4px; align-self:flex-start;">
+                                    ↩️ Przywróć
+                                </button>
+                            ` : '';
+                            return `
+                                <div style="font-size:12px; background:var(--bg); padding:8px 12px; border-radius:8px; border:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start;">
+                                    <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">
+                                        <span style="font-weight:600; color:var(--text);">${a.action}</span>
+                                        <span style="font-size:11px; color:var(--muted);">${a.details}</span>
+                                        ${restoreBtn}
+                                    </div>
+                                    <span style="font-size:10px; color:var(--muted); background:var(--card2); padding:2px 6px; border-radius:4px;">${a.timestamp ? fmtTime(a.timestamp.toDate()) : '...'}</span>
                                 </div>
-                                <span style="font-size:10px; color:var(--muted); background:var(--card2); padding:2px 6px; border-radius:4px;">${a.timestamp ? fmtTime(a.timestamp.toDate()) : '...'}</span>
-                            </div>
-                        `).join('') : '<div style="font-size:12px; color:var(--muted); font-style:italic; padding:10px; text-align:center; background:var(--bg); border-radius:8px;">Brak zmian w kwaterach/projektach</div>'}
+                            `;
+                        }).join('') : '<div style="font-size:12px; color:var(--muted); font-style:italic; padding:10px; text-align:center; background:var(--bg); border-radius:8px;">Brak zmian w kwaterach/projektach</div>'}
                     </div>
                     <button class="expand-act-btn ${isExpanded ? 'expanded' : ''}" onclick="toggleAdminActivity('${u}')">
                         ${isExpanded ? 'Pokaż mniej' : 'Pokaż wszystkie 30 zmian'}
@@ -2135,11 +2209,72 @@ async function renderAdminPanel() {
 
     // Nasłuchiwanie aktywności
     adminUnsubActivity = db.collection('activity').orderBy('timestamp', 'desc').limit(400).onSnapshot(snap => {
-        adminAllActs = snap.docs.map(d => d.data());
+        adminAllActs = snap.docs.map(d => ({
+            id: d.id,
+            ...d.data()
+        }));
         updateUI();
     }, err => {
         console.error("Admin Activity Error:", err);
     });
+}
+
+function togglePasswordView(user, btn) {
+    const fields = document.querySelectorAll(`.admin-password-field[data-user="${user}"]`);
+    const placeholders = document.querySelectorAll(`.admin-password-placeholder[data-user="${user}"]`);
+    
+    fields.forEach(field => {
+        const isHidden = field.style.display === 'none';
+        field.style.display = isHidden ? 'inline' : 'none';
+    });
+    
+    placeholders.forEach(placeholder => {
+        const isHidden = placeholder.style.display === 'none';
+        placeholder.style.display = isHidden ? 'inline' : 'none';
+    });
+    
+    if (btn) {
+        const isRevealed = btn.textContent === '👁️';
+        btn.textContent = isRevealed ? '🙈' : '👁️';
+    }
+}
+
+function restoreLocation(activityId) {
+    const act = adminAllActs.find(a => a.id === activityId);
+    if (!act || !act.extraData) {
+        alert("Nie można przywrócić tej kwatery (brak danych kopii zapasowej).");
+        return;
+    }
+    if (!confirm(`Czy na pewno chcesz przywrócić kwaterę: ${act.extraData.name || 'Bez nazwy'}?`)) return;
+
+    const locData = { ...act.extraData };
+    const docId = locData.id;
+    delete locData.id; // Usuń ID z pól dokumentu
+
+    // Odbuduj pole timestamp jeśli to konieczne
+    if (locData.createdAt) {
+        if (locData.createdAt.seconds !== undefined) {
+            locData.createdAt = new firebase.firestore.Timestamp(locData.createdAt.seconds, locData.createdAt.nanoseconds);
+        } else if (locData.createdAt._seconds !== undefined) {
+            locData.createdAt = new firebase.firestore.Timestamp(locData.createdAt._seconds, locData.createdAt._nanoseconds);
+        }
+    }
+    if (locData.updatedAt) {
+        if (locData.updatedAt.seconds !== undefined) {
+            locData.updatedAt = new firebase.firestore.Timestamp(locData.updatedAt.seconds, locData.updatedAt.nanoseconds);
+        } else if (locData.updatedAt._seconds !== undefined) {
+            locData.updatedAt = new firebase.firestore.Timestamp(locData.updatedAt._seconds, locData.updatedAt._nanoseconds);
+        }
+    }
+
+    db.collection('locations').doc(docId).set(locData)
+        .then(() => {
+            logActivity('Przywrócono lokalizację', locData.name || 'Bez nazwy');
+            alert(`Pomyślnie przywrócono kwaterę: ${locData.name}`);
+        })
+        .catch(err => {
+            alert("Błąd przywracania: " + err.message);
+        });
 }
 
 function fmtTime(date) {
