@@ -281,7 +281,45 @@
             </div>
         </div>
         <div class="main-area">
-            <div id="map"></div>
+            <div id="map">
+                <!-- Collapsible Legend -->
+                <div class="map-legend collapsed" id="mapLegend">
+                    <div class="legend-header" onclick="toggleLegend(event)">
+                        <span class="legend-title">📍 Legenda pinezek</span>
+                        <span class="legend-toggle-icon">🔼</span>
+                    </div>
+                    <div class="legend-content">
+                        <div class="legend-item">
+                            <div class="legend-color-box" style="background: #10b981;"></div>
+                            <span>Kwatera wolna</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color-box" style="background: #E8621A;"></div>
+                            <span>Kwatera pełna</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color-box" style="background: #ff0000;"></div>
+                            <span>Kwatera (ktoś nie pracuje)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color-box" style="background: #fbbf24;"></div>
+                            <span>Kwatera (ktoś na urlopie)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color-box" style="background: #a855f7;"></div>
+                            <span>Biuro firmowe</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color-box" style="background: #3b82f6;"></div>
+                            <span>Projekt / budowa</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color-box" style="background: #64748b;"></div>
+                            <span>Archiwum</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="sidebar">
                 <div class="sidebar-handle" onclick="toggleSidebarHeight()"></div>
                 <div class="sidebar-tabs">

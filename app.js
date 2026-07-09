@@ -343,7 +343,9 @@ function renderLinkedLocations(containerId, selectedIds, filterQuery = '') {
         const driverIcon = p.isDriver ? ' 🚗' : '';
         const plate = p.isDriver && p.carPlate ? ` (${p.carPlate})` : '';
         const car = p.isDriver && p.carDesc ? ` (${p.carDesc})` : '';
-        return `<span style="display:inline-block; border:1px solid var(--border); background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; margin:1px;">${p.name}${driverIcon}${plate}${car}</span>`;
+        const vDays = getVacationDaysLeft(p.vacationEnd);
+        const vacationText = vDays > 0 ? ` 🌴 (${vDays}d)` : '';
+        return `<span style="display:inline-block; border:1px solid var(--border); background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; margin:1px;">${p.name}${driverIcon}${plate}${car}${vacationText}</span>`;
     };
 
     c.innerHTML = locs.map(l => {
@@ -400,16 +402,14 @@ function updateMarkerHighlight(locId, isHighlighted) {
     if (!marker) return;
     const loc = locations.find(l => l.id === locId);
     if (!loc) return;
-
+ 
     if (isHighlighted) {
         // Highlighted icon (Gold/Yellow)
         marker.setIcon(makeIcon('#fbbf24'));
         marker.setZIndexOffset(1000);
     } else {
         // Back to normal
-        const occ = loc.people ? loc.people.length : 0;
-        const isFull = occ >= loc.capacity;
-        const color = isFull ? '#E8621A' : '#10b981';
+        const color = getMarkerColor(loc);
         marker.setIcon(makeIcon(color));
         marker.setZIndexOffset(0);
     }
@@ -649,24 +649,15 @@ function updateProjectIcons() {
 function addMarker(loc) {
     let m;
     if (loc.isArchived) {
-        const color = '#64748b'; // Muted grey for archived
+        const color = getMarkerColor(loc);
         m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
     } else if (loc.type === 'project') {
         const zoom = map.getZoom();
         const icon = zoom >= 11 ? makeProjectIcon(loc.name) : makeProjectFactoryIcon();
         m = L.marker([loc.lat, loc.lng], { icon: icon }).addTo(map);
         if (zoom >= 11) m.setZIndexOffset(1000);
-    } else if (loc.type === 'office') {
-        const color = '#a855f7'; // Purple for office
-        m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
     } else {
-        const occ = loc.people ? loc.people.length : 0;
-        const isFull = occ >= loc.capacity;
-        const hasNotWorking = loc.people && loc.people.some(p => p.isWorking === false);
-        let color = hasNotWorking ? '#ff0000' : (isFull ? '#E8621A' : '#10b981');
-
-        if (loc.name && loc.name.toUpperCase().includes('VANSTEV - BIURO')) color = '#a855f7';
-
+        const color = getMarkerColor(loc);
         m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
     }
     m.bindPopup(makePopupHtml(loc));
@@ -747,9 +738,14 @@ function makePopupHtml(loc) {
         const carLink = p.isDriver && p.carDesc ? ` <span style="font-size:11px; opacity:0.8; margin-left:4px;">(${p.carDesc})</span>` : '';
         const driverIcon = p.isDriver ? '<span style="margin-left:8px;">🚗</span>' : '';
         const isWorking = p.isWorking !== false;
-        const workIcon = !isWorking ? '<span style="margin-right:4px;">❌</span>' : '';
-        const cls = !isWorking ? 'not-working' : '';
-        return `<span class="person-chip ${cls}" style="border-radius:4px;">${workIcon}${p.name}${driverIcon}${plate}${carLink}</span>`;
+        const vDays = getVacationDaysLeft(p.vacationEnd);
+        const isOnVacation = vDays > 0;
+        const workIcon = isOnVacation ? '<span style="margin-right:4px;">🌴</span>' : (!isWorking ? '<span style="margin-right:4px;">❌</span>' : '');
+        const vacationText = isOnVacation ? ` <span style="font-size:11px; font-weight:700; margin-left:4px;">(urlop ${vDays}d)</span>` : '';
+        let cls = '';
+        if (isOnVacation) cls = 'on-vacation';
+        else if (!isWorking) cls = 'not-working';
+        return `<span class="person-chip ${cls}" style="border-radius:4px;">${workIcon}${p.name}${driverIcon}${plate}${carLink}${vacationText}</span>`;
     };
 
     const peopleHtml = loc.people && loc.people.length > 0
@@ -860,6 +856,33 @@ function calcDays(from, to) {
     if (!from || !to) return null;
     const d = (new Date(to) - new Date(from)) / 86400000;
     return d > 0 ? Math.round(d) : null;
+}
+
+function getVacationDaysLeft(vacationEnd) {
+    if (!vacationEnd) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = new Date(vacationEnd);
+    end.setHours(0, 0, 0, 0);
+    const diffTime = end - today;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return diffDays > 0 ? diffDays : 0;
+}
+
+function getMarkerColor(loc) {
+    if (loc.isArchived) return '#64748b'; // Muted grey
+    if (loc.type === 'office') return '#a855f7'; // Purple
+    if (loc.name && loc.name.toUpperCase().includes('VANSTEV - BIURO')) return '#a855f7';
+
+    const occ = loc.people ? loc.people.length : 0;
+    const isFull = occ >= loc.capacity;
+    const hasNotWorking = loc.people && loc.people.some(p => p.isWorking === false);
+    const hasVacation = loc.people && loc.people.some(p => getVacationDaysLeft(p.vacationEnd) > 0);
+
+    if (hasVacation) return '#fbbf24'; // Yellow
+    if (hasNotWorking) return '#ff0000'; // Red
+    if (isFull) return '#E8621A'; // Orange
+    return '#10b981'; // Green
 }
 
 function calcSpentSoFar(from, monthlyPrice) {
@@ -1013,6 +1036,7 @@ function renderPeopleInputs(containerId, arr, mode) {
         
         const row = document.createElement('div');
         row.className = 'people-row';
+        const vDays = getVacationDaysLeft(p.vacationEnd);
         row.innerHTML = `
             <input type="text" value="${p.name}" placeholder="Imię i nazwisko" oninput="updatePersonField('${mode}',${i},'name',this.value)"/>
             <div style="display:flex; flex-direction:column; gap:2px;">
@@ -1024,6 +1048,16 @@ function renderPeopleInputs(containerId, arr, mode) {
                     <input type="checkbox" ${p.isWorking !== false ? 'checked' : ''} onchange="updatePersonField('${mode}',${i},'isWorking',this.checked); renderPeopleInputs('${containerId}', ${mode === 'add' ? 'addPeople' : 'editPeople'}, '${mode}')"/>
                     Pracuje
                 </label>
+                <label class="driver-checkbox-wrap">
+                    <input type="checkbox" ${vDays > 0 ? 'checked' : ''} onchange="toggleVacation('${mode}',${i},this.checked,'${containerId}')"/>
+                    Urlop
+                </label>
+                ${vDays > 0 ? `
+                    <div style="display:flex; align-items:center; gap:2px; margin-top:2px;">
+                        <input type="number" min="1" value="${vDays}" style="width:45px; height:18px; padding:2px; font-size:10px; border-radius:3px; border:1px solid var(--border); background:var(--bg); color:var(--text);" oninput="updateVacationDays('${mode}',${i},this.value)"/>
+                        <span style="font-size:9px; color:var(--muted);">dni</span>
+                    </div>
+                ` : ''}
             </div>
             ${p.isDriver ? `
                 <input type="text" value="${p.carPlate || ''}" placeholder="Nr rej." style="width:80px; text-transform:uppercase;" oninput="updatePersonField('${mode}',${i},'carPlate',this.value.toUpperCase())"/>
@@ -1043,6 +1077,41 @@ function updatePersonField(mode, idx, field, val) {
 function removePerson(mode, idx) {
     if (mode === 'add') { addPeople.splice(idx, 1); renderPeopleInputs('addPeopleList', addPeople, 'add'); }
     else { editPeople.splice(idx, 1); renderPeopleInputs('editPeopleList', editPeople, 'edit'); }
+}
+
+function toggleVacation(mode, idx, isChecked, containerId) {
+    const arr = mode === 'add' ? addPeople : editPeople;
+    if (!arr[idx]) return;
+    if (isChecked) {
+        const endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+        arr[idx].vacationEnd = endDate.toISOString().split('T')[0];
+    } else {
+        arr[idx].vacationEnd = null;
+    }
+    renderPeopleInputs(containerId, arr, mode);
+}
+
+function updateVacationDays(mode, idx, daysVal) {
+    const arr = mode === 'add' ? addPeople : editPeople;
+    if (!arr[idx]) return;
+    const days = parseInt(daysVal);
+    if (isNaN(days) || days <= 0) {
+        arr[idx].vacationEnd = null;
+    } else {
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + days - 1);
+        endDate.setHours(23, 59, 59, 999);
+        arr[idx].vacationEnd = endDate.toISOString().split('T')[0];
+    }
+}
+
+function toggleLegend(event) {
+    if (event) event.stopPropagation();
+    const legend = document.getElementById('mapLegend');
+    if (legend) {
+        legend.classList.toggle('collapsed');
+    }
 }
 
 function saveLocation() {
@@ -1158,9 +1227,14 @@ function renderList(filteredLocs = null) {
         const car = p.isDriver && p.carDesc ? ` <span style="font-size:11px; opacity:0.8; margin-left:4px;">(${p.carDesc})</span>` : '';
         const driverIcon = p.isDriver ? '<span style="margin-left:8px;">🚗</span>' : '';
         const isWorking = p.isWorking !== false;
-        const workIcon = !isWorking ? '<span style="margin-right:4px;">❌</span>' : '';
-        const cls = !isWorking ? 'not-working' : '';
-        return `<span class="person-chip ${cls}" style="border-radius:4px;">${workIcon}${p.name}${driverIcon}${plate}${car}</span>`;
+        const vDays = getVacationDaysLeft(p.vacationEnd);
+        const isOnVacation = vDays > 0;
+        const workIcon = isOnVacation ? '<span style="margin-right:4px;">🌴</span>' : (!isWorking ? '<span style="margin-right:4px;">❌</span>' : '');
+        const vacationText = isOnVacation ? ` <span style="font-size:11px; font-weight:700; margin-left:4px;">(urlop ${vDays}d)</span>` : '';
+        let cls = '';
+        if (isOnVacation) cls = 'on-vacation';
+        else if (!isWorking) cls = 'not-working';
+        return `<span class="person-chip ${cls}" style="border-radius:4px;">${workIcon}${p.name}${driverIcon}${plate}${car}${vacationText}</span>`;
     };
 
     const toggleDetailsHtml = (id) => {
@@ -1836,7 +1910,9 @@ async function downloadLocExcelReport() {
                 const name = typeof p === 'string' ? p : p.name;
                 const driver = (typeof p !== 'string' && p.isDriver) ? ' (K)' : '';
                 const plate = (typeof p !== 'string' && p.carPlate) ? ` [${p.carPlate}]` : '';
-                return `${name}${driver}${plate}`;
+                const vDays = (typeof p !== 'string') ? getVacationDaysLeft(p.vacationEnd) : 0;
+                const vacation = vDays > 0 ? ` (U: ${vDays}d)` : '';
+                return `${name}${driver}${plate}${vacation}`;
             }).join(', ') : 'Brak';
 
         const project = locations.find(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
@@ -1905,7 +1981,9 @@ async function downloadLocReport() {
                 const driver = (typeof p !== 'string' && p.isDriver) ? ' <b>(K)</b>' : '';
                 const plate = (typeof p !== 'string' && p.carPlate) ? ` [${p.carPlate}]` : '';
                 const car = (typeof p !== 'string' && p.carDesc) ? ` (${p.carDesc})` : '';
-                return `<div>• ${name}${driver}${plate}${car}</div>`;
+                const vDays = (typeof p !== 'string') ? getVacationDaysLeft(p.vacationEnd) : 0;
+                const vacation = vDays > 0 ? ` 🌴 (U: ${vDays}d)` : '';
+                return `<div>• ${name}${driver}${plate}${car}${vacation}</div>`;
             }).join('') : '<i style="color:#999;">Brak mieszkańców</i>';
 
         const project = locations.find(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
@@ -1970,7 +2048,7 @@ async function downloadLocReport() {
             </table>
 
             <div style="margin-top:20px; padding-top:15px; border-top:1px solid #eee; display:flex; justify-content:space-between; font-size:10px; color:#777;">
-                <div><b>LEGENDA:</b> (K) = Kierowca</div>
+                <div><b>LEGENDA:</b> (K) = Kierowca | 🌴 (U) = Urlop</div>
                 <div>Strona 1 z 1</div>
             </div>
         </div>
