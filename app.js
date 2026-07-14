@@ -1885,22 +1885,39 @@ async function downloadLocExcelReport() {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Raport Szczegółowy');
 
+    // Force gridlines to be visible
+    worksheet.views = [{ showGridLines: true }];
+
     worksheet.columns = [
         { header: 'LP', key: 'lp', width: 8 },
-        { header: 'KWATERA / ADRES', key: 'name', width: 45 },
+        { header: 'KWATERA', key: 'name', width: 50 },
         { header: 'PROJEKT', key: 'project', width: 25 },
         { header: 'ZAJĘTOŚĆ', key: 'occ', width: 15 },
-        { header: 'MIESZKAŃCY', key: 'people', width: 60 },
-        { header: 'KOSZT MIES. (EUR)', key: 'price', width: 20 },
-        { header: 'KOSZT / OS. (EUR)', key: 'perPerson', width: 20 }
+        { header: 'MIESZKAŃCY', key: 'people', width: 65 },
+        { header: 'KOSZT MIES.', key: 'price', width: 20 },
+        { header: 'KOSZT / OS.', key: 'perPerson', width: 20 }
     ];
 
     const headerRow = worksheet.getRow(1);
     headerRow.height = 30;
-    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRow.eachCell((cell) => {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } }; // Blue color for distinguish
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    headerRow.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.eachCell((cell, colNumber) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8621A' } }; // Orange header color to match PDF
+        
+        let alignment = { vertical: 'middle', horizontal: 'left' };
+        if (colNumber === 1 || colNumber === 4) { // LP, ZAJĘTOŚĆ
+            alignment.horizontal = 'center';
+        } else if (colNumber === 6 || colNumber === 7) { // KOSZT MIES., KOSZT / OS.
+            alignment.horizontal = 'right';
+        }
+        cell.alignment = alignment;
+        
+        cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE8621A' } },
+            left: { style: 'thin', color: { argb: 'FFE8621A' } },
+            bottom: { style: 'medium', color: { argb: 'FFFFFFFF' } },
+            right: { style: 'thin', color: { argb: 'FFE8621A' } }
+        };
     });
 
     allItems.forEach((loc, index) => {
@@ -1911,9 +1928,9 @@ async function downloadLocExcelReport() {
                 const driver = (typeof p !== 'string' && p.isDriver) ? ' (K)' : '';
                 const plate = (typeof p !== 'string' && p.carPlate) ? ` [${p.carPlate}]` : '';
                 const vDays = (typeof p !== 'string') ? getVacationDaysLeft(p.vacationEnd) : 0;
-                const vacation = vDays > 0 ? ` (U: ${vDays}d)` : '';
-                return `${name}${driver}${plate}${vacation}`;
-            }).join(', ') : 'Brak';
+                const vacation = vDays > 0 ? ` 🌴 (U: ${vDays}d)` : '';
+                return `• ${name}${driver}${plate}${vacation}`;
+            }).join('\n') : 'Brak';
 
         const project = locations.find(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
         const isOffice = loc.type === 'office' || (loc.name && loc.name.toUpperCase().includes('VANSTEV - BIURO'));
@@ -1929,20 +1946,40 @@ async function downloadLocExcelReport() {
             project: projectName,
             occ: `${occ} / ${loc.capacity}`,
             people: peopleList,
-            price: price.toFixed(2),
-            perPerson: perPerson.toFixed(2)
+            price: `€${price.toFixed(2)}`,
+            perPerson: `€${perPerson.toFixed(2)}`
         });
 
-        row.getCell('name').alignment = { wrapText: true, vertical: 'middle' };
-        row.getCell('people').alignment = { wrapText: true, vertical: 'middle' };
-        row.eachCell((cell) => {
+        row.eachCell((cell, colNumber) => {
+            cell.font = { name: 'Segoe UI', size: 10 };
+            
+            // Clean modern borders (light gray)
             cell.border = {
-                top: { style: 'thin' },
-                left: { style: 'thin' },
-                bottom: { style: 'thin' },
-                right: { style: 'thin' }
+                top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
             };
-            cell.alignment = cell.alignment || { vertical: 'middle' };
+
+            // Custom column alignment
+            let alignment = { vertical: 'middle', horizontal: 'left' };
+            if (colNumber === 1 || colNumber === 4) { // LP, ZAJĘTOŚĆ
+                alignment.horizontal = 'center';
+            } else if (colNumber === 6 || colNumber === 7) { // KOSZT MIES., KOSZT / OS.
+                alignment.horizontal = 'right';
+                if (colNumber === 7) {
+                    // Make cost per person bold and green, exactly like the PDF styling
+                    cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF10B981' } };
+                }
+            } else if (colNumber === 2 || colNumber === 5) { // KWATERA, MIESZKAŃCY
+                alignment.wrapText = true;
+            }
+            cell.alignment = alignment;
+
+            // Office rows highlighted with pink background to match PDF row style
+            if (isOffice) {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDF2F8' } };
+            }
         });
     });
 
