@@ -740,8 +740,8 @@ function makePopupHtml(loc) {
         const isWorking = p.isWorking !== false;
         const vDays = getVacationDaysLeft(p.vacationEnd);
         const isOnVacation = vDays > 0;
-        const workIcon = !isOnVacation && !isWorking ? '<span style="margin-right:4px;">❌</span>' : '';
-        const vacationText = isOnVacation ? ` <span style="font-size:11px; font-weight:700; margin-left:4px;">🌴 (urlop ${vDays}d)</span>` : '';
+        const workIcon = isOnVacation ? `<span style="margin-right:4px;">🌴 ${vDays}d</span>` : (!isWorking ? '<span style="margin-right:4px;">❌</span>' : '');
+        const vacationText = '';
         let cls = '';
         if (isOnVacation) cls = 'on-vacation';
         else if (!isWorking) cls = 'not-working';
@@ -1229,8 +1229,8 @@ function renderList(filteredLocs = null) {
         const isWorking = p.isWorking !== false;
         const vDays = getVacationDaysLeft(p.vacationEnd);
         const isOnVacation = vDays > 0;
-        const workIcon = !isOnVacation && !isWorking ? '<span style="margin-right:4px;">❌</span>' : '';
-        const vacationText = isOnVacation ? ` <span style="font-size:11px; font-weight:700; margin-left:4px;">🌴 (urlop ${vDays}d)</span>` : '';
+        const workIcon = isOnVacation ? `<span style="margin-right:4px;">🌴 ${vDays}d</span>` : (!isWorking ? '<span style="margin-right:4px;">❌</span>' : '');
+        const vacationText = '';
         let cls = '';
         if (isOnVacation) cls = 'on-vacation';
         else if (!isWorking) cls = 'not-working';
