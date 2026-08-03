@@ -344,8 +344,14 @@ function renderLinkedLocations(containerId, selectedIds, filterQuery = '') {
         const plate = p.isDriver && p.carPlate ? ` (${p.carPlate})` : '';
         const car = p.isDriver && p.carDesc ? ` (${p.carDesc})` : '';
         const vDays = getVacationDaysLeft(p.vacationEnd);
-        const vacationText = vDays > 0 ? ` 🌴 (${vDays}d)` : '';
-        return `<span style="display:inline-block; border:1px solid var(--border); background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; margin:1px;">${p.name}${driverIcon}${plate}${car}${vacationText}</span>`;
+        const sDays = getSickLeaveDaysLeft(p.sickLeaveEnd);
+        let statusText = '';
+        if (vDays > 0) {
+            statusText = ` 🌴 (${vDays}d)`;
+        } else if (sDays > 0) {
+            statusText = ` 🏥 (${sDays}d)`;
+        }
+        return `<span style="display:inline-block; border:1px solid var(--border); background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; margin:1px;">${p.name}${driverIcon}${plate}${car}${statusText}</span>`;
     };
 
     c.innerHTML = locs.map(l => {
@@ -740,10 +746,20 @@ function makePopupHtml(loc) {
         const isWorking = p.isWorking !== false;
         const vDays = getVacationDaysLeft(p.vacationEnd);
         const isOnVacation = vDays > 0;
-        const workIcon = isOnVacation ? `<span style="margin-right:4px;">🌴 ${vDays}d</span>` : (!isWorking ? '<span style="margin-right:4px;">❌</span>' : '');
+        const sDays = getSickLeaveDaysLeft(p.sickLeaveEnd);
+        const isOnSickLeave = sDays > 0;
+        let workIcon = '';
+        if (isOnVacation) {
+            workIcon = `<span style="margin-right:4px;">🌴 ${vDays}d</span>`;
+        } else if (isOnSickLeave) {
+            workIcon = `<span style="margin-right:4px;">🏥 ${sDays}d</span>`;
+        } else if (!isWorking) {
+            workIcon = '<span style="margin-right:4px;">❌</span>';
+        }
         const vacationText = '';
         let cls = '';
         if (isOnVacation) cls = 'on-vacation';
+        else if (isOnSickLeave) cls = 'on-sick-leave';
         else if (!isWorking) cls = 'not-working';
         return `<span class="person-chip ${cls}" style="border-radius:4px;">${workIcon}${p.name}${driverIcon}${plate}${carLink}${vacationText}</span>`;
     };
@@ -869,6 +885,17 @@ function getVacationDaysLeft(vacationEnd) {
     return diffDays > 0 ? diffDays : 0;
 }
 
+function getSickLeaveDaysLeft(sickLeaveEnd) {
+    if (!sickLeaveEnd) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = new Date(sickLeaveEnd);
+    end.setHours(0, 0, 0, 0);
+    const diffTime = end - today;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return diffDays > 0 ? diffDays : 0;
+}
+
 function getMarkerColor(loc) {
     if (loc.isArchived) return '#64748b'; // Muted grey
     if (loc.type === 'office') return '#a855f7'; // Purple
@@ -878,7 +905,9 @@ function getMarkerColor(loc) {
     const isFull = occ >= loc.capacity;
     const hasNotWorking = loc.people && loc.people.some(p => p.isWorking === false);
     const hasVacation = loc.people && loc.people.some(p => getVacationDaysLeft(p.vacationEnd) > 0);
+    const hasSickLeave = loc.people && loc.people.some(p => getSickLeaveDaysLeft(p.sickLeaveEnd) > 0);
 
+    if (hasSickLeave) return '#60a5fa'; // Light Blue
     if (hasVacation) return '#fbbf24'; // Yellow
     if (hasNotWorking) return '#ff0000'; // Red
     if (isFull) return '#E8621A'; // Orange
@@ -1037,6 +1066,7 @@ function renderPeopleInputs(containerId, arr, mode) {
         const row = document.createElement('div');
         row.className = 'people-row';
         const vDays = getVacationDaysLeft(p.vacationEnd);
+        const sDays = getSickLeaveDaysLeft(p.sickLeaveEnd);
         row.innerHTML = `
             <input type="text" value="${p.name}" placeholder="Imię i nazwisko" oninput="updatePersonField('${mode}',${i},'name',this.value)"/>
             <div style="display:flex; flex-direction:column; gap:2px;">
@@ -1055,6 +1085,16 @@ function renderPeopleInputs(containerId, arr, mode) {
                 ${vDays > 0 ? `
                     <div style="display:flex; align-items:center; gap:2px; margin-top:2px;">
                         <input type="number" min="1" value="${vDays}" style="width:45px; height:18px; padding:2px; font-size:10px; border-radius:3px; border:1px solid var(--border); background:var(--bg); color:var(--text);" oninput="updateVacationDays('${mode}',${i},this.value)"/>
+                        <span style="font-size:9px; color:var(--muted);">dni</span>
+                    </div>
+                ` : ''}
+                <label class="driver-checkbox-wrap">
+                    <input type="checkbox" ${sDays > 0 ? 'checked' : ''} onchange="toggleSickLeave('${mode}',${i},this.checked,'${containerId}')"/>
+                    Chorobowe
+                </label>
+                ${sDays > 0 ? `
+                    <div style="display:flex; align-items:center; gap:2px; margin-top:2px;">
+                        <input type="number" min="1" value="${sDays}" style="width:45px; height:18px; padding:2px; font-size:10px; border-radius:3px; border:1px solid var(--border); background:var(--bg); color:var(--text);" oninput="updateSickLeaveDays('${mode}',${i},this.value)"/>
                         <span style="font-size:9px; color:var(--muted);">dni</span>
                     </div>
                 ` : ''}
@@ -1086,6 +1126,7 @@ function toggleVacation(mode, idx, isChecked, containerId) {
         const endDate = new Date();
         endDate.setHours(23, 59, 59, 999);
         arr[idx].vacationEnd = endDate.toISOString().split('T')[0];
+        arr[idx].sickLeaveEnd = null;
     } else {
         arr[idx].vacationEnd = null;
     }
@@ -1103,6 +1144,34 @@ function updateVacationDays(mode, idx, daysVal) {
         endDate.setDate(endDate.getDate() + days - 1);
         endDate.setHours(23, 59, 59, 999);
         arr[idx].vacationEnd = endDate.toISOString().split('T')[0];
+    }
+}
+
+function toggleSickLeave(mode, idx, isChecked, containerId) {
+    const arr = mode === 'add' ? addPeople : editPeople;
+    if (!arr[idx]) return;
+    if (isChecked) {
+        const endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+        arr[idx].sickLeaveEnd = endDate.toISOString().split('T')[0];
+        arr[idx].vacationEnd = null;
+    } else {
+        arr[idx].sickLeaveEnd = null;
+    }
+    renderPeopleInputs(containerId, arr, mode);
+}
+
+function updateSickLeaveDays(mode, idx, daysVal) {
+    const arr = mode === 'add' ? addPeople : editPeople;
+    if (!arr[idx]) return;
+    const days = parseInt(daysVal);
+    if (isNaN(days) || days <= 0) {
+        arr[idx].sickLeaveEnd = null;
+    } else {
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + days - 1);
+        endDate.setHours(23, 59, 59, 999);
+        arr[idx].sickLeaveEnd = endDate.toISOString().split('T')[0];
     }
 }
 
@@ -1229,10 +1298,20 @@ function renderList(filteredLocs = null) {
         const isWorking = p.isWorking !== false;
         const vDays = getVacationDaysLeft(p.vacationEnd);
         const isOnVacation = vDays > 0;
-        const workIcon = isOnVacation ? `<span style="margin-right:4px;">🌴 ${vDays}d</span>` : (!isWorking ? '<span style="margin-right:4px;">❌</span>' : '');
+        const sDays = getSickLeaveDaysLeft(p.sickLeaveEnd);
+        const isOnSickLeave = sDays > 0;
+        let workIcon = '';
+        if (isOnVacation) {
+            workIcon = `<span style="margin-right:4px;">🌴 ${vDays}d</span>`;
+        } else if (isOnSickLeave) {
+            workIcon = `<span style="margin-right:4px;">🏥 ${sDays}d</span>`;
+        } else if (!isWorking) {
+            workIcon = '<span style="margin-right:4px;">❌</span>';
+        }
         const vacationText = '';
         let cls = '';
         if (isOnVacation) cls = 'on-vacation';
+        else if (isOnSickLeave) cls = 'on-sick-leave';
         else if (!isWorking) cls = 'not-working';
         return `<span class="person-chip ${cls}" style="border-radius:4px;">${workIcon}${p.name}${driverIcon}${plate}${car}${vacationText}</span>`;
     };
@@ -1928,8 +2007,11 @@ async function downloadLocExcelReport() {
                 const driver = (typeof p !== 'string' && p.isDriver) ? ' (K)' : '';
                 const plate = (typeof p !== 'string' && p.carPlate) ? ` [${p.carPlate}]` : '';
                 const vDays = (typeof p !== 'string') ? getVacationDaysLeft(p.vacationEnd) : 0;
-                const vacation = vDays > 0 ? ` 🌴 (U: ${vDays}d)` : '';
-                return `• ${name}${driver}${plate}${vacation}`;
+                const sDays = (typeof p !== 'string') ? getSickLeaveDaysLeft(p.sickLeaveEnd) : 0;
+                let statusText = '';
+                if (vDays > 0) statusText = ` 🌴 (U: ${vDays}d)`;
+                else if (sDays > 0) statusText = ` 🏥 (CH: ${sDays}d)`;
+                return `• ${name}${driver}${plate}${statusText}`;
             }).join('\n') : 'Brak';
 
         const project = locations.find(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
@@ -2019,8 +2101,11 @@ async function downloadLocReport() {
                 const plate = (typeof p !== 'string' && p.carPlate) ? ` [${p.carPlate}]` : '';
                 const car = (typeof p !== 'string' && p.carDesc) ? ` (${p.carDesc})` : '';
                 const vDays = (typeof p !== 'string') ? getVacationDaysLeft(p.vacationEnd) : 0;
-                const vacation = vDays > 0 ? ` 🌴 (U: ${vDays}d)` : '';
-                return `<div>• ${name}${driver}${plate}${car}${vacation}</div>`;
+                const sDays = (typeof p !== 'string') ? getSickLeaveDaysLeft(p.sickLeaveEnd) : 0;
+                let statusText = '';
+                if (vDays > 0) statusText = ` 🌴 (U: ${vDays}d)`;
+                else if (sDays > 0) statusText = ` 🏥 (CH: ${sDays}d)`;
+                return `<div>• ${name}${driver}${plate}${car}${statusText}</div>`;
             }).join('') : '<i style="color:#999;">Brak mieszkańców</i>';
 
         const project = locations.find(p => p.type === 'project' && (p.linkedLocations || []).includes(loc.id));
@@ -2085,7 +2170,7 @@ async function downloadLocReport() {
             </table>
 
             <div style="margin-top:20px; padding-top:15px; border-top:1px solid #eee; display:flex; justify-content:space-between; font-size:10px; color:#777;">
-                <div><b>LEGENDA:</b> (K) = Kierowca | 🌴 (U) = Urlop</div>
+                <div><b>LEGENDA:</b> (K) = Kierowca | 🌴 (U) = Urlop | 🏥 (CH) = Chorobowe</div>
                 <div>Strona 1 z 1</div>
             </div>
         </div>

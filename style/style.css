@@ -1467,6 +1467,12 @@ body.light-mode .caregiver-badge {
     background: rgba(251, 191, 36, 0.1);
 }
 
+.person-chip.on-sick-leave {
+    border-color: var(--blue2);
+    color: var(--blue2);
+    background: rgba(96, 165, 250, 0.1);
+}
+
 .map-legend {
     position: absolute;
     bottom: 20px;
