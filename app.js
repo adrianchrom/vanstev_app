@@ -43,7 +43,8 @@ const USER_PASSWORDS = {
     'kasia': '%sfK78F%^!',
     'tomek': 'ru0DWy9^8^',
     'przemek': 'wgB6x^%kt9',
-    'mirek': 'yV3r5P*#TU'
+    'mirek': 'yV3r5P*#TU',
+    'dominik': 'pX7#qM2@vY'
 };
 
 function doLogin() {
@@ -2323,7 +2324,7 @@ async function renderAdminPanel() {
 
     adminList.innerHTML = '<div style="color:var(--muted); font-size:12px; padding:10px;">Łączenie z bazą...</div>';
 
-    const users = ['Radek', 'Szymon', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Admin'];
+    const users = ['Radek', 'Szymon', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Dominik', 'Admin'];
     const updateUI = () => {
         let html = '';
         users.forEach(u => {
