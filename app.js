@@ -33,7 +33,7 @@ let roadDistances = {}; // Cache for road distances
 // Section collapse state
 let isProjectsCollapsed = true;
 let isQuartersCollapsed = true;
-let isOfficesCollapsed = false;
+let isOfficesCollapsed = true;
 
 // ===== LOGIN =====
 const USER_PASSWORDS = {
@@ -62,10 +62,40 @@ function doLogin() {
         return;
     }
     const userName = user.charAt(0).toUpperCase() + user.slice(1);
-    localStorage.setItem('vs_user', userName);
+    sessionStorage.setItem('vs_user', userName);
+    localStorage.setItem('vs_saved_login', user);
+    localStorage.setItem('vs_saved_pass', pass);
+    
     // Resetuj status wymuszonego wylogowania przy nowym logowaniu
     db.collection('users').doc(userName).set({ forceLogout: false }, { merge: true });
-    setupApp(userName);
+    
+    document.getElementById('loginScreen').style.display = 'none';
+    const loader = document.getElementById('loadingScreen');
+    loader.style.display = 'flex';
+    document.getElementById('loadingGreeting').textContent = `Hej ${userName}`;
+    
+    // Start animations
+    setTimeout(() => {
+        loader.style.opacity = '1';
+        document.getElementById('loadingGreeting').style.opacity = '1';
+        document.getElementById('loadingGreeting').style.transform = 'translateY(0)';
+        document.getElementById('loadingSubtitle').style.opacity = '1';
+        document.getElementById('loadingSubtitle').style.transform = 'translateY(0)';
+        document.getElementById('loadingBarWrap').style.opacity = '1';
+        document.getElementById('loadingBarWrap').style.transform = 'translateY(0)';
+        
+        setTimeout(() => {
+            document.getElementById('loadingBar').style.width = '100%';
+        }, 100);
+    }, 50);
+
+    setTimeout(() => {
+        loader.style.opacity = '0';
+        setTimeout(() => {
+            loader.style.display = 'none';
+            setupApp(userName);
+        }, 800);
+    }, 7000);
 }
 
 function setupApp(userName) {
@@ -155,11 +185,19 @@ function doLogout() {
         window.vsLogoutMonitor();
         window.vsLogoutMonitor = null;
     }
-    localStorage.removeItem('vs_user');
+    sessionStorage.removeItem('vs_user');
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
-    document.getElementById('loginEmail').value = '';
-    document.getElementById('loginPass').value = '';
+    
+    const savedLogin = localStorage.getItem('vs_saved_login');
+    const savedPass = localStorage.getItem('vs_saved_pass');
+    if (savedLogin && savedPass) {
+        document.getElementById('loginEmail').value = savedLogin;
+        document.getElementById('loginPass').value = savedPass;
+    } else {
+        document.getElementById('loginEmail').value = '';
+        document.getElementById('loginPass').value = '';
+    }
 }
 
 // ===== THEME =====
@@ -229,11 +267,36 @@ if (localStorage.getItem('vs_theme') === 'light') {
 
 // Apply session on load
 window.addEventListener('DOMContentLoaded', () => {
-    const savedUser = localStorage.getItem('vs_user');
+    const savedUser = sessionStorage.getItem('vs_user');
     if (savedUser) {
         setupApp(savedUser);
+    } else {
+        const savedLogin = localStorage.getItem('vs_saved_login');
+        const savedPass = localStorage.getItem('vs_saved_pass');
+        if (savedLogin && savedPass) {
+            document.getElementById('loginEmail').value = savedLogin;
+            document.getElementById('loginPass').value = savedPass;
+        }
     }
+    setupInactivityTimeout();
 });
+
+let inactivityTimer;
+function resetInactivityTimeout() {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(() => {
+        if (currentUser) {
+            console.log("Wylogowanie z powodu nieaktywności (30 min)");
+            doLogout();
+        }
+    }, 30 * 60 * 1000); // 30 minutes
+}
+function setupInactivityTimeout() {
+    ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => 
+        document.addEventListener(evt, resetInactivityTimeout, true)
+    );
+    resetInactivityTimeout();
+}
 
 // ===== MAP =====
 function initMap() {
@@ -1417,14 +1480,14 @@ function renderList(filteredLocs = null) {
 
     let html = '';
 
-    if (offices.length > 0) {
+    if (quarters.length > 0) {
         html += `
-            <div class="list-section-header ${isOfficesCollapsed ? 'collapsed' : ''}" onclick="toggleSection('offices')">
-                <div class="list-section-title">🏢 Biura (${offices.length})</div>
+            <div class="list-section-header ${isQuartersCollapsed ? 'collapsed' : ''}" onclick="toggleSection('quarters')">
+                <div class="list-section-title">🏠 Kwatery (${quarters.length})</div>
                 <div class="list-section-arrow">▼</div>
             </div>
-            <div class="list-section-content ${isOfficesCollapsed ? 'collapsed' : ''}">
-                ${offices.map(o => renderOfficeCard(o)).join('')}
+            <div class="list-section-content ${isQuartersCollapsed ? 'collapsed' : ''}">
+                ${quarters.map(q => renderQuarterCard(q)).join('')}
             </div>
         `;
     }
@@ -1441,14 +1504,14 @@ function renderList(filteredLocs = null) {
         `;
     }
 
-    if (quarters.length > 0) {
+    if (offices.length > 0) {
         html += `
-            <div class="list-section-header ${isQuartersCollapsed ? 'collapsed' : ''}" onclick="toggleSection('quarters')">
-                <div class="list-section-title">🏠 Kwatery (${quarters.length})</div>
+            <div class="list-section-header ${isOfficesCollapsed ? 'collapsed' : ''}" onclick="toggleSection('offices')">
+                <div class="list-section-title">🏢 Biura (${offices.length})</div>
                 <div class="list-section-arrow">▼</div>
             </div>
-            <div class="list-section-content ${isQuartersCollapsed ? 'collapsed' : ''}">
-                ${quarters.map(q => renderQuarterCard(q)).join('')}
+            <div class="list-section-content ${isOfficesCollapsed ? 'collapsed' : ''}">
+                ${offices.map(o => renderOfficeCard(o)).join('')}
             </div>
         `;
     }
