@@ -215,19 +215,21 @@ body {
 .tb-logout {
     background: transparent;
     border: 1px solid var(--border);
-    color: var(--muted);
-    padding: 5px 12px;
-    border-radius: 6px;
+    color: var(--text);
+    padding: 6px 14px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 500;
     font-family: 'Inter', sans-serif;
-    transition: all 0.2s;
+    transition: all 0.25s ease;
 }
 
 .tb-logout:hover {
     border-color: var(--danger);
     color: var(--danger);
-    background: rgba(239, 68, 68, 0.05);
+    background: rgba(239, 68, 68, 0.1);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
 }
 
 .main-area {
@@ -1187,26 +1189,34 @@ body.light-mode .caregiver-badge {
 
     .topbar {
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
+        flex-wrap: wrap;
         height: auto;
-        padding: 12px;
-        gap: 12px;
+        padding: 10px 15px;
+        gap: 10px;
+        justify-content: space-between;
+        align-items: center;
     }
 
     .tb-logo {
-        width: 100%;
-        justify-content: center;
+        width: auto;
+        justify-content: flex-start;
+    }
+    
+    .tb-logo svg {
+        width: 110px;
+        height: 30px;
     }
 
     .tb-user {
-        width: 100%;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 6px;
+        width: auto;
+        justify-content: flex-end;
+        gap: 8px;
     }
 
     .tb-search {
         width: 100%;
+        order: 3;
     }
 
     .search-btn span {

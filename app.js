@@ -217,7 +217,7 @@ function updateMapTheme() {
             "Google Mapa": googleRoadmap,
             "Google Satelita": googleSatellite
         };
-        standardLayer.addTo(map);
+        googleSatellite.addTo(map);
         layersControl = L.control.layers(baseMaps).addTo(map);
     }
 }
