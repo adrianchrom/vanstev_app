@@ -37,24 +37,34 @@ let isOfficesCollapsed = true;
 
 // ===== LOGIN =====
 const USER_PASSWORDS = {
-    'admin': 'sH4Il&KYF6',
-    'radek': 'c0(Pdds#sJ',
-    'szymon': ')Cq!iFZK80',
-    'kasia': '%sfK78F%^!',
-    'tomek': 'ru0DWy9^8^',
-    'przemek': 'wgB6x^%kt9',
-    'mirek': 'yV3r5P*#TU',
-    'dominik': 'pX7#qM2@vY'
+    'admin': '750ee58c151661747a47476a661c5f3e3c236cf42f4856e56cb8ad595f7bd374',
+    'radek': '82cfe82688b0ef2bc5cd88854e1a3d4b627f79d878cc3fd119e33f7e4448f7b5',
+    'szymon': '72950ec1858c1d95000953c35ea95f0884df163be120bd85ebb0f8d46d112cf5',
+    'kasia': 'f4dffa41bf4265d1f4abd393c189fb4daa2f683d4bb6e466825aba503f39635c',
+    'tomek': '4b83834397c4a635e2863ab2acfcf80988be1dc06f8668bace9d163be4836276',
+    'przemek': '9fe44b2b25fc98b9b8caf76b72fbdae3417102aaa4e2a71e6234fcb1f6f07e91',
+    'mirek': '78133133a699cf3e0a5117a2f2f53ec5c4e5088250d9fe53059ac9a47b290acc',
+    'dominik': 'a7b84e257f645a915b35f908c39a96787811ac047a688d7e1cb0fc14d73f68f8'
 };
 
-function doLogin() {
+async function hashPassword(password) {
+    const msgUint8 = new TextEncoder().encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function doLogin() {
     const user = document.getElementById('loginEmail').value.trim().toLowerCase();
     const pass = document.getElementById('loginPass').value.trim();
     const err = document.getElementById('loginErr');
 
     let isAuthorized = false;
-    if (USER_PASSWORDS[user] && USER_PASSWORDS[user] === pass) {
-        isAuthorized = true;
+    if (USER_PASSWORDS[user]) {
+        const hashedPass = await hashPassword(pass);
+        if (USER_PASSWORDS[user] === hashedPass) {
+            isAuthorized = true;
+        }
     }
 
     if (!isAuthorized) {
@@ -2409,7 +2419,7 @@ async function renderAdminPanel() {
             }
 
             const loginTime = status.lastSeen ? fmtTime(status.lastSeen.toDate()) : (status.lastLogin ? fmtTime(status.lastLogin.toDate()) : 'Brak danych');
-            const pwd = USER_PASSWORDS[u.toLowerCase()] || 'Brak';
+            const pwd = '[Zaszyfrowane]';
 
             html += `
                 <div style="background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:15px; margin-bottom:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
@@ -2417,10 +2427,8 @@ async function renderAdminPanel() {
                         <div style="display:flex; flex-direction:column; gap:2px;">
                             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                                 <span>👤 ${u}</span>
-                                <span style="font-size:11px; color:var(--muted); font-weight:normal; background:var(--bg); padding:2px 6px; border-radius:6px; border:1px solid var(--border); display:inline-flex; align-items:center; gap:4px; margin-left:4px;">
-                                    🔑 <span class="admin-password-field" data-user="${u}" style="font-family:monospace; display:none;">${pwd}</span>
-                                    <span class="admin-password-placeholder" data-user="${u}" style="letter-spacing:2px; font-size:8px; vertical-align:middle;">••••••••</span>
-                                    <button onclick="togglePasswordView('${u}', this)" style="background:none; border:none; color:var(--accent); cursor:pointer; font-size:11px; padding:0; line-height:1; outline:none;">👁️</button>
+                                <span style="font-size:11px; color:var(--success); font-weight:normal; background:var(--bg); padding:2px 6px; border-radius:6px; border:1px solid var(--border); display:inline-flex; align-items:center; gap:4px; margin-left:4px;">
+                                    🔒 <span>${pwd}</span>
                                 </span>
                                 ${u !== 'Admin' ? `<button onclick="forceUserLogout('${u}')" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:2px 6px; font-size:9px; cursor:pointer; font-weight:700; text-transform:uppercase;">Wyloguj</button>` : ''}
                             </div>
@@ -2504,26 +2512,6 @@ async function renderAdminPanel() {
     }, err => {
         console.error("Admin Activity Error:", err);
     });
-}
-
-function togglePasswordView(user, btn) {
-    const fields = document.querySelectorAll(`.admin-password-field[data-user="${user}"]`);
-    const placeholders = document.querySelectorAll(`.admin-password-placeholder[data-user="${user}"]`);
-    
-    fields.forEach(field => {
-        const isHidden = field.style.display === 'none';
-        field.style.display = isHidden ? 'inline' : 'none';
-    });
-    
-    placeholders.forEach(placeholder => {
-        const isHidden = placeholder.style.display === 'none';
-        placeholder.style.display = isHidden ? 'inline' : 'none';
-    });
-    
-    if (btn) {
-        const isRevealed = btn.textContent === '👁️';
-        btn.textContent = isRevealed ? '🙈' : '👁️';
-    }
 }
 
 function restoreLocation(activityId) {
