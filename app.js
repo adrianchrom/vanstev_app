@@ -16,6 +16,7 @@ const db = firebase.firestore();
 
 // ===== DATA =====
 let locations = [];
+let deletedLocations = [];
 let pendingLat = null, pendingLng = null;
 let editLat = null, editLng = null;
 let map, markers = {};
@@ -915,7 +916,8 @@ function initDataSync() {
             Promise.all(updatePromises).then(() => console.log("Zaktualizowano brakujące numery lokalizacji"));
         }
 
-        locations = rawDocs;
+        locations = rawDocs.filter(l => !l.isDeleted);
+        deletedLocations = rawDocs.filter(l => l.isDeleted);
         applyFilters();
         renderStats();
         renderArchive();
@@ -1589,7 +1591,7 @@ document.getElementById('confirmDeleteBtn')?.addEventListener('click', () => {
     if (!locToDelete) return;
     const loc = locations.find(l => l.id === locToDelete);
     const locName = loc?.name || 'Nieznana';
-    db.collection('locations').doc(locToDelete).delete()
+    db.collection('locations').doc(locToDelete).update({ isDeleted: true })
         .then(() => {
             logActivity('Usunięto lokalizację', locName, loc);
             closeConfirmDelete();
@@ -2297,7 +2299,10 @@ function renderArchive() {
     const empty = document.getElementById('emptyArchiveState');
     const count = document.getElementById('archiveCount');
 
-    const archived = locations.filter(l => l.isArchived === true).sort((a, b) => a.name.localeCompare(b.name));
+    const archived = [
+        ...locations.filter(l => l.isArchived === true),
+        ...deletedLocations.filter(l => l.type === 'project')
+    ].sort((a, b) => a.name.localeCompare(b.name));
 
     if (count) {
         count.textContent = archived.length + ' wpis' + (archived.length === 1 ? '' : archived.length < 5 ? 'y' : 'ów') + ' w archiwum';
@@ -2400,6 +2405,26 @@ async function renderAdminPanel() {
     const users = ['Radek', 'Szymon', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Dominik', 'Admin'];
     const updateUI = () => {
         let html = '';
+        
+        if (deletedLocations.length > 0) {
+            html += `
+                <div style="margin-bottom:20px;">
+                    <h3 style="color:var(--danger); margin-bottom:10px; display:flex; align-items:center; gap:8px;">🗑️ Usunięte obiekty</h3>
+                    ${deletedLocations.map(loc => `
+                        <div style="background:var(--card2); border:1px solid rgba(239, 68, 68, 0.3); border-radius:12px; padding:15px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <strong style="color:var(--text);">${loc.name || 'Brak nazwy'}</strong> <span style="font-size:11px; color:var(--muted); background:var(--bg); padding:2px 6px; border-radius:4px; margin-left:6px;">${loc.type === 'project' ? 'Projekt' : loc.type === 'office' ? 'Biuro' : 'Kwatera'}</span><br>
+                                <span style="font-size:11px; color:var(--muted);">Usunięto (możesz przywrócić)</span>
+                            </div>
+                            <button onclick="restoreDeletedLocation('${loc.id}')" style="background:var(--success); color:white; border:none; border-radius:6px; padding:6px 12px; font-weight:bold; cursor:pointer;">↩️ Przywróć</button>
+                        </div>
+                    `).join('')}
+                </div>
+                <hr style="border-color:var(--border); margin: 24px 0;">
+                <h3 style="margin-bottom:15px; color:var(--text);">Aktywność Użytkowników</h3>
+            `;
+        }
+
         users.forEach(u => {
             const isExpanded = !!adminExpandedUsers[u];
             const limit = isExpanded ? 30 : 3;
@@ -2512,6 +2537,21 @@ async function renderAdminPanel() {
     }, err => {
         console.error("Admin Activity Error:", err);
     });
+}
+
+window.restoreDeletedLocation = function(id) {
+    if (!confirm('Czy na pewno chcesz przywrócić ten obiekt?')) return;
+    const loc = deletedLocations.find(l => l.id === id);
+    const locName = loc?.name || 'Nieznana';
+    
+    db.collection('locations').doc(id).update({ isDeleted: false })
+        .then(() => {
+            logActivity('Przywrócono z kosza', locName, loc);
+            alert(`Pomyślnie przywrócono: ${locName}`);
+        })
+        .catch(err => {
+            alert("Błąd przywracania: " + err.message);
+        });
 }
 
 function restoreLocation(activityId) {
