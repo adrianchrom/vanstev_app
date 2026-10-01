@@ -338,11 +338,26 @@ function initMap() {
     map.on('click', onMapClick);
     map.on('zoomend', updateProjectIcons);
     reloadMarkers();
+
+    setTimeout(() => {
+        const leftControls = document.querySelector('.map-left-controls');
+        if (leftControls && window.L) {
+            L.DomEvent.disableClickPropagation(leftControls);
+            L.DomEvent.disableScrollPropagation(leftControls);
+        }
+    }, 150);
 }
 
 let tempMarker = null;
 
 function onMapClick(e) {
+    // If the click originated from any map UI controls or modals, ignore it completely
+    if (e.originalEvent && e.originalEvent.target) {
+        if (e.originalEvent.target.closest('.map-left-controls, .map-notes-wrap, .notes-popover, .notes-circle-btn, .map-legend, .modal-box, .modal-overlay')) {
+            return;
+        }
+    }
+
     const lat = e.latlng.lat;
     const lng = e.latlng.lng;
 
@@ -350,7 +365,6 @@ function onMapClick(e) {
         editLat = lat; editLng = lng;
         if (tempMarker) map.removeLayer(tempMarker);
         tempMarker = L.marker([lat, lng], { icon: makeTempIcon(), draggable: false }).addTo(map);
-
 
         document.getElementById('eCoordDisplay').style.display = 'block';
         document.getElementById('eCoordTxt').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
@@ -361,7 +375,6 @@ function onMapClick(e) {
     pendingLat = lat; pendingLng = lng;
     if (tempMarker) map.removeLayer(tempMarker);
     tempMarker = L.marker([lat, lng], { icon: makeTempIcon(), draggable: false }).addTo(map);
-
 
     document.getElementById('typeModal').style.display = 'flex';
 }
@@ -2790,6 +2803,7 @@ function initNotesSync() {
 function renderNotesWidget() {
     const listEl = document.getElementById('notesList');
     const badgeEl = document.getElementById('notesCountBadge');
+    const popoverBadge = document.getElementById('notesPopoverBadge');
     if (!listEl) return;
 
     const activeNotes = notes.filter(n => {
@@ -2801,7 +2815,15 @@ function renderNotesWidget() {
         return false;
     });
 
-    if (badgeEl) badgeEl.textContent = activeNotes.length;
+    if (badgeEl) {
+        if (activeNotes.length > 0) {
+            badgeEl.textContent = activeNotes.length;
+            badgeEl.style.display = 'flex';
+        } else {
+            badgeEl.style.display = 'none';
+        }
+    }
+    if (popoverBadge) popoverBadge.textContent = activeNotes.length;
 
     if (activeNotes.length === 0) {
         listEl.innerHTML = '<div class="notes-empty">Brak aktywnych notatek</div>';
@@ -2816,7 +2838,7 @@ function renderNotesWidget() {
         const dateText = n.createdAt ? fmtTime(n.createdAt.toDate()) : '';
 
         return `
-            <div class="note-card ${colorClass}" id="note-${n.id}">
+            <div class="note-card ${colorClass}" id="note-${n.id}" onclick="event.stopPropagation()">
                 <div class="note-card-header">
                     <div style="display:flex; flex-direction:column; gap:2px;">
                         <div class="note-card-author">
@@ -2825,7 +2847,7 @@ function renderNotesWidget() {
                         <span class="note-card-audience">${escapeHtml(audienceText)}</span>
                     </div>
                     <div class="note-card-actions">
-                        ${canDelete ? `<button class="note-delete-btn" onclick="deleteNote('${n.id}')" title="Usuń notatkę (tylko autor)">🗑️</button>` : ''}
+                        ${canDelete ? `<button class="note-delete-btn" onclick="event.stopPropagation(); deleteNote('${n.id}')" title="Usuń notatkę (tylko autor)">🗑️</button>` : ''}
                     </div>
                 </div>
                 ${n.title ? `<div class="note-card-title">${escapeHtml(n.title)}</div>` : ''}
@@ -2836,14 +2858,26 @@ function renderNotesWidget() {
     }).join('');
 }
 
-function toggleNotesWidget() {
-    const widget = document.getElementById('mapNotesWidget');
-    if (widget) {
-        widget.classList.toggle('collapsed');
+function toggleNotesPopover(e) {
+    if (e) {
+        e.stopPropagation();
+        if (e.preventDefault) e.preventDefault();
     }
+    const popover = document.getElementById('notesPopover');
+    if (!popover) return;
+    const isShowing = (popover.style.display !== 'none');
+    popover.style.display = isShowing ? 'none' : 'flex';
 }
 
-function openCreateNoteModal() {
+function toggleNotesWidget(e) {
+    toggleNotesPopover(e);
+}
+
+function openCreateNoteModal(e) {
+    if (e) {
+        e.stopPropagation();
+        if (e.preventDefault) e.preventDefault();
+    }
     const modal = document.getElementById('createNoteModal');
     if (!modal) return;
     document.getElementById('noteTitle').value = '';
@@ -2863,7 +2897,7 @@ function openCreateNoteModal() {
     if (userListEl) {
         const teamUsers = ['Radek', 'Szymon', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Dominik'];
         userListEl.innerHTML = teamUsers.map(u => `
-            <label class="user-checkbox-item">
+            <label class="user-checkbox-item" onclick="event.stopPropagation()">
                 <input type="checkbox" value="${u}" name="noteAudienceUser">
                 <span>${u}</span>
             </label>
@@ -2873,7 +2907,11 @@ function openCreateNoteModal() {
     modal.classList.add('open');
 }
 
-function closeCreateNoteModal() {
+function closeCreateNoteModal(e) {
+    if (e) {
+        e.stopPropagation();
+        if (e.preventDefault) e.preventDefault();
+    }
     const modal = document.getElementById('createNoteModal');
     if (modal) modal.classList.remove('open');
 }

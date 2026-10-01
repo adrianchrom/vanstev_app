@@ -1645,21 +1645,113 @@ body.light-mode .caregiver-badge {
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* ===== MAP NOTES WIDGET (ABOVE LEGEND) ===== */
-.map-notes-widget {
+/* ===== MAP NOTES WRAP (CIRCLE BUTTON & POPOVER) ===== */
+.map-notes-wrap {
+    position: relative;
+    display: inline-block;
+    z-index: 1001;
+    align-self: flex-start;
+}
+
+.notes-circle-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
     background: var(--card);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1.5px solid rgba(232, 98, 26, 0.45);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+}
+
+.notes-circle-btn:hover {
+    transform: scale(1.08);
+    border-color: var(--accent);
+    box-shadow: 0 6px 20px rgba(232, 98, 26, 0.4);
+    background: rgba(30, 41, 59, 0.9);
+}
+
+.notes-circle-btn:active {
+    transform: scale(0.96);
+}
+
+.notes-circle-icon {
+    font-size: 20px;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.notes-circle-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 2px solid var(--bg);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.notes-popover {
+    position: absolute;
+    bottom: 54px;
+    left: 0;
+    width: 320px;
+    max-width: calc(100vw - 40px);
+    background: var(--card);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     border: 1px solid var(--border);
     border-radius: 14px;
     box-shadow: var(--glass-shadow);
-    width: 100%;
-    font-size: 12px;
-    color: var(--text);
-    overflow: hidden;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    animation: popoverFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1002;
+}
+
+@keyframes popoverFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.notes-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    line-height: 1;
+}
+
+.notes-close-btn:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .notes-header {
@@ -1676,7 +1768,6 @@ body.light-mode .caregiver-badge {
     display: flex;
     align-items: center;
     gap: 7px;
-    cursor: pointer;
     font-weight: 700;
     font-size: 13px;
     color: var(--text);
@@ -1696,27 +1787,6 @@ body.light-mode .caregiver-badge {
     font-size: 10px;
     padding: 1px 7px;
     font-weight: 700;
-}
-
-.notes-toggle-icon {
-    font-size: 9px;
-    color: var(--muted);
-    transition: transform 0.25s ease;
-    margin-left: 2px;
-}
-
-.map-notes-widget.collapsed .notes-toggle-icon {
-    transform: rotate(180deg);
-}
-
-.map-notes-widget.collapsed .notes-body {
-    display: none;
-}
-
-.map-notes-widget.collapsed {
-    width: auto;
-    min-width: 160px;
-    align-self: flex-start;
 }
 
 .notes-add-btn {

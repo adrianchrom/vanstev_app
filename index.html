@@ -10,7 +10,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@800;900&family=Poppins:wght@500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style/style.css?v=1.3.0">
+    <link rel="stylesheet" href="style/style.css?v=1.3.1">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -391,22 +391,33 @@
                         </div>
                     </div>
 
-                    <!-- Floating Notes Widget (above legend) -->
-                    <div class="map-notes-widget" id="mapNotesWidget">
-                        <div class="notes-header">
-                            <div class="notes-header-left" onclick="toggleNotesWidget()">
-                                <span class="notes-header-icon">📝</span>
-                                <span class="notes-header-title">Notatki</span>
-                                <span class="notes-count-badge" id="notesCountBadge">0</span>
-                                <span class="notes-toggle-icon" id="notesToggleIcon">🔼</span>
+                    <!-- Small Circle Notes Button & Popover (above legend) -->
+                    <div class="map-notes-wrap" id="mapNotesWrap" onclick="event.stopPropagation()">
+                        <!-- Round Button with Note Icon in the corner of the map -->
+                        <button class="notes-circle-btn" id="notesCircleBtn" onclick="toggleNotesPopover(event)" title="Notatki">
+                            <span class="notes-circle-icon">📝</span>
+                            <span class="notes-circle-badge" id="notesCountBadge" style="display:none;">0</span>
+                        </button>
+
+                        <!-- Floating Popover (Opened upon clicking circle) -->
+                        <div class="notes-popover" id="notesPopover" style="display:none;" onclick="event.stopPropagation()">
+                            <div class="notes-header">
+                                <div class="notes-header-left">
+                                    <span class="notes-header-icon">📝</span>
+                                    <span class="notes-header-title">Notatki</span>
+                                    <span class="notes-count-badge" id="notesPopoverBadge">0</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <button class="notes-add-btn" onclick="openCreateNoteModal(event)" title="Dodaj nową notatkę">
+                                        <span>+</span> Notatka
+                                    </button>
+                                    <button class="notes-close-btn" onclick="toggleNotesPopover(event)" title="Zamknij">✕</button>
+                                </div>
                             </div>
-                            <button class="notes-add-btn" onclick="openCreateNoteModal()" title="Dodaj nową notatkę">
-                                <span>+</span> Notatka
-                            </button>
-                        </div>
-                        <div class="notes-body" id="notesWidgetBody">
-                            <div id="notesList" class="notes-list">
-                                <div class="notes-empty">Brak aktywnych notatek</div>
+                            <div class="notes-body" id="notesWidgetBody">
+                                <div id="notesList" class="notes-list">
+                                    <div class="notes-empty">Brak aktywnych notatek</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -658,7 +669,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-    <script src="app.js?v=1.3.0"></script>
+    <script src="app.js?v=1.3.1"></script>
 </body>
 
 </html>
