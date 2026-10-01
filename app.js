@@ -2834,15 +2834,22 @@ function renderNotesWidget() {
         const canDelete = (n.author === currentUser || currentUser === 'Admin');
         const isAll = !n.targetAudience || n.targetAudience.includes('all');
         const audienceText = isAll ? '👥 Wszyscy' : `🔒 ${Array.isArray(n.targetAudience) ? n.targetAudience.join(', ') : 'Wszyscy'}`;
-        const colorClass = `color-${n.color || 'orange'}`;
+        const isRed = (n.color === 'red');
+        const colorClass = isRed ? 'color-red' : 'color-blue';
+        const priorityPill = isRed 
+            ? `<span class="note-priority-pill pill-red">🔴 Ważna</span>` 
+            : `<span class="note-priority-pill pill-blue">🔵 Normalna</span>`;
         const dateText = n.createdAt ? fmtTime(n.createdAt.toDate()) : '';
 
         return `
             <div class="note-card ${colorClass}" id="note-${n.id}" onclick="event.stopPropagation()">
                 <div class="note-card-header">
-                    <div style="display:flex; flex-direction:column; gap:2px;">
-                        <div class="note-card-author">
-                            <span>👤 ${escapeHtml(n.author || 'Anonim')}</span>
+                    <div style="display:flex; flex-direction:column; gap:3px;">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <div class="note-card-author">
+                                <span>👤 ${escapeHtml(n.author || 'Anonim')}</span>
+                            </div>
+                            ${priorityPill}
                         </div>
                         <span class="note-card-audience">${escapeHtml(audienceText)}</span>
                     </div>
@@ -2880,26 +2887,26 @@ function openCreateNoteModal(e) {
     }
     const modal = document.getElementById('createNoteModal');
     if (!modal) return;
-    document.getElementById('noteTitle').value = '';
-    document.getElementById('noteContent').value = '';
+    const titleEl = document.getElementById('noteTitle');
+    const contentEl = document.getElementById('noteContent');
+    if (titleEl) titleEl.value = '';
+    if (contentEl) contentEl.value = '';
 
-    // Reset color to orange
+    // Reset color to blue (Normal) by default
     const colorRadios = document.querySelectorAll('input[name="noteColor"]');
-    colorRadios.forEach(r => { r.checked = (r.value === 'orange'); });
+    colorRadios.forEach(r => { r.checked = (r.value === 'blue'); });
 
-    // Reset audience to 'all'
-    const audRadios = document.querySelectorAll('input[name="noteAudienceType"]');
-    audRadios.forEach(r => { r.checked = (r.value === 'all'); });
-    toggleNoteAudienceUI('all');
+    // Reset audience mode to 'all'
+    setNoteAudienceMode('all');
 
-    // Populate team members list
+    // Populate team members list as selectable chips
     const userListEl = document.getElementById('noteAudienceUsers');
     if (userListEl) {
         const teamUsers = ['Radek', 'Szymon', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Dominik'];
         userListEl.innerHTML = teamUsers.map(u => `
-            <label class="user-checkbox-item" onclick="event.stopPropagation()">
+            <label class="user-chip-item" onclick="event.stopPropagation()">
                 <input type="checkbox" value="${u}" name="noteAudienceUser">
-                <span>${u}</span>
+                <span>👤 ${u}</span>
             </label>
         `).join('');
     }
@@ -2916,31 +2923,53 @@ function closeCreateNoteModal(e) {
     if (modal) modal.classList.remove('open');
 }
 
+function setNoteAudienceMode(mode, e) {
+    if (e) {
+        e.stopPropagation();
+        if (e.preventDefault) e.preventDefault();
+    }
+    const audTypeInput = document.getElementById('noteAudienceType');
+    if (audTypeInput) audTypeInput.value = mode;
+
+    const btnAll = document.getElementById('audBtnAll');
+    const btnCustom = document.getElementById('audBtnCustom');
+    const usersWrap = document.getElementById('noteAudienceUsers');
+
+    if (btnAll) btnAll.classList.toggle('active', mode === 'all');
+    if (btnCustom) btnCustom.classList.toggle('active', mode === 'custom');
+    if (usersWrap) usersWrap.style.display = (mode === 'custom') ? 'flex' : 'none';
+}
+
 function toggleNoteAudienceUI(val) {
-    const userListEl = document.getElementById('noteAudienceUsers');
-    if (!userListEl) return;
-    userListEl.style.display = (val === 'custom') ? 'grid' : 'none';
+    setNoteAudienceMode(val);
 }
 
 async function saveNewNote() {
-    const title = document.getElementById('noteTitle').value.trim();
-    const content = document.getElementById('noteContent').value.trim();
+    const titleEl = document.getElementById('noteTitle');
+    const contentEl = document.getElementById('noteContent');
+    const title = titleEl ? titleEl.value.trim() : '';
+    const content = contentEl ? contentEl.value.trim() : '';
+
     if (!content) {
         alert('Proszę wpisać treść notatki.');
         return;
     }
 
-    let color = 'orange';
+    let color = 'blue';
     const checkedColor = document.querySelector('input[name="noteColor"]:checked');
-    if (checkedColor) color = checkedColor.value;
+    if (checkedColor && (checkedColor.value === 'red' || checkedColor.value === 'blue')) {
+        color = checkedColor.value;
+    }
 
     let targetAudience = ['all'];
-    const checkedAudType = document.querySelector('input[name="noteAudienceType"]:checked');
-    if (checkedAudType && checkedAudType.value === 'custom') {
+    const audTypeInput = document.getElementById('noteAudienceType');
+    const audType = audTypeInput ? audTypeInput.value : 'all';
+
+    if (audType === 'custom') {
         const userChecks = document.querySelectorAll('input[name="noteAudienceUser"]:checked');
         const selectedUsers = Array.from(userChecks).map(c => c.value);
         if (selectedUsers.length === 0) {
-            alert('Wybierz przynajmniej jedną osobę lub zaznacz opcję "Wszyscy użytkownicy".');
+            alert('Wybierz przynajmniej jedną osobę lub kliknij "Wszyscy użytkownicy".');
             return;
         }
         targetAudience = selectedUsers;
@@ -3029,20 +3058,24 @@ function renderAdminNotes() {
     notesList.innerHTML = `
         <div style="margin-bottom:14px; font-size:12px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;">
             <span>Wszystkie notatki w systemie: <strong>${notes.length}</strong> (w tym usunięte)</span>
-            <button class="btn-primary" onclick="openCreateNoteModal()" style="padding:6px 12px; font-size:11px; flex:none;">➕ Nowa notatka</button>
         </div>
         ${notes.map(n => {
             const isDel = !!n.deleted;
             const isAll = !n.targetAudience || n.targetAudience.includes('all');
             const audStr = isAll ? 'Wszyscy' : (Array.isArray(n.targetAudience) ? n.targetAudience.join(', ') : 'Wszyscy');
             const createdStr = n.createdAt ? fmtTime(n.createdAt.toDate()) : 'Brak daty';
+            const isRed = (n.color === 'red');
+            const priorityBadge = isRed 
+                ? `<span style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px;">🔴 Ważna</span>` 
+                : `<span style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3); font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px;">🔵 Normalna</span>`;
             const delInfo = isDel ? `<div style="font-size:11px; color:var(--danger); margin-top:2px;">🗑️ Usunięta przez: <strong>${escapeHtml(n.deletedBy || 'Nieznany')}</strong> (${n.deletedAt ? fmtTime(n.deletedAt.toDate()) : 'Brak daty'})</div>` : '';
 
             return `
                 <div class="admin-note-item ${isDel ? 'is-deleted' : ''}">
                     <div class="admin-note-header">
                         <div class="admin-note-badges">
-                            ${isDel ? `<span class="status-badge-deleted">🔴 Usunięta</span>` : `<span class="status-badge-active">🟢 Aktywna</span>`}
+                            ${isDel ? `<span class="status-badge-deleted">🗑️ Usunięta</span>` : `<span class="status-badge-active">🟢 Aktywna</span>`}
+                            ${priorityBadge}
                             <span style="font-weight:700; color:var(--text); font-size:12px;">👤 ${escapeHtml(n.author || 'Anonim')}</span>
                             <span style="color:var(--muted); font-size:11px;">📅 ${createdStr}</span>
                             <span style="background:var(--bg); border:1px solid var(--border); padding:2px 6px; border-radius:6px; font-size:10.5px; color:var(--muted);">👥 Odbiorcy: <strong>${escapeHtml(audStr)}</strong></span>

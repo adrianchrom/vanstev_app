@@ -10,7 +10,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@800;900&family=Poppins:wght@500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style/style.css?v=1.3.1">
+    <link rel="stylesheet" href="style/style.css?v=1.3.2">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -254,63 +254,78 @@
     </div>
 
     <!-- ===== CREATE NOTE MODAL ===== -->
-    <div id="createNoteModal" class="modal-overlay">
-        <div class="modal-box" style="width:500px; max-width:92%;">
-            <div class="modal-title">
-                <span>📝 Nowa Notatka</span>
-                <button class="modal-close" onclick="closeCreateNoteModal()">×</button>
+    <div id="createNoteModal" class="modal-overlay" onclick="closeCreateNoteModal(event)">
+        <div class="modal-box note-modal-box" onclick="event.stopPropagation()">
+            <div class="modal-title note-modal-title">
+                <div class="note-modal-title-left">
+                    <div class="note-modal-icon-wrap">📝</div>
+                    <div>
+                        <div class="note-modal-headline">Nowa Notatka</div>
+                        <div class="note-modal-subline">Dodaj informację dla zespołu lub wybranych osób</div>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeCreateNoteModal(event)">×</button>
             </div>
-            <div class="form-group" style="margin-top:14px;">
-                <label>Tytuł (opcjonalnie)</label>
-                <input type="text" id="noteTitle" placeholder="np. Pilna informacja dot. kluczy..." />
-            </div>
-            <div class="form-group">
-                <label>Treść notatki *</label>
-                <textarea id="noteContent" rows="4" placeholder="Wpisz treść notatki..."></textarea>
-            </div>
-            <div class="form-group">
-                <label>Kolor notatki</label>
-                <div class="note-color-picker">
-                    <label class="color-option">
-                        <input type="radio" name="noteColor" value="orange" checked>
-                        <span class="color-dot" style="background:#ea580c;"></span>
-                        <span>Pomarańczowy</span>
+
+            <!-- Priority selector: Blue (Normal) or Red (Important) -->
+            <div class="form-group" style="margin-top: 14px;">
+                <label class="field-label" style="font-size: 11px;">Priorytet notatki</label>
+                <div class="note-priority-cards">
+                    <label class="note-priority-card note-priority-blue">
+                        <input type="radio" name="noteColor" value="blue" checked>
+                        <div class="priority-card-content">
+                            <span class="priority-dot blue"></span>
+                            <div class="priority-text">
+                                <span class="priority-title">🔵 Normalna</span>
+                                <span class="priority-sub">Standardowa notatka</span>
+                            </div>
+                        </div>
                     </label>
-                    <label class="color-option">
-                        <input type="radio" name="noteColor" value="yellow">
-                        <span class="color-dot" style="background:#eab308;"></span>
-                        <span>Żółty (Ważne)</span>
-                    </label>
-                    <label class="color-option">
-                        <input type="radio" name="noteColor" value="blue">
-                        <span class="color-dot" style="background:#3b82f6;"></span>
-                        <span>Niebieski (Info)</span>
-                    </label>
-                    <label class="color-option">
-                        <input type="radio" name="noteColor" value="green">
-                        <span class="color-dot" style="background:#10b981;"></span>
-                        <span>Zielony</span>
+                    <label class="note-priority-card note-priority-red">
+                        <input type="radio" name="noteColor" value="red">
+                        <div class="priority-card-content">
+                            <span class="priority-dot red"></span>
+                            <div class="priority-text">
+                                <span class="priority-title">🔴 Ważna</span>
+                                <span class="priority-sub">Pilny komunikat</span>
+                            </div>
+                        </div>
                     </label>
                 </div>
             </div>
+
             <div class="form-group">
-                <label>Kto ma widzieć tę notatkę?</label>
-                <div class="note-audience-toggle">
-                    <label class="audience-radio-lbl">
-                        <input type="radio" name="noteAudienceType" value="all" checked onchange="toggleNoteAudienceUI(this.value)">
-                        <span>👥 Wszyscy użytkownicy</span>
-                    </label>
-                    <label class="audience-radio-lbl">
-                        <input type="radio" name="noteAudienceType" value="custom" onchange="toggleNoteAudienceUI(this.value)">
-                        <span>🔒 Wybrane osoby</span>
-                    </label>
-                </div>
-                <div id="noteAudienceUsers" class="note-audience-list" style="display:none;"></div>
-                <div class="hint-txt" style="margin-top:6px;">ℹ️ Jako twórca zawsze będziesz widzieć tę notatkę.</div>
+                <label class="field-label" style="font-size: 11px;">Tytuł (opcjonalnie)</label>
+                <input type="text" id="noteTitle" placeholder="np. Informacja o kluczach / odbiorze..." class="modern-note-input" />
             </div>
-            <div class="btn-row" style="margin-top:20px;">
-                <button class="btn-primary" onclick="saveNewNote()">💾 Dodaj notatkę</button>
-                <button class="btn-secondary" onclick="closeCreateNoteModal()">Anuluj</button>
+
+            <div class="form-group">
+                <label class="field-label" style="font-size: 11px;">Treść notatki *</label>
+                <textarea id="noteContent" rows="4" placeholder="Wpisz treść notatki..." class="modern-note-textarea"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="field-label" style="font-size: 11px;">Kto ma widzieć tę notatkę?</label>
+                <div class="note-audience-segment">
+                    <button type="button" class="audience-seg-btn active" id="audBtnAll" onclick="setNoteAudienceMode('all', event)">
+                        👥 Wszyscy użytkownicy
+                    </button>
+                    <button type="button" class="audience-seg-btn" id="audBtnCustom" onclick="setNoteAudienceMode('custom', event)">
+                        🔒 Wybrane osoby
+                    </button>
+                </div>
+                <input type="hidden" id="noteAudienceType" value="all">
+                <div id="noteAudienceUsers" class="note-audience-chips-wrap" style="display:none;" onclick="event.stopPropagation()"></div>
+                <div class="hint-txt" style="margin-top:6px; font-size:11px;">ℹ️ Jako twórca zawsze będziesz widzieć tę notatkę.</div>
+            </div>
+
+            <div class="btn-row" style="margin-top:22px; gap:10px;">
+                <button class="btn-primary note-submit-btn" onclick="saveNewNote()">
+                    💾 Dodaj notatkę
+                </button>
+                <button class="btn-secondary" onclick="closeCreateNoteModal(event)" style="flex:1;">
+                    Anuluj
+                </button>
             </div>
         </div>
     </div>
@@ -332,8 +347,6 @@
                 </div>
             </div>
             <div class="tb-user">
-                <button class="tb-logout tb-notes-btn" onclick="openCreateNoteModal()"
-                    title="Utwórz nową notatkę">📝 Nowa Notatka</button>
                 <button class="tb-logout" id="adminBtn" onclick="switchTab('admin')"
                     style="display:none; margin-right:4px; border-color:var(--accent); color:var(--accent2)">🛡️
                     Admin</button>
@@ -669,7 +682,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-    <script src="app.js?v=1.3.1"></script>
+    <script src="app.js?v=1.3.2"></script>
 </body>
 
 </html>

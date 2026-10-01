@@ -1842,9 +1842,19 @@ body.light-mode .caregiver-badge {
     border-left: 3.5px solid var(--accent);
 }
 
+.note-card.color-red {
+    border-left: 3.5px solid #ef4444;
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.note-card.color-blue {
+    border-left: 3.5px solid #3b82f6;
+    background: rgba(59, 130, 246, 0.05);
+}
+
+/* Fallback for legacy notes */
 .note-card.color-orange { border-left-color: #ea580c; }
 .note-card.color-yellow { border-left-color: #eab308; }
-.note-card.color-blue { border-left-color: #3b82f6; }
 .note-card.color-green { border-left-color: #10b981; }
 
 .note-card:hover {
@@ -1877,6 +1887,30 @@ body.light-mode .caregiver-badge {
     color: var(--muted);
     font-weight: 500;
     display: inline-block;
+}
+
+.note-priority-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.note-priority-pill.pill-red {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.note-priority-pill.pill-blue {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .note-card-actions {
@@ -1924,89 +1958,269 @@ body.light-mode .caregiver-badge {
     text-align: right;
 }
 
-/* ===== CREATE NOTE FORM & MODAL ===== */
-.note-color-picker {
+/* ===== BEAUTIFUL NOTE MODAL ===== */
+.note-modal-box {
+    width: 480px;
+    max-width: 94%;
+    border-radius: 20px;
+    padding: 26px 28px;
+    border: 1px solid var(--border);
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.6), 0 0 40px rgba(232, 98, 26, 0.08);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+}
+
+.note-modal-title {
     display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.note-modal-title-left {
+    display: flex;
+    align-items: center;
     gap: 12px;
-    flex-wrap: wrap;
+}
+
+.note-modal-icon-wrap {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(232, 98, 26, 0.12);
+    border: 1px solid rgba(232, 98, 26, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 2px 10px rgba(232, 98, 26, 0.2);
+}
+
+.note-modal-headline {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.2px;
+}
+
+.note-modal-subline {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 2px;
+}
+
+/* Priority Cards (Blue vs Red) */
+.note-priority-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
     margin-top: 4px;
 }
 
-.color-option {
+.note-priority-card {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+}
+
+.note-priority-card input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.priority-card-content {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    color: var(--text);
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
     background: var(--card2);
-    border: 1px solid var(--border);
-    padding: 6px 10px;
-    border-radius: 8px;
-    transition: border-color 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.color-option:hover {
+.note-priority-card:hover .priority-card-content {
     border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
 }
 
-.color-option input[type="radio"] {
-    accent-color: var(--accent);
-    cursor: pointer;
+.note-priority-blue input[type="radio"]:checked + .priority-card-content {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.12);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
 }
 
-.color-dot {
+.note-priority-red input[type="radio"]:checked + .priority-card-content {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.25);
+}
+
+.priority-dot {
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    display: inline-block;
+    flex-shrink: 0;
 }
 
-.note-audience-toggle {
-    display: flex;
-    gap: 16px;
-    margin-top: 4px;
-    margin-bottom: 10px;
+.priority-dot.blue {
+    background: #3b82f6;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
 }
 
-.audience-radio-lbl {
+.priority-dot.red {
+    background: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+
+.priority-text {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12.5px;
-    cursor: pointer;
+    flex-direction: column;
+}
+
+.priority-title {
+    font-size: 13px;
+    font-weight: 700;
     color: var(--text);
 }
 
-.audience-radio-lbl input[type="radio"] {
+.priority-sub {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 1px;
+}
+
+/* Modern Note Inputs */
+.modern-note-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.modern-note-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(232, 98, 26, 0.2);
+}
+
+.modern-note-textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    line-height: 1.45;
+    outline: none;
+    resize: vertical;
+    transition: all 0.2s ease;
+}
+
+.modern-note-textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(232, 98, 26, 0.2);
+}
+
+/* Segmented Audience Toggle */
+.note-audience-segment {
+    display: flex;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.audience-seg-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.audience-seg-btn:hover {
+    color: var(--text);
+}
+
+.audience-seg-btn.active {
+    background: var(--card2);
+    color: var(--text);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+}
+
+.note-audience-chips-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 10px;
+    background: var(--bg);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    max-height: 140px;
+    overflow-y: auto;
+}
+
+.user-chip-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--card2);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.user-chip-item:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.user-chip-item input[type="checkbox"] {
     accent-color: var(--accent);
     cursor: pointer;
 }
 
-.note-audience-list {
-    background: var(--card2);
-    border: 1px solid var(--border);
+.note-submit-btn {
+    background: var(--accent-grad);
+    border: none;
     border-radius: 10px;
-    padding: 12px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    gap: 8px;
+    color: #fff;
+    padding: 11px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: 0 4px 15px rgba(232, 98, 26, 0.3);
+    transition: all 0.2s ease;
 }
 
-.user-checkbox-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    user-select: none;
-    padding: 4px 6px;
-    border-radius: 6px;
-    transition: background 0.15s;
-}
-
-.user-checkbox-item:hover {
-    background: rgba(255, 255, 255, 0.05);
+.note-submit-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(232, 98, 26, 0.45);
 }
 
 .user-checkbox-item input[type="checkbox"] {
