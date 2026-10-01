@@ -10,7 +10,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@800;900&family=Poppins:wght@500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style/style.css">
+    <link rel="stylesheet" href="style/style.css?v=1.3.0">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -23,12 +23,8 @@
         <div class="login-grid"></div>
         <div class="login-box">
             <div class="logo-area">
-                <div class="logo-svg-wrap">
-                    <svg viewBox="0 0 210 56" width="180" height="48" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="210" height="56" rx="8" fill="#E8621A" />
-                        <text x="105" y="42" text-anchor="middle" font-family="'Barlow Condensed', sans-serif"
-                            font-weight="900" font-size="44" fill="white" letter-spacing="-1.5">VANSTEV</text>
-                    </svg>
+                <div class="logo-brand-wrap">
+                    <span class="logo-text">VAN STEV</span>
                 </div>
                 <div class="logo-sub">System zarządzania zakwaterowaniem</div>
             </div>
@@ -257,15 +253,73 @@
         </div>
     </div>
 
+    <!-- ===== CREATE NOTE MODAL ===== -->
+    <div id="createNoteModal" class="modal-overlay">
+        <div class="modal-box" style="width:500px; max-width:92%;">
+            <div class="modal-title">
+                <span>📝 Nowa Notatka</span>
+                <button class="modal-close" onclick="closeCreateNoteModal()">×</button>
+            </div>
+            <div class="form-group" style="margin-top:14px;">
+                <label>Tytuł (opcjonalnie)</label>
+                <input type="text" id="noteTitle" placeholder="np. Pilna informacja dot. kluczy..." />
+            </div>
+            <div class="form-group">
+                <label>Treść notatki *</label>
+                <textarea id="noteContent" rows="4" placeholder="Wpisz treść notatki..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Kolor notatki</label>
+                <div class="note-color-picker">
+                    <label class="color-option">
+                        <input type="radio" name="noteColor" value="orange" checked>
+                        <span class="color-dot" style="background:#ea580c;"></span>
+                        <span>Pomarańczowy</span>
+                    </label>
+                    <label class="color-option">
+                        <input type="radio" name="noteColor" value="yellow">
+                        <span class="color-dot" style="background:#eab308;"></span>
+                        <span>Żółty (Ważne)</span>
+                    </label>
+                    <label class="color-option">
+                        <input type="radio" name="noteColor" value="blue">
+                        <span class="color-dot" style="background:#3b82f6;"></span>
+                        <span>Niebieski (Info)</span>
+                    </label>
+                    <label class="color-option">
+                        <input type="radio" name="noteColor" value="green">
+                        <span class="color-dot" style="background:#10b981;"></span>
+                        <span>Zielony</span>
+                    </label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Kto ma widzieć tę notatkę?</label>
+                <div class="note-audience-toggle">
+                    <label class="audience-radio-lbl">
+                        <input type="radio" name="noteAudienceType" value="all" checked onchange="toggleNoteAudienceUI(this.value)">
+                        <span>👥 Wszyscy użytkownicy</span>
+                    </label>
+                    <label class="audience-radio-lbl">
+                        <input type="radio" name="noteAudienceType" value="custom" onchange="toggleNoteAudienceUI(this.value)">
+                        <span>🔒 Wybrane osoby</span>
+                    </label>
+                </div>
+                <div id="noteAudienceUsers" class="note-audience-list" style="display:none;"></div>
+                <div class="hint-txt" style="margin-top:6px;">ℹ️ Jako twórca zawsze będziesz widzieć tę notatkę.</div>
+            </div>
+            <div class="btn-row" style="margin-top:20px;">
+                <button class="btn-primary" onclick="saveNewNote()">💾 Dodaj notatkę</button>
+                <button class="btn-secondary" onclick="closeCreateNoteModal()">Anuluj</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== MAIN APP ===== -->
     <div id="app">
         <div class="topbar">
             <div class="tb-logo">
-                <svg viewBox="0 0 210 56" width="140" height="38" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="210" height="56" rx="8" fill="#E8621A" />
-                    <text x="105" y="42" text-anchor="middle" font-family="'Barlow Condensed', sans-serif"
-                        font-weight="900" font-size="44" fill="white" letter-spacing="-1.5">VANSTEV</text>
-                </svg>
+                <span class="logo-text tb-logo-text">VAN STEV</span>
             </div>
             <div class="tb-search">
                 <div class="search-container">
@@ -278,57 +332,82 @@
                 </div>
             </div>
             <div class="tb-user">
+                <button class="tb-logout tb-notes-btn" onclick="openCreateNoteModal()"
+                    title="Utwórz nową notatkę">📝 Nowa Notatka</button>
                 <button class="tb-logout" id="adminBtn" onclick="switchTab('admin')"
-                    style="display:none; margin-right:8px; border-color:var(--accent); color:var(--accent2)">🛡️
+                    style="display:none; margin-right:4px; border-color:var(--accent); color:var(--accent2)">🛡️
                     Admin</button>
                 <button class="tb-logout" onclick="openHelp()"
-                    style="margin-right:8px; border-color:var(--blue); color:var(--blue2)">❓ Pomoc</button>
+                    style="margin-right:4px; border-color:var(--blue); color:var(--blue2)">❓ Pomoc</button>
                 <button class="tb-logout" id="themeToggle" onclick="toggleTheme()"
-                    style="margin-right:8px; border-color:var(--accent); color:var(--text)">🌙 Tryb Ciemny</button>
+                    style="margin-right:4px; border-color:var(--accent); color:var(--text)">🌙 Tryb Ciemny</button>
                 <span id="tbUserEmail"></span>
                 <button class="tb-logout" onclick="doLogout()">Wyloguj</button>
             </div>
         </div>
         <div class="main-area">
             <div id="map">
-                <!-- Collapsible Legend -->
-                <div class="map-legend collapsed" id="mapLegend">
-                    <div class="legend-header" onclick="toggleLegend(event)">
-                        <span class="legend-title">📍 Legenda pinezek</span>
-                        <span class="legend-toggle-icon">🔼</span>
+                <!-- Left Controls on Map (Notes & Legend) -->
+                <div class="map-left-controls">
+                    <!-- Collapsible Legend -->
+                    <div class="map-legend collapsed" id="mapLegend">
+                        <div class="legend-header" onclick="toggleLegend(event)">
+                            <span class="legend-title">📍 Legenda pinezek</span>
+                            <span class="legend-toggle-icon">🔼</span>
+                        </div>
+                        <div class="legend-content">
+                            <div class="legend-item">
+                                <div class="legend-color-box" style="background: #10b981;"></div>
+                                <span>Kwatera wolna</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color-box" style="background: #E8621A;"></div>
+                                <span>Kwatera pełna</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color-box" style="background: #ff0000;"></div>
+                                <span>Kwatera (ktoś nie pracuje)</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color-box" style="background: #fbbf24;"></div>
+                                <span>Kwatera (ktoś na urlopie)</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color-box" style="background: #60a5fa;"></div>
+                                <span>Kwatera (ktoś na chorobowym)</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color-box" style="background: #a855f7;"></div>
+                                <span>Biuro firmowe</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color-box" style="background: #3b82f6;"></div>
+                                <span>Projekt / budowa</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color-box" style="background: #64748b;"></div>
+                                <span>Archiwum</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="legend-content">
-                        <div class="legend-item">
-                            <div class="legend-color-box" style="background: #10b981;"></div>
-                            <span>Kwatera wolna</span>
+
+                    <!-- Floating Notes Widget (above legend) -->
+                    <div class="map-notes-widget" id="mapNotesWidget">
+                        <div class="notes-header">
+                            <div class="notes-header-left" onclick="toggleNotesWidget()">
+                                <span class="notes-header-icon">📝</span>
+                                <span class="notes-header-title">Notatki</span>
+                                <span class="notes-count-badge" id="notesCountBadge">0</span>
+                                <span class="notes-toggle-icon" id="notesToggleIcon">🔼</span>
+                            </div>
+                            <button class="notes-add-btn" onclick="openCreateNoteModal()" title="Dodaj nową notatkę">
+                                <span>+</span> Notatka
+                            </button>
                         </div>
-                        <div class="legend-item">
-                            <div class="legend-color-box" style="background: #E8621A;"></div>
-                            <span>Kwatera pełna</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color-box" style="background: #ff0000;"></div>
-                            <span>Kwatera (ktoś nie pracuje)</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color-box" style="background: #fbbf24;"></div>
-                            <span>Kwatera (ktoś na urlopie)</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color-box" style="background: #60a5fa;"></div>
-                            <span>Kwatera (ktoś na chorobowym)</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color-box" style="background: #a855f7;"></div>
-                            <span>Biuro firmowe</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color-box" style="background: #3b82f6;"></div>
-                            <span>Projekt / budowa</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color-box" style="background: #64748b;"></div>
-                            <span>Archiwum</span>
+                        <div class="notes-body" id="notesWidgetBody">
+                            <div id="notesList" class="notes-list">
+                                <div class="notes-empty">Brak aktywnych notatek</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -556,13 +635,20 @@
 
     <!-- ===== ADMIN MODAL ===== -->
     <div id="adminModal" class="modal-overlay">
-        <div class="modal-box" style="width:900px; max-width:95%;">
-            <div class="modal-title">
+        <div class="modal-box" style="width:920px; max-width:96%; max-height:88vh; display:flex; flex-direction:column;">
+            <div class="modal-title" style="flex-shrink:0;">
                 <span>🛡️ Panel Administratora</span>
                 <button class="modal-close" onclick="closeAdmin()">×</button>
             </div>
-            <div id="adminUserList" style="margin-top:10px;"></div>
-            <div class="btn-row" style="margin-top:20px;">
+            <div class="admin-nav-tabs">
+                <button class="admin-tab-btn active" id="adminTabUsersBtn" onclick="switchAdminTab('users')">👥 Użytkownicy i Aktywność</button>
+                <button class="admin-tab-btn" id="adminTabNotesBtn" onclick="switchAdminTab('notes')">📝 Wszystkie Notatki (<span id="adminTotalNotesCount">0</span>)</button>
+            </div>
+            <div class="admin-tab-content-wrap">
+                <div id="adminUserList" style="display:block;"></div>
+                <div id="adminNotesList" style="display:none;"></div>
+            </div>
+            <div class="btn-row" style="margin-top:16px; flex-shrink:0;">
                 <button class="btn-secondary" onclick="closeAdmin()" style="width:100%;">Zamknij</button>
             </div>
         </div>
@@ -572,7 +658,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-    <script src="app.js?v=1.2.0"></script>
+    <script src="app.js?v=1.3.0"></script>
 </body>
 
 </html>

@@ -31,6 +31,21 @@ let currentAddSelectedIds = [];
 let currentEditSelectedIds = [];
 let roadDistances = {}; // Cache for road distances
 
+// Notes System State
+let notes = [];
+let notesUnsub = null;
+let currentAdminTab = 'users';
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // Section collapse state
 let isProjectsCollapsed = true;
 let isQuartersCollapsed = true;
@@ -154,6 +169,7 @@ function setupApp(userName) {
 
     initMap();
     initDataSync();
+    initNotesSync();
     renderStats();
     fetchExchangeRate();
 }
@@ -195,6 +211,10 @@ function doLogout() {
     if (window.vsLogoutMonitor && typeof window.vsLogoutMonitor === 'function') {
         window.vsLogoutMonitor();
         window.vsLogoutMonitor = null;
+    }
+    if (notesUnsub) {
+        notesUnsub();
+        notesUnsub = null;
     }
     sessionStorage.removeItem('vs_user');
     document.getElementById('loginScreen').style.display = 'flex';
@@ -2360,7 +2380,29 @@ function renderArchive() {
 
 function openAdmin() {
     document.getElementById('adminModal').classList.add('open');
-    renderAdminPanel();
+    switchAdminTab(currentAdminTab || 'users');
+}
+
+function switchAdminTab(tab) {
+    currentAdminTab = tab;
+    const usersBtn = document.getElementById('adminTabUsersBtn');
+    const notesBtn = document.getElementById('adminTabNotesBtn');
+    const usersList = document.getElementById('adminUserList');
+    const notesList = document.getElementById('adminNotesList');
+
+    if (tab === 'users') {
+        if (usersBtn) usersBtn.classList.add('active');
+        if (notesBtn) notesBtn.classList.remove('active');
+        if (usersList) usersList.style.display = 'block';
+        if (notesList) notesList.style.display = 'none';
+        renderAdminPanel();
+    } else {
+        if (usersBtn) usersBtn.classList.remove('active');
+        if (notesBtn) notesBtn.classList.add('active');
+        if (usersList) usersList.style.display = 'none';
+        if (notesList) notesList.style.display = 'block';
+        renderAdminNotes();
+    }
 }
 
 function closeAdmin() {
@@ -2399,6 +2441,9 @@ async function renderAdminPanel() {
 
     if (adminUnsubUsers) adminUnsubUsers();
     if (adminUnsubActivity) adminUnsubActivity();
+
+    const countEl = document.getElementById('adminTotalNotesCount');
+    if (countEl) countEl.textContent = notes.length;
 
     adminList.innerHTML = '<div style="color:var(--muted); font-size:12px; padding:10px;">Łączenie z bazą...</div>';
 
@@ -2721,4 +2766,263 @@ function toggleSidebarHeight() {
     if (sidebar) {
         sidebar.classList.toggle('collapsed');
     }
+}
+
+// ===== NOTES SYSTEM =====
+function initNotesSync() {
+    if (notesUnsub) notesUnsub();
+    notesUnsub = db.collection('notes').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+        notes = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        renderNotesWidget();
+        const countEl = document.getElementById('adminTotalNotesCount');
+        if (countEl) countEl.textContent = notes.length;
+        if (currentUser === 'Admin' && currentAdminTab === 'notes') {
+            renderAdminNotes();
+        }
+    }, err => {
+        console.error("Błąd synchronizacji notatek:", err);
+    });
+}
+
+function renderNotesWidget() {
+    const listEl = document.getElementById('notesList');
+    const badgeEl = document.getElementById('notesCountBadge');
+    if (!listEl) return;
+
+    const activeNotes = notes.filter(n => {
+        if (n.deleted) return false;
+        if (currentUser === 'Admin') return true;
+        if (n.author === currentUser) return true;
+        if (!n.targetAudience || n.targetAudience.includes('all')) return true;
+        if (Array.isArray(n.targetAudience) && n.targetAudience.includes(currentUser)) return true;
+        return false;
+    });
+
+    if (badgeEl) badgeEl.textContent = activeNotes.length;
+
+    if (activeNotes.length === 0) {
+        listEl.innerHTML = '<div class="notes-empty">Brak aktywnych notatek</div>';
+        return;
+    }
+
+    listEl.innerHTML = activeNotes.map(n => {
+        const canDelete = (n.author === currentUser || currentUser === 'Admin');
+        const isAll = !n.targetAudience || n.targetAudience.includes('all');
+        const audienceText = isAll ? '👥 Wszyscy' : `🔒 ${Array.isArray(n.targetAudience) ? n.targetAudience.join(', ') : 'Wszyscy'}`;
+        const colorClass = `color-${n.color || 'orange'}`;
+        const dateText = n.createdAt ? fmtTime(n.createdAt.toDate()) : '';
+
+        return `
+            <div class="note-card ${colorClass}" id="note-${n.id}">
+                <div class="note-card-header">
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <div class="note-card-author">
+                            <span>👤 ${escapeHtml(n.author || 'Anonim')}</span>
+                        </div>
+                        <span class="note-card-audience">${escapeHtml(audienceText)}</span>
+                    </div>
+                    <div class="note-card-actions">
+                        ${canDelete ? `<button class="note-delete-btn" onclick="deleteNote('${n.id}')" title="Usuń notatkę (tylko autor)">🗑️</button>` : ''}
+                    </div>
+                </div>
+                ${n.title ? `<div class="note-card-title">${escapeHtml(n.title)}</div>` : ''}
+                <div class="note-card-content">${escapeHtml(n.content || '')}</div>
+                ${dateText ? `<div class="note-card-time">${dateText}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleNotesWidget() {
+    const widget = document.getElementById('mapNotesWidget');
+    if (widget) {
+        widget.classList.toggle('collapsed');
+    }
+}
+
+function openCreateNoteModal() {
+    const modal = document.getElementById('createNoteModal');
+    if (!modal) return;
+    document.getElementById('noteTitle').value = '';
+    document.getElementById('noteContent').value = '';
+
+    // Reset color to orange
+    const colorRadios = document.querySelectorAll('input[name="noteColor"]');
+    colorRadios.forEach(r => { r.checked = (r.value === 'orange'); });
+
+    // Reset audience to 'all'
+    const audRadios = document.querySelectorAll('input[name="noteAudienceType"]');
+    audRadios.forEach(r => { r.checked = (r.value === 'all'); });
+    toggleNoteAudienceUI('all');
+
+    // Populate team members list
+    const userListEl = document.getElementById('noteAudienceUsers');
+    if (userListEl) {
+        const teamUsers = ['Radek', 'Szymon', 'Kasia', 'Tomek', 'Przemek', 'Mirek', 'Dominik'];
+        userListEl.innerHTML = teamUsers.map(u => `
+            <label class="user-checkbox-item">
+                <input type="checkbox" value="${u}" name="noteAudienceUser">
+                <span>${u}</span>
+            </label>
+        `).join('');
+    }
+
+    modal.classList.add('open');
+}
+
+function closeCreateNoteModal() {
+    const modal = document.getElementById('createNoteModal');
+    if (modal) modal.classList.remove('open');
+}
+
+function toggleNoteAudienceUI(val) {
+    const userListEl = document.getElementById('noteAudienceUsers');
+    if (!userListEl) return;
+    userListEl.style.display = (val === 'custom') ? 'grid' : 'none';
+}
+
+async function saveNewNote() {
+    const title = document.getElementById('noteTitle').value.trim();
+    const content = document.getElementById('noteContent').value.trim();
+    if (!content) {
+        alert('Proszę wpisać treść notatki.');
+        return;
+    }
+
+    let color = 'orange';
+    const checkedColor = document.querySelector('input[name="noteColor"]:checked');
+    if (checkedColor) color = checkedColor.value;
+
+    let targetAudience = ['all'];
+    const checkedAudType = document.querySelector('input[name="noteAudienceType"]:checked');
+    if (checkedAudType && checkedAudType.value === 'custom') {
+        const userChecks = document.querySelectorAll('input[name="noteAudienceUser"]:checked');
+        const selectedUsers = Array.from(userChecks).map(c => c.value);
+        if (selectedUsers.length === 0) {
+            alert('Wybierz przynajmniej jedną osobę lub zaznacz opcję "Wszyscy użytkownicy".');
+            return;
+        }
+        targetAudience = selectedUsers;
+    }
+
+    try {
+        await db.collection('notes').add({
+            title: title,
+            content: content,
+            author: currentUser || 'Anonim',
+            color: color,
+            targetAudience: targetAudience,
+            deleted: false,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        logActivity('Dodano notatkę', title ? `"${title}"` : content.slice(0, 30));
+        closeCreateNoteModal();
+    } catch (err) {
+        console.error("Błąd podczas zapisywania notatki:", err);
+        alert("Błąd podczas zapisywania notatki: " + err.message);
+    }
+}
+
+async function deleteNote(noteId) {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+
+    if (note.author !== currentUser && currentUser !== 'Admin') {
+        alert('Tylko osoba, która utworzyła tę notatkę, może ją usunąć.');
+        return;
+    }
+
+    if (!confirm('Czy na pewno chcesz usunąć tę notatkę?')) return;
+
+    try {
+        await db.collection('notes').doc(noteId).update({
+            deleted: true,
+            deletedBy: currentUser,
+            deletedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        logActivity('Usunięto notatkę', note.title ? `"${note.title}"` : note.content.slice(0, 30));
+    } catch (err) {
+        console.error("Błąd usuwania notatki:", err);
+        alert("Błąd usuwania notatki: " + err.message);
+    }
+}
+
+async function restoreNote(noteId) {
+    if (currentUser !== 'Admin') return;
+    try {
+        await db.collection('notes').doc(noteId).update({
+            deleted: false,
+            restoredBy: currentUser,
+            restoredAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        logActivity('Admin przywrócił notatkę', noteId);
+    } catch (err) {
+        console.error("Błąd przywracania notatki:", err);
+        alert("Błąd przywracania: " + err.message);
+    }
+}
+
+async function hardDeleteNote(noteId) {
+    if (currentUser !== 'Admin') return;
+    if (!confirm('Czy na pewno chcesz TRWALE usunąć tę notatkę z bazy danych? Tej operacji nie można cofnąć.')) return;
+    try {
+        await db.collection('notes').doc(noteId).delete();
+        logActivity('Admin trwale usunął notatkę', noteId);
+    } catch (err) {
+        console.error("Błąd trwałego usuwania:", err);
+        alert("Błąd: " + err.message);
+    }
+}
+
+function renderAdminNotes() {
+    const notesList = document.getElementById('adminNotesList');
+    const countEl = document.getElementById('adminTotalNotesCount');
+    if (countEl) countEl.textContent = notes.length;
+    if (!notesList) return;
+
+    if (notes.length === 0) {
+        notesList.innerHTML = '<div style="color:var(--muted); font-size:13px; padding:30px; text-align:center;">Brak jakichkolwiek notatek w systemie.</div>';
+        return;
+    }
+
+    notesList.innerHTML = `
+        <div style="margin-bottom:14px; font-size:12px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;">
+            <span>Wszystkie notatki w systemie: <strong>${notes.length}</strong> (w tym usunięte)</span>
+            <button class="btn-primary" onclick="openCreateNoteModal()" style="padding:6px 12px; font-size:11px; flex:none;">➕ Nowa notatka</button>
+        </div>
+        ${notes.map(n => {
+            const isDel = !!n.deleted;
+            const isAll = !n.targetAudience || n.targetAudience.includes('all');
+            const audStr = isAll ? 'Wszyscy' : (Array.isArray(n.targetAudience) ? n.targetAudience.join(', ') : 'Wszyscy');
+            const createdStr = n.createdAt ? fmtTime(n.createdAt.toDate()) : 'Brak daty';
+            const delInfo = isDel ? `<div style="font-size:11px; color:var(--danger); margin-top:2px;">🗑️ Usunięta przez: <strong>${escapeHtml(n.deletedBy || 'Nieznany')}</strong> (${n.deletedAt ? fmtTime(n.deletedAt.toDate()) : 'Brak daty'})</div>` : '';
+
+            return `
+                <div class="admin-note-item ${isDel ? 'is-deleted' : ''}">
+                    <div class="admin-note-header">
+                        <div class="admin-note-badges">
+                            ${isDel ? `<span class="status-badge-deleted">🔴 Usunięta</span>` : `<span class="status-badge-active">🟢 Aktywna</span>`}
+                            <span style="font-weight:700; color:var(--text); font-size:12px;">👤 ${escapeHtml(n.author || 'Anonim')}</span>
+                            <span style="color:var(--muted); font-size:11px;">📅 ${createdStr}</span>
+                            <span style="background:var(--bg); border:1px solid var(--border); padding:2px 6px; border-radius:6px; font-size:10.5px; color:var(--muted);">👥 Odbiorcy: <strong>${escapeHtml(audStr)}</strong></span>
+                        </div>
+                        <div class="admin-note-actions">
+                            ${isDel ? `
+                                <button onclick="restoreNote('${n.id}')" style="background:var(--success); color:white; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;">↩️ Przywróć</button>
+                                <button onclick="hardDeleteNote('${n.id}')" style="background:var(--danger); color:white; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;">🗑️ Usuń trwale</button>
+                            ` : `
+                                <button onclick="deleteNote('${n.id}')" style="background:transparent; color:var(--danger); border:1px solid var(--danger); border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer;">🗑️ Usuń</button>
+                            `}
+                        </div>
+                    </div>
+                    ${delInfo}
+                    ${n.title ? `<div style="font-weight:700; font-size:13px; color:var(--text); margin-top:2px;">${escapeHtml(n.title)}</div>` : ''}
+                    <div style="font-size:12px; color:var(--text); white-space:pre-wrap; line-height:1.45; background:var(--bg); padding:10px; border-radius:8px; border:1px solid var(--border);">${escapeHtml(n.content || '')}</div>
+                </div>
+            `;
+        }).join('')}
+    `;
 }
