@@ -697,6 +697,16 @@ body {
     color: var(--danger);
 }
 
+.act-btn:hover.archive {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.act-btn:hover.restore {
+    border-color: var(--success);
+    color: var(--success);
+}
+
 .loc-card.not-working,
 .loc-card.not-working:hover {
     background: rgba(239, 68, 68, 0.08);

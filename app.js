@@ -645,14 +645,15 @@ function makeIcon(color = '#E8621A') {
     });
 }
 
-function makeProjectIcon(name = 'PROJEKT') {
+function makeProjectIcon(name = 'PROJEKT', isArchived = false) {
+    const bg = isArchived ? '#64748b' : '#3b82f6';
     return L.divIcon({
         className: '',
         html: `<div style="position:relative; transform: translate(-50%, -100%); display:flex; flex-direction:column; align-items:center;">
-            <div style="background:#3b82f6; color:white; padding:5px 14px; border-radius:30px; font-family:'Barlow Condensed', sans-serif; font-weight:800; font-size:14px; white-space:nowrap; box-shadow:0 6px 20px rgba(0,0,0,0.45); border:2.5px solid #fff; line-height:1; text-transform:uppercase; letter-spacing:0.5px;">
-                ${name}
+            <div style="background:${bg}; color:white; padding:5px 14px; border-radius:30px; font-family:'Barlow Condensed', sans-serif; font-weight:800; font-size:14px; white-space:nowrap; box-shadow:0 6px 20px rgba(0,0,0,0.45); border:2.5px solid #fff; line-height:1; text-transform:uppercase; letter-spacing:0.5px;">
+                ${name}${isArchived ? ' (ARCHIWUM)' : ''}
             </div>
-            <div style="width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent; border-top:10px solid #3b82f6; margin-top:-1px; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.2));"></div>
+            <div style="width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent; border-top:10px solid ${bg}; margin-top:-1px; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.2));"></div>
         </div>`,
         iconSize: [0, 0],
         iconAnchor: [0, 0],
@@ -660,14 +661,15 @@ function makeProjectIcon(name = 'PROJEKT') {
     });
 }
 
-function makeProjectFactoryIcon() {
+function makeProjectFactoryIcon(isArchived = false) {
+    const bg = isArchived ? '#64748b' : '#3b82f6';
     return L.divIcon({
         className: '',
         html: `<div style="position:relative;width:34px;height:42px;">
-            <div style="width:34px;height:34px;border-radius:12px;background:#3b82f6;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(0,0,0,0.3);border:2.5px solid #fff;">
+            <div style="width:34px;height:34px;border-radius:12px;background:${bg};display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(0,0,0,0.3);border:2.5px solid #fff;">
                 <span style="font-size:18px;">🏭</span>
             </div>
-            <div style="width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:11px solid #3b82f6;margin:0 auto;"></div>
+            <div style="width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:11px solid ${bg};margin:0 auto;"></div>
         </div>`,
         iconSize: [34, 45],
         iconAnchor: [17, 45],
@@ -751,7 +753,8 @@ function updateProjectIcons() {
     const zoom = map.getZoom();
     locations.forEach(loc => {
         if (loc.type === 'project' && markers[loc.id]) {
-            const icon = zoom >= 11 ? makeProjectIcon(loc.name) : makeProjectFactoryIcon();
+            const isArchived = !!loc.isArchived;
+            const icon = zoom >= 11 ? makeProjectIcon(loc.name, isArchived) : makeProjectFactoryIcon(isArchived);
             markers[loc.id].setIcon(icon);
             // Label icon has 0,0 size/anchor, so we need to adjust Z-index for labeling
             if (zoom >= 11) markers[loc.id].setZIndexOffset(1000);
@@ -763,8 +766,15 @@ function updateProjectIcons() {
 function addMarker(loc) {
     let m;
     if (loc.isArchived) {
-        const color = getMarkerColor(loc);
-        m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
+        if (loc.type === 'project') {
+            const zoom = map.getZoom();
+            const icon = zoom >= 11 ? makeProjectIcon(loc.name, true) : makeProjectFactoryIcon(true);
+            m = L.marker([loc.lat, loc.lng], { icon: icon }).addTo(map);
+            if (zoom >= 11) m.setZIndexOffset(1000);
+        } else {
+            const color = getMarkerColor(loc);
+            m = L.marker([loc.lat, loc.lng], { icon: makeIcon(color) }).addTo(map);
+        }
     } else if (loc.type === 'project') {
         const zoom = map.getZoom();
         const icon = zoom >= 11 ? makeProjectIcon(loc.name) : makeProjectFactoryIcon();
@@ -783,6 +793,27 @@ function makePopupHtml(loc) {
     if (loc.isArchived) {
         const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
         const addrHtml = fullAddr ? `<div class="popup-row">🏡 <span style="font-size:11px;">${fullAddr}</span></div>` : '';
+        const addedByHtml = loc.addedBy ? `<div class="popup-row" style="opacity:0.6; font-size:11px;">✍️ Dodał(a): <span>${loc.addedBy}</span></div>` : '';
+
+        if (loc.type === 'project') {
+            const linkedNames = (loc.linkedLocations || [])
+                .map(id => locations.find(x => x.id === id))
+                .filter(l => l)
+                .map(l => `[#${l.locNumber || '?'}] ${l.name}`)
+                .join('<br>');
+
+            return `<div style="min-width:220px;padding:4px;">
+                <div class="popup-name" style="color:var(--muted);"><span style="font-size:10px; background:var(--muted); color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">PROJEKT</span>${loc.name}</div>
+                <span class="badge" style="background:rgba(100,116,139,0.15); color:var(--muted); border:1px solid rgba(100,116,139,0.3); margin-bottom:8px;">Archiwum (Zakończony projekt)</span>
+                ${addrHtml}
+                <div class="popup-row" style="font-size:11px;">📌 <span>${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span></div>
+                ${addedByHtml}
+                ${loc.notes ? `<div style="margin-top:6px; font-size:11px; color:var(--text); padding:4px 6px; background:var(--bg); border-radius:4px;">📝 ${loc.notes}</div>` : ''}
+                <div style="margin-top:8px; font-size:11px; color:var(--muted); font-weight:600;">PRZYPISANE LOKALIZACJE:</div>
+                <div style="font-size:12px; margin-top:4px;">${linkedNames || '<span style="color:var(--muted)">Brak</span>'}</div>
+            </div>`;
+        }
+
         const dateFromStr = fmtDate(loc.dateFrom);
         const dateToStr = loc.isIndefinite ? 'Nieokreślony' : fmtDate(loc.dateTo);
         const cost = calcArchiveCost(loc);
@@ -795,6 +826,7 @@ function makePopupHtml(loc) {
             <div class="popup-row">📅 Okres: <span>${dateFromStr} → ${dateToStr}</span></div>
             <div class="popup-row">💰 Koszt: <strong style="color:var(--accent);">€${cost.toFixed(2)}</strong> <span style="font-size:10px; color:var(--muted); margin-left:4px;">(~${fmtPLN(cost * eurToPln, 0)} PLN)</span></div>
             <div class="popup-row" style="font-size:11px;">📌 <span>${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span></div>
+            ${addedByHtml}
         </div>`;
     }
 
@@ -1331,17 +1363,21 @@ function saveLocation() {
             notes: document.getElementById('fNotes').value.trim()
         });
     } else {
+        const isArchived = document.getElementById('fProjRentalEnded')?.checked || false;
+        const notes = (document.getElementById('fProjNotes')?.value || '').trim();
         Object.assign(locData, {
-            linkedLocations: getSelectedLinkedLocations()
+            linkedLocations: getSelectedLinkedLocations(),
+            isArchived,
+            notes
         });
     }
 
     db.collection('locations').add(locData)
         .then(() => {
-            logActivity('Dodano lokalizację', name);
+            logActivity(type === 'project' ? 'Dodano projekt' : 'Dodano lokalizację', name);
             if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
             resetForm();
-            switchTab('list');
+            switchTab(locData.isArchived ? 'archive' : 'list');
         })
         .catch(err => showFormErr("Błąd zapisu: " + err.message));
 }
@@ -1352,7 +1388,7 @@ function showFormErr(msg) {
 }
 
 function resetForm() {
-    ['fName', 'fZip', 'fCity', 'fStreet', 'fHouseNum', 'addressSearch', 'fCapacity', 'fPrice', 'fCaregiver', 'fNoticePeriod', 'fDateFrom', 'fDateTo', 'fNotes'].forEach(id => {
+    ['fName', 'fZip', 'fCity', 'fStreet', 'fHouseNum', 'addressSearch', 'fCapacity', 'fPrice', 'fCaregiver', 'fNoticePeriod', 'fDateFrom', 'fDateTo', 'fNotes', 'fProjNotes'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -1363,6 +1399,8 @@ function resetForm() {
     document.getElementById('fDateTo').disabled = false;
     const fRentalEndedCb = document.getElementById('fRentalEnded');
     if (fRentalEndedCb) fRentalEndedCb.checked = false;
+    const fProjRentalEndedCb = document.getElementById('fProjRentalEnded');
+    if (fProjRentalEndedCb) fProjRentalEndedCb.checked = false;
     addPeople = []; renderPeopleInputs('addPeopleList', addPeople, 'add');
     pendingLat = null; pendingLng = null;
     if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
@@ -1453,8 +1491,9 @@ function renderList(filteredLocs = null) {
             <div class="loc-card-head">
                 <div class="loc-name"><span style="font-size:10px; background:var(--blue); color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">PROJEKT</span>${loc.name}</div>
                 <div class="loc-actions">
-                    <button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button>
-                    <button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button>
+                    <button class="act-btn edit" title="Edytuj" onclick="openEdit('${loc.id}',event)">✏️</button>
+                    <button class="act-btn archive" title="Przenieś do archiwum" onclick="toggleArchiveLocation('${loc.id}', true, event)">📁</button>
+                    <button class="act-btn del" title="Usuń" onclick="deleteLocation('${loc.id}',event)">🗑️</button>
                 </div>
             </div>
             ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
@@ -1464,6 +1503,7 @@ function renderList(filteredLocs = null) {
             
             <div class="loc-card-details" id="details-${loc.id}">
                 <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
+                ${loc.notes ? `<div style="margin-top:6px; font-size:11px; padding:6px; background:var(--bg); border-radius:6px; border-left:3px solid var(--blue);">📝 <em>${loc.notes}</em></div>` : ''}
                 <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title">Przypisane lokalizacje</div>${linkedNames || '<span style="color:var(--muted);font-size:12px;">Brak</span>'}</div>
             </div>
         </div>`;
@@ -1481,7 +1521,7 @@ function renderList(filteredLocs = null) {
         const hasNotWorking = loc.people && loc.people.some(p => p.isWorking === false);
         const nwClass = hasNotWorking ? 'not-working' : '';
         return `<div class="loc-card ${nwClass}" id="card-${loc.id}" onclick="focusLoc('${loc.id}')">
-            <div class="loc-card-head"><div class="loc-name">${houseIcon} ${numPrefix}${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
+            <div class="loc-card-head"><div class="loc-name">${houseIcon} ${numPrefix}${loc.name}</div><div class="loc-actions"><button class="act-btn edit" title="Edytuj" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn archive" title="Przenieś do archiwum" onclick="toggleArchiveLocation('${loc.id}', true, event)">📁</button><button class="act-btn del" title="Usuń" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
             ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
             <div class="loc-badges" style="margin-top:8px;">
                 <span class="rental-badge ${rs.cls}">${rs.label}</span>
@@ -1510,7 +1550,7 @@ function renderList(filteredLocs = null) {
     const renderOfficeCard = (loc) => {
         const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
         return `<div class="loc-card" id="card-${loc.id}" onclick="focusLoc('${loc.id}')" style="border-left:4px solid #a855f7;">
-            <div class="loc-card-head"><div class="loc-name"><span style="font-size:10px; background:#a855f7; color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">BIURO</span>${loc.name}</div><div class="loc-actions"><button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
+            <div class="loc-card-head"><div class="loc-name"><span style="font-size:10px; background:#a855f7; color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">BIURO</span>${loc.name}</div><div class="loc-actions"><button class="act-btn edit" title="Edytuj" onclick="openEdit('${loc.id}',event)">✏️</button><button class="act-btn archive" title="Przenieś do archiwum" onclick="toggleArchiveLocation('${loc.id}', true, event)">📁</button><button class="act-btn del" title="Usuń" onclick="deleteLocation('${loc.id}',event)">🗑️</button></div></div>
             ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
             <div class="loc-badges" style="margin-top:8px;"><span class="badge" style="background:rgba(168,85,247,0.15); color:#a855f7; border:1px solid rgba(168,85,247,0.3);">Biuro</span></div>
             
@@ -1605,8 +1645,41 @@ function highlightCard(id) {
     if (card) {
         card.classList.add('selected');
         card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        switchTab('list');
+        if (!loc || !loc.isArchived) {
+            switchTab('list');
+        }
     }
+}
+
+function toggleArchiveLocation(id, shouldArchive, e) {
+    e?.stopPropagation();
+    const loc = locations.find(l => l.id === id);
+    if (!loc) return;
+
+    const actionText = shouldArchive ? 'przenieść do archiwum' : 'przywrócić z archiwum';
+    const typeText = loc.type === 'project' ? 'projekt' : (loc.type === 'office' ? 'biuro' : 'kwaterę');
+    
+    if (!confirm(`Czy na pewno chcesz ${actionText} ${typeText} "${loc.name}"?`)) {
+        return;
+    }
+
+    db.collection('locations').doc(id).update({
+        isArchived: shouldArchive,
+        archivedAt: shouldArchive ? firebase.firestore.FieldValue.serverTimestamp() : null,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(() => {
+        logActivity(
+            shouldArchive ? 'Przeniesiono do archiwum' : 'Przywrócono z archiwum',
+            `${loc.name} (${loc.type || 'location'})`
+        );
+        if (shouldArchive) {
+            if (activeProjectId === id || activeQuarterId === id) {
+                clearProjectFilter();
+            }
+        }
+    }).catch(err => {
+        alert("Błąd: " + err.message);
+    });
 }
 
 function deleteLocation(id, e) {
@@ -1681,6 +1754,12 @@ function toggleEditType() {
         currentEditSelectedIds = [...(loc.linkedLocations || [])];
         renderLinkedLocations('eLinkedLocations', currentEditSelectedIds);
         currentEditSelectedIds.forEach(lid => updateMarkerHighlight(lid, true));
+
+        const isProjArchived = !!loc.isArchived;
+        const eProjRentalEndedCb = document.getElementById('eProjRentalEnded');
+        if (eProjRentalEndedCb) eProjRentalEndedCb.checked = isProjArchived;
+        const eProjNotesEl = document.getElementById('eProjNotes');
+        if (eProjNotesEl) eProjNotesEl.value = loc.notes || '';
     } else {
         // location or office
         document.getElementById('eLocSpecificFields').style.display = 'block';
@@ -1791,6 +1870,9 @@ function saveEdit() {
         });
     } else if (type === 'project') {
         const linkedLocations = getEditSelectedLinkedLocations();
+        const isArchived = document.getElementById('eProjRentalEnded')?.checked || false;
+        const notes = (document.getElementById('eProjNotes')?.value || '').trim();
+
         if (oldLoc) {
             const oldLinked = oldLoc.linkedLocations || [];
             const getLinkedNames = (ids) => ids.map(id => {
@@ -1802,8 +1884,14 @@ function saveEdit() {
             if (oldLinkedStr !== newLinkedStr) {
                 diffs.push(`Przypisane lokalizacje: [${oldLinkedStr || 'brak'}] ➔ [${newLinkedStr || 'brak'}]`);
             }
+            if (!!oldLoc.isArchived !== isArchived) {
+                diffs.push(`Zarchiwizowany projekt: ${!!oldLoc.isArchived} ➔ ${isArchived}`);
+            }
+            if ((oldLoc.notes || '') !== notes) {
+                diffs.push(`Uwagi: "${oldLoc.notes || ''}" ➔ "${notes}"`);
+            }
         }
-        Object.assign(updatedData, { linkedLocations });
+        Object.assign(updatedData, { linkedLocations, isArchived, notes });
     }
 
     db.collection('locations').doc(editingId).update(updatedData)
@@ -2331,19 +2419,44 @@ function renderArchive() {
     const list = document.getElementById('archiveList');
     const empty = document.getElementById('emptyArchiveState');
     const count = document.getElementById('archiveCount');
+    const q = (document.getElementById('archiveSearch')?.value || '').trim().toLowerCase();
 
-    const archived = [
-        ...locations.filter(l => l.isArchived === true),
-        ...deletedLocations.filter(l => l.type === 'project')
-    ].sort((a, b) => a.name.localeCompare(b.name));
+    let archived = locations.filter(l => l.isArchived === true);
+
+    if (q) {
+        archived = archived.filter(loc => {
+            if ((loc.name || '').toLowerCase().includes(q)) return true;
+            if ((loc.street || '').toLowerCase().includes(q)) return true;
+            if ((loc.city || '').toLowerCase().includes(q)) return true;
+            if ((loc.zip || '').toLowerCase().includes(q)) return true;
+            if ((loc.notes || '').toLowerCase().includes(q)) return true;
+            if (loc.people && loc.people.some(p => {
+                const name = (typeof p === 'string' ? p : p.name || '').toLowerCase();
+                return name.includes(q);
+            })) return true;
+            if (loc.type === 'project' && loc.linkedLocations) {
+                return loc.linkedLocations.some(id => {
+                    const l = locations.find(x => x.id === id);
+                    return l && l.name.toLowerCase().includes(q);
+                });
+            }
+            return false;
+        });
+    }
+
+    archived.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     if (count) {
-        count.textContent = archived.length + ' wpis' + (archived.length === 1 ? '' : archived.length < 5 ? 'y' : 'ów') + ' w archiwum';
+        count.textContent = archived.length + ' ' + (archived.length === 1 ? 'pozycja' : (archived.length >= 2 && archived.length <= 4) ? 'pozycje' : 'pozycji') + ' w archiwum';
     }
 
     if (!archived.length) {
         if (list) list.innerHTML = '';
-        if (empty) empty.style.display = 'block';
+        if (empty) {
+            empty.style.display = 'block';
+            const emptyTxt = empty.querySelector('.empty-txt');
+            if (emptyTxt) emptyTxt.textContent = q ? 'Brak wyników pasujących do wyszukiwania w archiwum.' : 'Brak zarchiwizowanych projektów i kwater.';
+        }
         return;
     }
     if (empty) empty.style.display = 'none';
@@ -2359,10 +2472,39 @@ function renderArchive() {
     if (list) {
         list.innerHTML = archived.map(loc => {
             const fullAddr = loc.street ? `${loc.street} ${loc.houseNum || ''}, ${loc.zip || ''} ${loc.city || ''}` : (loc.address || '');
+
+            if (loc.type === 'project') {
+                const linkedNames = (loc.linkedLocations || [])
+                    .map(id => locations.find(x => x.id === id))
+                    .filter(l => l)
+                    .map(l => `<span class="person-chip" style="border-radius:4px; border-color:var(--muted); color:var(--muted); font-size:11px;">[#${l.locNumber || '?'}] ${l.name}</span>`)
+                    .join('');
+
+                return `<div class="loc-card archived-card" id="card-${loc.id}" onclick="focusLocation('${loc.id}')" style="border-left: 4px solid var(--muted); opacity: 0.85;">
+                    <div class="loc-card-head">
+                        <div class="loc-name" style="color: var(--muted);"><span style="font-size:10px; background:var(--muted); color:white; padding:1px 5px; border-radius:3px; margin-right:6px; vertical-align:middle; font-weight:800;">PROJEKT</span>${loc.name} <span style="font-size:10px; background:var(--muted); color:var(--bg); padding:2px 6px; border-radius:10px; margin-left:6px; font-weight:bold;">ARCHIWUM</span></div>
+                        <div class="loc-actions">
+                            <button class="act-btn edit" title="Edytuj" onclick="openEdit('${loc.id}',event)">✏️</button>
+                            <button class="act-btn restore" title="Przywróć do aktywnych projektów" onclick="toggleArchiveLocation('${loc.id}', false, event)">↩️</button>
+                            <button class="act-btn del" title="Usuń" onclick="deleteLocation('${loc.id}',event)">🗑️</button>
+                        </div>
+                    </div>
+                    ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
+                    <div class="loc-badges" style="margin-top:8px;"><span class="badge" style="background:rgba(100,116,139,0.15); color:var(--muted); border:1px solid rgba(100,116,139,0.3);">Zakończony projekt</span></div>
+                    
+                    ${toggleDetailsHtml(loc.id)}
+                    
+                    <div class="loc-card-details" id="details-${loc.id}">
+                        <div style="margin-top:8px; font-size:11px; color:var(--muted);">✍️ Dodane przez: <strong>${loc.addedBy || 'System'}</strong></div>
+                        ${loc.notes ? `<div style="margin-top:6px; font-size:11px; padding:6px; background:var(--bg); border-radius:6px; border-left:3px solid var(--muted);">📝 <em>${loc.notes}</em></div>` : ''}
+                        <div class="loc-people" style="margin-top:8px;"><div class="loc-people-title" style="color:var(--muted);">Przypisane lokalizacje</div>${linkedNames || '<span style="color:var(--muted);font-size:12px;">Brak</span>'}</div>
+                    </div>
+                </div>`;
+            }
+
             const numPrefix = loc.locNumber ? `<span style="color:var(--muted); font-size:13px; font-weight:normal;">[#${loc.locNumber}]</span> ` : '';
             const dateFromStr = fmtDate(loc.dateFrom);
             const dateToStr = loc.isIndefinite ? 'Nieokreślony' : fmtDate(loc.dateTo);
-            
             const cost = calcArchiveCost(loc);
             const isOffice = loc.type === 'office';
 
@@ -2370,8 +2512,9 @@ function renderArchive() {
                 <div class="loc-card-head">
                     <div class="loc-name" style="color: var(--muted);">${isOffice ? '🏢' : houseIcon} ${numPrefix}${loc.name} <span style="font-size:10px; background:var(--muted); color:var(--bg); padding:2px 6px; border-radius:10px; margin-left:6px; font-weight:bold;">ARCHIWUM</span></div>
                     <div class="loc-actions">
-                        <button class="act-btn edit" onclick="openEdit('${loc.id}',event)">✏️</button>
-                        <button class="act-btn del" onclick="deleteLocation('${loc.id}',event)">🗑️</button>
+                        <button class="act-btn edit" title="Edytuj" onclick="openEdit('${loc.id}',event)">✏️</button>
+                        <button class="act-btn restore" title="Przywróć do aktywnych" onclick="toggleArchiveLocation('${loc.id}', false, event)">↩️</button>
+                        <button class="act-btn del" title="Usuń" onclick="deleteLocation('${loc.id}',event)">🗑️</button>
                     </div>
                 </div>
                 ${fullAddr ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${fullAddr}</div>` : ''}
@@ -2731,6 +2874,18 @@ function closeHelp() {
 function focusLocation(id) {
     const loc = locations.find(l => l.id === id);
     if (!loc) return;
+
+    if (loc.isArchived) {
+        if (!markers[id]) {
+            addMarker(loc);
+        }
+        map.setView([loc.lat, loc.lng], 16);
+        if (markers[id]) {
+            markers[id].openPopup();
+        }
+        highlightCard(id);
+        return;
+    }
 
     if (loc.type === 'project') {
         const isNewProject = activeProjectId !== id;

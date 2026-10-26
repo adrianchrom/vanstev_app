@@ -10,7 +10,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@800;900&family=Poppins:wght@500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style/style.css?v=1.3.2">
+    <link rel="stylesheet" href="style/style.css?v=1.3.3">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -205,7 +205,15 @@
                         style="background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:10px; max-height:220px; overflow-y:auto; font-size:12px; display:flex; flex-direction:column; gap:4px;">
                     </div>
                 </div>
-
+                <div class="form-group">
+                    <label>Uwagi do projektu</label>
+                    <textarea id="eProjNotes" placeholder="Dodatkowe informacje o projekcie..." rows="2"
+                        style="width:100%; border-radius:8px; border:1.5px solid var(--border); background:var(--bg); color:var(--text); padding:10px; font-family:inherit; font-size:13px; resize:vertical;"></textarea>
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                    <input type="checkbox" id="eProjRentalEnded" style="width: auto; margin: 0; cursor: pointer;" />
+                    <label for="eProjRentalEnded" style="margin: 0; text-transform: none; font-size: 13px; cursor: pointer; color: var(--text);">Zakończony projekt (Przenieś do archiwum)</label>
+                </div>
             </div>
             <div class="btn-row">
                 <button class="btn-primary" onclick="saveEdit()">💾 Zapisz zmiany</button>
@@ -611,7 +619,15 @@
                                 style="background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:10px; max-height:220px; overflow-y:auto; font-size:12px; display:flex; flex-direction:column; gap:4px;">
                             </div>
                         </div>
-
+                        <div class="form-group">
+                            <label>Uwagi do projektu</label>
+                            <textarea id="fProjNotes" placeholder="Dodatkowe informacje o projekcie..." rows="2"
+                                style="width:100%; border-radius:8px; border:1.5px solid var(--border); background:var(--bg); color:var(--text); padding:10px; font-family:inherit; font-size:13px; resize:vertical;"></textarea>
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                            <input type="checkbox" id="fProjRentalEnded" style="width: auto; margin: 0; cursor: pointer;" />
+                            <label for="fProjRentalEnded" style="margin: 0; text-transform: none; font-size: 13px; cursor: pointer; color: var(--text);">Zakończony projekt (Przenieś do archiwum)</label>
+                        </div>
                     </div>
                     <div class="btn-row" style="margin-top:8px;">
                         <button class="btn-primary" onclick="saveLocation()">✅ Akceptuj i dodaj</button>
@@ -645,12 +661,17 @@
 
                 <!-- ARCHIVE TAB -->
                 <div class="tab-panel" id="panelArchive">
-                    <div class="form-title">📁 Archiwum Wynajmów</div>
-                    <div class="loc-count" id="archiveCount">0 lokalizacji w archiwum</div>
+                    <div class="form-title">📁 Archiwum</div>
+                    <div style="margin-bottom: 12px;">
+                        <input type="text" id="archiveSearch" class="search-input"
+                            placeholder="Szukaj w archiwum (projekt, kwatera, adres)..." oninput="renderArchive()"
+                            style="width:100%;">
+                    </div>
+                    <div class="loc-count" id="archiveCount">0 pozycji w archiwum</div>
                     <div id="archiveList"></div>
                     <div class="empty-state" id="emptyArchiveState">
                         <div class="empty-icon">📁</div>
-                        <div class="empty-txt">Brak zakończonych wynajmów.</div>
+                        <div class="empty-txt">Brak zarchiwizowanych pozycji.</div>
                     </div>
                 </div>
             </div>
@@ -682,7 +703,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-    <script src="app.js?v=1.3.2"></script>
+    <script src="app.js?v=1.3.3"></script>
 </body>
 
 </html>
