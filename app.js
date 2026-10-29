@@ -4263,28 +4263,6 @@ async function removeQuickPositionPreset(pos, e) {
     }
 }
 
-async function resetQuickPositionPresetsToDefault() {
-    if (!canEditCertData()) return;
-    if (!confirm("Czy na pewno chcesz przywrócić domyślny zestaw popularnych przycisków stanowisk?")) {
-        return;
-    }
-
-    try {
-        await db.collection('settings').doc('certificates').set({
-            positions: DEFAULT_CERT_POSITIONS,
-            updatedBy: currentUser,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-
-        CERT_POSITIONS = [...DEFAULT_CERT_POSITIONS];
-        renderQuickPositionChips();
-        renderProfessionDatalist();
-        logActivity('Przywrócono domyślną listę przycisków stanowisk', '');
-    } catch (e) {
-        alert("Błąd przywracania listy: " + e.message);
-    }
-}
-
 // QUICK PROFESSION MODAL
 function openQuickProfessionModal(empId, e) {
     if (e) e.stopPropagation();
