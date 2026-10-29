@@ -10,7 +10,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@800;900&family=Poppins:wght@500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style/style.css?v=1.3.4">
+    <link rel="stylesheet" href="style/style.css?v=1.3.5">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -766,6 +766,9 @@
                         <input type="text" id="certSearchInput" placeholder="Szukaj pracownika, dokumentu, daty..." oninput="handleCertSearch(this.value)" />
                         <button class="cert-search-clear" onclick="clearCertSearch()">✕</button>
                     </div>
+                    <button id="certAddColBtn" class="cert-add-col-btn" onclick="openAddColumnModal()" style="display:none;" title="Dodaj nową kolumnę dokumentu (Tylko Admin)">
+                        ➕ Dodaj kolumnę
+                    </button>
                     <button id="certAddEmpBtn" class="btn-primary cert-add-emp-btn" onclick="openAddEmployeeModal()" style="display:none;">
                         ➕ Dodaj pracownika
                     </button>
@@ -784,25 +787,8 @@
             <div id="certTableView" class="cert-view-container active">
                 <div class="cert-table-scroll-wrap">
                     <table class="cert-table" id="certMainTable">
-                        <thead>
-                            <tr>
-                                <th class="col-sticky col-lp">Lp.</th>
-                                <th class="col-sticky col-name">Nazwisko</th>
-                                <th class="col-sticky col-fname">Imię</th>
-                                <th class="col-doc">Paszport</th>
-                                <th class="col-doc">TRC POL</th>
-                                <th class="col-doc">TRC NDL</th>
-                                <th class="col-doc">SCC</th>
-                                <th class="col-doc">VCA BE</th>
-                                <th class="col-doc">VCA</th>
-                                <th class="col-doc">TÜV 111</th>
-                                <th class="col-doc">TÜV 114</th>
-                                <th class="col-doc">TÜV 135</th>
-                                <th class="col-doc">TÜV 138</th>
-                                <th class="col-doc">TÜV 111/141</th>
-                                <th class="col-doc">TÜV 138/136</th>
-                                <th class="col-actions" id="certThActions" style="display:none;">Akcje</th>
-                            </tr>
+                        <thead id="certTableHead">
+                            <!-- Injected dynamically by renderCertTableHeader() -->
                         </thead>
                         <tbody id="certTableBody">
                             <!-- Rows injected by JavaScript -->
@@ -846,53 +832,8 @@
                     <input type="text" id="certEmpFirstName" placeholder="np. Jan" />
                 </div>
                 <div class="cert-form-section-title">📅 Daty ważności dokumentów i certyfikatów</div>
-                <div class="form-group">
-                    <label>Paszport</label>
-                    <input type="text" id="certEmpPassport" placeholder="DD.MM.RRRR lub RRRR" />
-                </div>
-                <div class="form-group">
-                    <label>TRC POL</label>
-                    <input type="text" id="certEmpTrcPol" placeholder="DD.MM.RRRR lub RRRR" />
-                </div>
-                <div class="form-group">
-                    <label>TRC NDL</label>
-                    <input type="text" id="certEmpTrcNdl" placeholder="DD.MM.RRRR lub RRRR" />
-                </div>
-                <div class="form-group">
-                    <label>SCC</label>
-                    <input type="text" id="certEmpScc" placeholder="DD.MM.RRRR lub RRRR" />
-                </div>
-                <div class="form-group">
-                    <label>VCA BE</label>
-                    <input type="text" id="certEmpVcaBe" placeholder="DD.MM.RRRR lub RRRR" />
-                </div>
-                <div class="form-group">
-                    <label>VCA</label>
-                    <input type="text" id="certEmpVca" placeholder="DD.MM.RRRR lub RRRR" />
-                </div>
-                <div class="form-group">
-                    <label>TÜV 111</label>
-                    <input type="text" id="certEmpTuv111" placeholder="DD.MM.RRRR lub RRRR" />
-                </div>
-                <div class="form-group">
-                    <label>TÜV 114</label>
-                    <input type="text" id="certEmpTuv114" placeholder="DD.MM.RRRR lub RRRR" />
-                </div>
-                <div class="form-group">
-                    <label>TÜV 135</label>
-                    <input type="text" id="certEmpTuv135" placeholder="DD.MM.RRRR lub RRRR" />
-                </div>
-                <div class="form-group">
-                    <label>TÜV 138</label>
-                    <input type="text" id="certEmpTuv138" placeholder="DD.MM.RRRR lub RRRR" />
-                </div>
-                <div class="form-group">
-                    <label>TÜV 111/141</label>
-                    <input type="text" id="certEmpTuv111_141" placeholder="DD.MM.RRRR lub RRRR" />
-                </div>
-                <div class="form-group">
-                    <label>TÜV 138/136</label>
-                    <input type="text" id="certEmpTuv138_136" placeholder="DD.MM.RRRR lub RRRR" />
+                <div id="certEmpDocsContainer" class="cert-docs-container">
+                    <!-- Dynamic fields generated by renderCertEmployeeFormFields() -->
                 </div>
             </div>
             <div id="certEmpFormErr" style="color:var(--danger);font-size:12px;margin-top:8px;display:none;"></div>
@@ -921,6 +862,28 @@
         </div>
     </div>
 
+    <!-- ===== ADD COLUMN MODAL (ADMIN ONLY) ===== -->
+    <div id="certAddColumnModal" class="modal-overlay">
+        <div class="modal-box" style="width:420px;">
+            <div class="modal-title">
+                <span>➕ Dodaj nową kolumnę</span>
+                <button class="modal-close" onclick="closeAddColumnModal()">×</button>
+            </div>
+            <div style="font-size:13px; color:var(--muted); margin: 6px 0 14px 0;">
+                Nowa kolumna pojawi się w tabeli certyfikatów, formularzu pracownika oraz w eksporcie Excel.
+            </div>
+            <div class="form-group">
+                <label>Nazwa kolumny / dokumentu *</label>
+                <input type="text" id="certNewColNameInput" placeholder="np. Badania lekarskie, SEP do 1kV, UDT..." />
+            </div>
+            <div id="certAddColErr" style="color:var(--danger);font-size:12px;margin-top:8px;display:none;"></div>
+            <div class="btn-row" style="margin-top:18px;">
+                <button class="btn-primary" onclick="saveNewCertColumn()">💾 Dodaj kolumnę</button>
+                <button class="btn-secondary" onclick="closeAddColumnModal()">Anuluj</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== STARTUP EXPIRATION ALERT ===== -->
     <div id="certStartupAlert" class="cert-startup-alert" style="display:none;" onclick="handleOpenCertificates()">
         <div class="cert-startup-alert-icon">⚠️</div>
@@ -936,7 +899,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-    <script src="app.js?v=1.3.4"></script>
+    <script src="app.js?v=1.3.5"></script>
 </body>
 
 </html>

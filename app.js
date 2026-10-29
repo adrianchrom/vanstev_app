@@ -3267,7 +3267,7 @@ function renderAdminNotes() {
 // MODUŁ: CERTYFIKATY I TERMINY
 // ========================================================
 
-const CERT_COLUMNS = [
+const DEFAULT_CERT_COLUMNS = [
     { key: 'passport', label: 'Paszport' },
     { key: 'trcPol', label: 'TRC POL' },
     { key: 'trcNdl', label: 'TRC NDL' },
@@ -3281,6 +3281,8 @@ const CERT_COLUMNS = [
     { key: 'tuv111_141', label: 'TÜV 111/141' },
     { key: 'tuv138_136', label: 'TÜV 138/136' }
 ];
+
+let CERT_COLUMNS = [...DEFAULT_CERT_COLUMNS];
 
 const INITIAL_CERT_EMPLOYEES = [
     { lastName: "Abiera", firstName: "Gary" },
@@ -3374,6 +3376,10 @@ function canEditCertData(user = currentUser) {
 }
 
 function canEditCertTitle(user = currentUser) {
+    return (user || '').toLowerCase().trim() === 'admin';
+}
+
+function canAddCertColumn(user = currentUser) {
     return (user || '').toLowerCase().trim() === 'admin';
 }
 
@@ -3479,17 +3485,34 @@ function getCertExpiryInfo(val) {
 }
 
 function initCertificatesSync() {
-    // Listen for custom table title
+    // Listen for custom table title and columns
     if (certTitleUnsub) certTitleUnsub();
     certTitleUnsub = db.collection('settings').doc('certificates').onSnapshot(doc => {
-        if (doc.exists && doc.data() && doc.data().title) {
-            certTableTitle = doc.data().title;
+        if (doc.exists && doc.data()) {
+            const data = doc.data();
+            certTableTitle = data.title || "Certyfikaty i terminy";
+            if (Array.isArray(data.columns) && data.columns.length > 0) {
+                CERT_COLUMNS = data.columns;
+            } else {
+                CERT_COLUMNS = [...DEFAULT_CERT_COLUMNS];
+            }
         } else {
             certTableTitle = "Certyfikaty i terminy";
+            CERT_COLUMNS = [...DEFAULT_CERT_COLUMNS];
         }
         const titleEl = document.getElementById('certTableTitleText');
         if (titleEl) titleEl.textContent = certTableTitle;
+        renderCertTableHeader();
+        renderCertEmployeeFormFields();
+        const modal = document.getElementById('certModal');
+        if (modal && modal.classList.contains('open')) {
+            renderCertificates();
+        }
     });
+
+    // Initial render of header and form fields with defaults
+    renderCertTableHeader();
+    renderCertEmployeeFormFields();
 
     // Listen for employees collection
     if (certUnsub) certUnsub();
@@ -3689,6 +3712,7 @@ function openCertModal() {
     // Permissions visibility
     const canEdit = canEditCertData();
     const canTitle = canEditCertTitle();
+    const canAddCol = canAddCertColumn();
 
     const titleEditBtn = document.getElementById('certEditTitleBtn');
     if (titleEditBtn) titleEditBtn.style.display = canTitle ? 'inline-block' : 'none';
@@ -3696,11 +3720,17 @@ function openCertModal() {
     const addEmpBtn = document.getElementById('certAddEmpBtn');
     if (addEmpBtn) addEmpBtn.style.display = canEdit ? 'inline-block' : 'none';
 
+    const addColBtn = document.getElementById('certAddColBtn');
+    if (addColBtn) addColBtn.style.display = canAddCol ? 'inline-block' : 'none';
+
     const thActions = document.getElementById('certThActions');
     if (thActions) thActions.style.display = canEdit ? 'table-cell' : 'none';
 
     const titleEl = document.getElementById('certTableTitleText');
     if (titleEl) titleEl.textContent = certTableTitle;
+
+    renderCertTableHeader();
+    renderCertEmployeeFormFields();
 
     modal.classList.add('open');
     renderCertificates();
@@ -3932,8 +3962,9 @@ function openAddEmployeeModal() {
     document.getElementById('certEmpModalTitle').textContent = '➕ Dodaj pracownika';
     document.getElementById('certEmpLastName').value = '';
     document.getElementById('certEmpFirstName').value = '';
+    renderCertEmployeeFormFields();
     CERT_COLUMNS.forEach(col => {
-        const el = document.getElementById('certEmp' + col.key.charAt(0).toUpperCase() + col.key.slice(1));
+        const el = document.getElementById('certEmp_' + col.key);
         if (el) el.value = '';
     });
     const err = document.getElementById('certEmpFormErr');
@@ -3954,9 +3985,9 @@ function openEditEmployeeModal(empId) {
     document.getElementById('certEmpModalTitle').textContent = `✏️ Edycja: ${emp.lastName} ${emp.firstName}`;
     document.getElementById('certEmpLastName').value = emp.lastName || '';
     document.getElementById('certEmpFirstName').value = emp.firstName || '';
-
+    renderCertEmployeeFormFields();
     CERT_COLUMNS.forEach(col => {
-        const el = document.getElementById('certEmp' + col.key.charAt(0).toUpperCase() + col.key.slice(1));
+        const el = document.getElementById('certEmp_' + col.key);
         if (el) el.value = emp[col.key] || '';
     });
 
@@ -3994,7 +4025,7 @@ async function saveCertEmployee() {
     };
 
     CERT_COLUMNS.forEach(col => {
-        const el = document.getElementById('certEmp' + col.key.charAt(0).toUpperCase() + col.key.slice(1));
+        const el = document.getElementById('certEmp_' + col.key);
         if (el) empData[col.key] = el.value.trim();
     });
 
@@ -4119,15 +4150,21 @@ function renderAdminCertAudit() {
                     actionBadge = `<span style="background:rgba(16,185,129,0.15); color:var(--success); border:1px solid rgba(16,185,129,0.3); padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px;">➕ Dodano pracownika</span>`;
                 } else if (log.action === 'delete_employee') {
                     actionBadge = `<span style="background:rgba(239,68,68,0.15); color:var(--danger); border:1px solid rgba(239,68,68,0.3); padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px;">🗑️ Usunięto</span>`;
+                } else if (log.action === 'add_column') {
+                    actionBadge = `<span style="background:rgba(139,92,246,0.15); color:#a855f7; border:1px solid rgba(139,92,246,0.3); padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px;">📑 Dodano kolumnę</span>`;
+                } else if (log.action === 'delete_column') {
+                    actionBadge = `<span style="background:rgba(239,68,68,0.15); color:var(--danger); border:1px solid rgba(239,68,68,0.3); padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px;">🗑️ Usunięto kolumnę</span>`;
                 } else {
                     actionBadge = `<span style="background:rgba(59,130,246,0.15); color:var(--blue); border:1px solid rgba(59,130,246,0.3); padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px;">ℹ️ Inicjalizacja</span>`;
                 }
+
+                const displayTitle = log.columnName ? `Kolumna: ${log.columnName}` : (log.employeeName || 'Nieznany');
 
                 return `
                     <div class="admin-cert-audit-item">
                         <div>
                             ${actionBadge}
-                            <span class="admin-cert-audit-emp" style="margin-left:8px;">${escapeHtml(log.employeeName || 'Nieznany')}</span>
+                            <span class="admin-cert-audit-emp" style="margin-left:8px;">${escapeHtml(displayTitle)}</span>
                         </div>
                         <div style="display:flex; align-items:center; gap:12px;">
                             <span class="admin-cert-audit-user">👤 ${escapeHtml(log.user || 'System')}</span>
@@ -4138,6 +4175,178 @@ function renderAdminCertAudit() {
             }).join('')}
         </div>
     `;
+}
+
+// ADD / DELETE COLUMN (ADMIN ONLY)
+function openAddColumnModal() {
+    if (!canAddCertColumn()) {
+        alert("Tylko administrator (Admin) może dodawać nowe kolumny.");
+        return;
+    }
+    const input = document.getElementById('certNewColNameInput');
+    const err = document.getElementById('certAddColErr');
+    if (input) input.value = '';
+    if (err) err.style.display = 'none';
+    const modal = document.getElementById('certAddColumnModal');
+    if (modal) {
+        modal.classList.add('open');
+        setTimeout(() => input && input.focus(), 150);
+    }
+}
+
+function closeAddColumnModal() {
+    const modal = document.getElementById('certAddColumnModal');
+    if (modal) modal.classList.remove('open');
+}
+
+async function saveNewCertColumn() {
+    if (!canAddCertColumn()) return;
+    const input = document.getElementById('certNewColNameInput');
+    const err = document.getElementById('certAddColErr');
+    const label = (input ? input.value : '').trim();
+
+    if (!label) {
+        if (err) {
+            err.textContent = 'Podaj nazwę nowej kolumny.';
+            err.style.display = 'block';
+        }
+        return;
+    }
+
+    if (CERT_COLUMNS.some(c => c.label.toLowerCase() === label.toLowerCase())) {
+        if (err) {
+            err.textContent = 'Kolumna o takiej nazwie już istnieje.';
+            err.style.display = 'block';
+        }
+        return;
+    }
+
+    const slug = label
+        .toLowerCase()
+        .replace(/[ąćęłńóśźż]/g, m => ({ 'ą': 'a', 'ć': 'c', 'ę': 'e', 'ł': 'l', 'ń': 'n', 'ó': 'o', 'ś': 's', 'ź': 'z', 'ż': 'z' }[m] || m))
+        .replace(/[^a-z0-9]/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 15) || 'col';
+    const key = `col_${slug}_${Date.now().toString(36)}`;
+
+    const newColumn = {
+        key: key,
+        label: label,
+        isCustom: true
+    };
+
+    const updatedColumns = [...CERT_COLUMNS, newColumn];
+
+    try {
+        await db.collection('settings').doc('certificates').set({
+            columns: updatedColumns,
+            updatedBy: currentUser,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        CERT_COLUMNS = updatedColumns;
+        renderCertTableHeader();
+        renderCertEmployeeFormFields();
+        renderCertificates();
+
+        await db.collection('cert_audit').add({
+            action: 'add_column',
+            columnName: label,
+            user: currentUser,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        logActivity('Dodano nową kolumnę w certyfikatach', label);
+        closeAddColumnModal();
+    } catch (e) {
+        if (err) {
+            err.textContent = 'Błąd zapisu: ' + e.message;
+            err.style.display = 'block';
+        }
+    }
+}
+
+async function deleteCertColumn(colKey, event) {
+    if (event) event.stopPropagation();
+    if (!canAddCertColumn()) return;
+    const col = CERT_COLUMNS.find(c => c.key === colKey);
+    if (!col) return;
+
+    if (!confirm(`Czy na pewno chcesz usunąć kolumnę "${col.label}"? Kolumna zostanie usunięta z widoku tabeli i eksportu.`)) {
+        return;
+    }
+
+    const updatedColumns = CERT_COLUMNS.filter(c => c.key !== colKey);
+
+    try {
+        await db.collection('settings').doc('certificates').set({
+            columns: updatedColumns,
+            updatedBy: currentUser,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        CERT_COLUMNS = updatedColumns;
+        renderCertTableHeader();
+        renderCertEmployeeFormFields();
+        renderCertificates();
+
+        await db.collection('cert_audit').add({
+            action: 'delete_column',
+            columnName: col.label,
+            user: currentUser,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        logActivity('Usunięto kolumnę z certyfikatów', col.label);
+    } catch (e) {
+        alert('Błąd usuwania kolumny: ' + e.message);
+    }
+}
+
+function renderCertTableHeader() {
+    const thead = document.getElementById('certTableHead');
+    if (!thead) return;
+
+    const canEdit = canEditCertData();
+    const isAdmin = canAddCertColumn();
+
+    const colsHtml = CERT_COLUMNS.map(col => {
+        const delBtn = (isAdmin && col.isCustom)
+            ? `<button class="cert-col-del-btn" onclick="deleteCertColumn('${col.key}', event)" title="Usuń kolumnę ${escapeHtml(col.label)}">✕</button>`
+            : '';
+        return `
+            <th class="col-doc" data-col="${col.key}">
+                <div class="cert-th-content">
+                    <span>${escapeHtml(col.label)}</span>
+                    ${delBtn}
+                </div>
+            </th>
+        `;
+    }).join('');
+
+    const actionsTh = canEdit ? `<th class="col-actions" id="certThActions">Akcje</th>` : '';
+
+    thead.innerHTML = `
+        <tr>
+            <th class="col-sticky col-lp">Lp.</th>
+            <th class="col-sticky col-name">Nazwisko</th>
+            <th class="col-sticky col-fname">Imię</th>
+            ${colsHtml}
+            ${actionsTh}
+        </tr>
+    `;
+}
+
+function renderCertEmployeeFormFields() {
+    const container = document.getElementById('certEmpDocsContainer');
+    if (!container) return;
+
+    container.innerHTML = CERT_COLUMNS.map(col => `
+        <div class="form-group">
+            <label>${escapeHtml(col.label)}</label>
+            <input type="text" id="certEmp_${col.key}" placeholder="DD.MM.RRRR lub RRRR" />
+        </div>
+    `).join('');
 }
 
 // EXPORT TO EXCEL
@@ -4151,16 +4360,18 @@ async function exportCertificatesToExcel() {
         const workbook = new ExcelJS.Workbook();
         const sheet = workbook.addWorksheet('Certyfikaty');
 
+        // Headers
+        const headers = ['Lp.', 'Nazwisko', 'Imię', ...CERT_COLUMNS.map(c => c.label)];
+
         // Title row
         sheet.addRow([certTableTitle]);
-        sheet.mergeCells('A1:O1');
+        sheet.mergeCells(1, 1, 1, headers.length);
         const titleRow = sheet.getRow(1);
         titleRow.font = { size: 14, bold: true, color: { argb: 'FFE8621A' } };
         titleRow.alignment = { vertical: 'middle', horizontal: 'center' };
         titleRow.height = 30;
 
         // Header row
-        const headers = ['Lp.', 'Nazwisko', 'Imię', ...CERT_COLUMNS.map(c => c.label)];
         const headerRow = sheet.addRow(headers);
         headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
         headerRow.height = 24;
