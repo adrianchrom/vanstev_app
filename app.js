@@ -3285,6 +3285,7 @@ const DEFAULT_CERT_COLUMNS = [
 let CERT_COLUMNS = [...DEFAULT_CERT_COLUMNS];
 
 const INITIAL_CERT_EMPLOYEES = [
+    { lastName: "Abel", firstName: "Richard" },
     { lastName: "Abiera", firstName: "Gary" },
     { lastName: "Acabado", firstName: "Jonathan" },
     { lastName: "Aculana", firstName: "Butz" },
@@ -3313,16 +3314,19 @@ const INITIAL_CERT_EMPLOYEES = [
     { lastName: "Dacpano", firstName: "Bonifacio II" },
     { lastName: "Dalag", firstName: "Leonardo Jr." },
     { lastName: "Dawana", firstName: "Christian" },
+    { lastName: "De Guzman", firstName: "Michael" },
     { lastName: "Dela Cruz", firstName: "Ronald" },
     { lastName: "Delavida", firstName: "Dennis" },
     { lastName: "Dimaculangan", firstName: "Reynante" },
     { lastName: "Diones", firstName: "Gilbert" },
     { lastName: "Dipasupil", firstName: "Roland" },
+    { lastName: "Dismas", firstName: "Marlon" },
     { lastName: "Domingo", firstName: "Jose Victor" },
     { lastName: "Esponga", firstName: "Arnel" },
     { lastName: "Eviota", firstName: "John" },
     { lastName: "Fajilagana", firstName: "Rema" },
     { lastName: "Flores", firstName: "Rosalie" },
+    { lastName: "Gadiano", firstName: "Dexter" },
     { lastName: "Gonzales", firstName: "Ernesto Jr" },
     { lastName: "Haq", firstName: "Ajijul" },
     { lastName: "Hinayon", firstName: "Celso Jr" },
@@ -3334,6 +3338,7 @@ const INITIAL_CERT_EMPLOYEES = [
     { lastName: "Jahid", firstName: "Mohammad" },
     { lastName: "Jimenez", firstName: "Dennis" },
     { lastName: "Jolapong", firstName: "Elson Jr" },
+    { lastName: "Khan", firstName: "Sakil" },
     { lastName: "Kobir", firstName: "Md Shomon" },
     { lastName: "Laureta", firstName: "Albert" },
     { lastName: "Lugtu", firstName: "Arden" },
@@ -3342,6 +3347,7 @@ const INITIAL_CERT_EMPLOYEES = [
     { lastName: "Mango", firstName: "Kimberly Joy" },
     { lastName: "Mansilungan", firstName: "Eugene" },
     { lastName: "Margaja", firstName: "Garry" },
+    { lastName: "Matira", firstName: "Carlo Jay" },
     { lastName: "Matalog", firstName: "Lorenzo" },
     { lastName: "Miah", firstName: "Md Nowshad" },
     { lastName: "Molla", firstName: "Kaium" },
@@ -3353,6 +3359,7 @@ const INITIAL_CERT_EMPLOYEES = [
     { lastName: "Rahman", firstName: "Md Sadikur" },
     { lastName: "Rana", firstName: "Md Sohel" },
     { lastName: "Raquiza", firstName: "Erwin" },
+    { lastName: "Rashid", firstName: "Harun Ar" },
     { lastName: "Sierra", firstName: "Jeson" },
     { lastName: "Soriano", firstName: "Ariel" },
     { lastName: "Vequizo", firstName: "Bernabie" },
@@ -3528,6 +3535,9 @@ function initCertificatesSync() {
             certEmployees.push({ id: doc.id, ...doc.data() });
         });
 
+        // Ensure newly defined initial employees are present in Firestore
+        syncMissingCertEmployees(certEmployees);
+
         // Compute urgent items (<= 30 days)
         const urgentItems = getUrgentCertificates();
         const urgentCount = urgentItems.length;
@@ -3599,6 +3609,55 @@ async function seedInitialCertificates() {
         console.log("Pomyślnie zainicjowano bazę certyfikatów!");
     } catch (e) {
         console.error("Błąd seedowania bazy certyfikatów:", e);
+    }
+}
+
+let isSyncingMissingEmps = false;
+async function syncMissingCertEmployees(existingList) {
+    if (isSyncingMissingEmps || !existingList || existingList.length === 0) return;
+
+    const missing = INITIAL_CERT_EMPLOYEES.filter(initEmp => {
+        const initLast = (initEmp.lastName || '').toLowerCase().trim();
+        const initFirst = (initEmp.firstName || '').toLowerCase().trim();
+        return !existingList.some(e =>
+            (e.lastName || '').toLowerCase().trim() === initLast &&
+            (e.firstName || '').toLowerCase().trim() === initFirst
+        );
+    });
+
+    if (missing.length === 0) return;
+
+    isSyncingMissingEmps = true;
+    try {
+        console.log(`Wykryto ${missing.length} brakujących pracowników w Firestore. Dodawanie...`);
+        const batch = db.batch();
+        const now = firebase.firestore.FieldValue.serverTimestamp();
+        let nextOrder = existingList.length + 1;
+
+        missing.forEach(emp => {
+            const docRef = db.collection('cert_employees').doc();
+            batch.set(docRef, {
+                ...emp,
+                addedBy: 'System',
+                createdAt: now,
+                order: nextOrder++
+            });
+        });
+
+        await batch.commit();
+
+        await db.collection('cert_audit').add({
+            action: 'add_employee',
+            employeeName: `Dodano ${missing.length} pracowników (${missing.map(m => `${m.lastName} ${m.firstName}`).join(', ')})`,
+            user: 'System',
+            timestamp: now
+        });
+
+        console.log(`Pomyślnie zsynchronizowano ${missing.length} pracowników do bazy!`);
+    } catch (e) {
+        console.error("Błąd synchronizacji brakujących pracowników:", e);
+    } finally {
+        isSyncingMissingEmps = false;
     }
 }
 
@@ -4303,6 +4362,123 @@ async function deleteCertColumn(colKey, event) {
     }
 }
 
+// MOVE COLUMN (LEFT / RIGHT & DRAG-AND-DROP)
+let draggedCertColKey = null;
+
+async function moveCertColumn(colKey, direction, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    if (!canAddCertColumn()) {
+        alert("Tylko administrator (Admin) może zmieniać kolejność kolumn.");
+        return;
+    }
+
+    const currentIndex = CERT_COLUMNS.findIndex(c => c.key === colKey);
+    if (currentIndex === -1) return;
+
+    const newIndex = currentIndex + direction;
+    if (newIndex < 0 || newIndex >= CERT_COLUMNS.length) return;
+
+    const newColumns = [...CERT_COLUMNS];
+    const [movedCol] = newColumns.splice(currentIndex, 1);
+    newColumns.splice(newIndex, 0, movedCol);
+
+    CERT_COLUMNS = newColumns;
+    renderCertTableHeader();
+    renderCertEmployeeFormFields();
+    renderCertificates();
+
+    try {
+        await db.collection('settings').doc('certificates').set({
+            columns: newColumns,
+            updatedBy: currentUser,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        logActivity('Zmieniono kolejność kolumn w certyfikatach', `${movedCol.label} (${direction < 0 ? 'w lewo' : 'w prawo'})`);
+    } catch (e) {
+        console.error("Błąd zapisu kolejności kolumn:", e);
+        alert("Błąd zapisu kolejności kolumn: " + e.message);
+    }
+}
+
+function handleCertColDragStart(event, colKey) {
+    if (!canAddCertColumn()) return;
+    draggedCertColKey = colKey;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', colKey);
+    event.currentTarget.classList.add('dragging');
+}
+
+function handleCertColDragOver(event) {
+    if (!canAddCertColumn()) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const th = event.currentTarget;
+    if (th && !th.classList.contains('drag-over')) {
+        th.classList.add('drag-over');
+    }
+}
+
+function handleCertColDragLeave(event) {
+    const th = event.currentTarget;
+    if (th) th.classList.remove('drag-over');
+}
+
+function handleCertColDragEnd(event) {
+    draggedCertColKey = null;
+    document.querySelectorAll('.col-doc').forEach(el => {
+        el.classList.remove('dragging');
+        el.classList.remove('drag-over');
+    });
+}
+
+async function handleCertColDrop(event, targetColKey) {
+    if (!canAddCertColumn()) return;
+    event.preventDefault();
+    const th = event.currentTarget;
+    if (th) th.classList.remove('drag-over');
+
+    document.querySelectorAll('.col-doc').forEach(el => {
+        el.classList.remove('dragging');
+        el.classList.remove('drag-over');
+    });
+
+    const sourceColKey = draggedCertColKey || event.dataTransfer.getData('text/plain');
+    draggedCertColKey = null;
+
+    if (!sourceColKey || sourceColKey === targetColKey) return;
+
+    const srcIndex = CERT_COLUMNS.findIndex(c => c.key === sourceColKey);
+    const targetIndex = CERT_COLUMNS.findIndex(c => c.key === targetColKey);
+
+    if (srcIndex === -1 || targetIndex === -1) return;
+
+    const newColumns = [...CERT_COLUMNS];
+    const [movedCol] = newColumns.splice(srcIndex, 1);
+    newColumns.splice(targetIndex, 0, movedCol);
+
+    CERT_COLUMNS = newColumns;
+    renderCertTableHeader();
+    renderCertEmployeeFormFields();
+    renderCertificates();
+
+    try {
+        await db.collection('settings').doc('certificates').set({
+            columns: newColumns,
+            updatedBy: currentUser,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        logActivity('Zmieniono kolejność kolumn w certyfikatach', `${movedCol.label} (przeciągnięcie)`);
+    } catch (e) {
+        console.error("Błąd zapisu kolejności kolumn:", e);
+        alert("Błąd zapisu kolejności kolumn: " + e.message);
+    }
+}
+
 function renderCertTableHeader() {
     const thead = document.getElementById('certTableHead');
     if (!thead) return;
@@ -4310,15 +4486,35 @@ function renderCertTableHeader() {
     const canEdit = canEditCertData();
     const isAdmin = canAddCertColumn();
 
-    const colsHtml = CERT_COLUMNS.map(col => {
+    const colsHtml = CERT_COLUMNS.map((col, index) => {
         const delBtn = (isAdmin && col.isCustom)
             ? `<button class="cert-col-del-btn" onclick="deleteCertColumn('${col.key}', event)" title="Usuń kolumnę ${escapeHtml(col.label)}">✕</button>`
             : '';
+
+        let reorderBtns = '';
+        if (isAdmin) {
+            const isFirst = index === 0;
+            const isLast = index === CERT_COLUMNS.length - 1;
+            reorderBtns = `
+                <div class="cert-col-reorder-btns">
+                    <button class="cert-col-move-btn" ${isFirst ? 'disabled' : ''} onclick="moveCertColumn('${col.key}', -1, event)" title="Przesuń w lewo (◀)">◀</button>
+                    <button class="cert-col-move-btn" ${isLast ? 'disabled' : ''} onclick="moveCertColumn('${col.key}', 1, event)" title="Przesuń w prawo (▶)">▶</button>
+                </div>
+            `;
+        }
+
+        const dragAttrs = isAdmin
+            ? `draggable="true" ondragstart="handleCertColDragStart(event, '${col.key}')" ondragover="handleCertColDragOver(event)" ondragleave="handleCertColDragLeave(event)" ondrop="handleCertColDrop(event, '${col.key}')" ondragend="handleCertColDragEnd(event)"`
+            : '';
+
         return `
-            <th class="col-doc" data-col="${col.key}">
+            <th class="col-doc ${isAdmin ? 'col-draggable' : ''}" data-col="${col.key}" ${dragAttrs} title="${isAdmin ? 'Przeciągnij kolumnę lub użyj strzałek ◀ ▶, aby przesunąć' : ''}">
                 <div class="cert-th-content">
-                    <span>${escapeHtml(col.label)}</span>
-                    ${delBtn}
+                    <span class="cert-th-label">${escapeHtml(col.label)}</span>
+                    <div class="cert-th-actions">
+                        ${reorderBtns}
+                        ${delBtn}
+                    </div>
                 </div>
             </th>
         `;

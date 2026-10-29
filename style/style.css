@@ -3148,10 +3148,70 @@ body.light-mode .caregiver-badge {
 
 .cert-th-content {
     display: inline-flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
     width: 100%;
+}
+
+.cert-th-label {
+    white-space: nowrap;
+    font-weight: 700;
+}
+
+.cert-th-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cert-col-reorder-btns {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.cert-col-move-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 8px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+    line-height: 1;
+}
+
+.cert-col-move-btn:hover:not(:disabled) {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    transform: scale(1.1);
+}
+
+.cert-col-move-btn:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+}
+
+.col-draggable {
+    cursor: grab;
+    user-select: none;
+}
+
+.col-draggable:active {
+    cursor: grabbing;
+}
+
+.col-draggable.dragging {
+    opacity: 0.4;
+}
+
+.col-draggable.drag-over {
+    border-left: 3px solid var(--accent) !important;
+    background: rgba(232, 98, 26, 0.15) !important;
 }
 
 .cert-col-del-btn {
