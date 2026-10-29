@@ -3362,8 +3362,14 @@ body.light-mode .cert-prof-tag.has-prof {
 .cert-prof-chips-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px 6px;
     margin-top: 8px;
+}
+
+.cert-prof-chip-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
 }
 
 .cert-prof-chip-btn {
@@ -3391,4 +3397,97 @@ body.light-mode .cert-prof-tag.has-prof {
     border-color: #8b5cf6;
     color: #ffffff;
     box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+}
+
+.cert-prof-chip-del {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: #ef4444;
+    color: #ffffff;
+    border: 2px solid var(--card);
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+    transition: all 0.15s ease;
+    z-index: 2;
+    padding: 0;
+}
+
+.cert-prof-chip-wrap:hover .cert-prof-chip-del {
+    display: flex;
+}
+
+.cert-prof-chip-del:hover {
+    background: #b91c1c;
+    transform: scale(1.2);
+}
+
+.cert-prof-add-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+}
+
+.cert-prof-add-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+
+.cert-prof-add-input:focus {
+    border-color: var(--accent);
+}
+
+.cert-prof-add-btn {
+    background: var(--card2);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.cert-prof-add-btn:hover {
+    background: var(--accent);
+    color: #ffffff;
+}
+
+.cert-prof-reset-btn {
+    font-size: 11px;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+    font-family: inherit;
+    transition: color 0.15s;
+}
+
+.cert-prof-reset-btn:hover {
+    color: var(--text);
 }

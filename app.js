@@ -3284,6 +3284,25 @@ const DEFAULT_CERT_COLUMNS = [
 
 let CERT_COLUMNS = [...DEFAULT_CERT_COLUMNS];
 
+const DEFAULT_CERT_POSITIONS = [
+    'Welder',
+    'TIG Welder',
+    'MAG Welder',
+    'Pipe Fitter',
+    'Fitter',
+    'Steel Fitter',
+    'Locksmith',
+    'Electrician',
+    'Insulator',
+    'Scaffolder',
+    'Construction Worker',
+    'Mechanic',
+    'Rigger',
+    'Sandblaster'
+];
+
+let CERT_POSITIONS = [...DEFAULT_CERT_POSITIONS];
+
 const INITIAL_CERT_EMPLOYEES = [
     { lastName: "Abel", firstName: "Richard" },
     { lastName: "Abiera", firstName: "Gary" },
@@ -3505,23 +3524,33 @@ function initCertificatesSync() {
             } else {
                 CERT_COLUMNS = [...DEFAULT_CERT_COLUMNS];
             }
+            if (Array.isArray(data.positions) && data.positions.length > 0) {
+                CERT_POSITIONS = data.positions;
+            } else {
+                CERT_POSITIONS = [...DEFAULT_CERT_POSITIONS];
+            }
         } else {
             certTableTitle = "Certyfikaty i terminy";
             CERT_COLUMNS = [...DEFAULT_CERT_COLUMNS];
+            CERT_POSITIONS = [...DEFAULT_CERT_POSITIONS];
         }
         const titleEl = document.getElementById('certTableTitleText');
         if (titleEl) titleEl.textContent = certTableTitle;
         renderCertTableHeader();
         renderCertEmployeeFormFields();
+        renderQuickPositionChips();
+        renderProfessionDatalist();
         const modal = document.getElementById('certModal');
         if (modal && modal.classList.contains('open')) {
             renderCertificates();
         }
     });
 
-    // Initial render of header and form fields with defaults
+    // Initial render of header, form fields and position chips with defaults
     renderCertTableHeader();
     renderCertEmployeeFormFields();
+    renderQuickPositionChips();
+    renderProfessionDatalist();
 
     // Listen for employees collection
     const PL_TO_EN_PROFESSIONS = {
@@ -4117,6 +4146,145 @@ function renderCertReminders(urgentItems) {
     }).join('');
 }
 
+// DYNAMIC POSITION PRESET CHIPS & DATALIST
+function renderQuickPositionChips() {
+    const grid = document.getElementById('certProfChipsGrid');
+    if (!grid) return;
+
+    const canEdit = canEditCertData();
+    let currentProf = '';
+    if (editingQuickProfEmpId) {
+        const emp = certEmployees.find(x => x.id === editingQuickProfEmpId);
+        if (emp && emp.profession) currentProf = emp.profession.trim().toLowerCase();
+    }
+
+    if (!Array.isArray(CERT_POSITIONS) || CERT_POSITIONS.length === 0) {
+        grid.innerHTML = `<span style="font-size:12px; color:var(--muted); padding:4px 0;">Brak zdefiniowanych przycisków. Dodaj nowe stanowisko poniżej.</span>`;
+        return;
+    }
+
+    grid.innerHTML = CERT_POSITIONS.map(pos => {
+        const isSelected = pos.trim().toLowerCase() === currentProf;
+        const delBtn = canEdit 
+            ? `<button type="button" class="cert-prof-chip-del" onclick="removeQuickPositionPreset('${escapeHtml(pos)}', event)" title="Usuń przycisk '${escapeHtml(pos)}' z listy popularnych">✕</button>`
+            : '';
+
+        return `
+            <div class="cert-prof-chip-wrap">
+                <button type="button" class="cert-prof-chip-btn ${isSelected ? 'selected' : ''}" onclick="selectQuickProfPreset('${escapeHtml(pos)}')">
+                    ${escapeHtml(pos)}
+                </button>
+                ${delBtn}
+            </div>
+        `;
+    }).join('');
+}
+
+function renderProfessionDatalist() {
+    const datalist = document.getElementById('certProfessionDatalist');
+    if (!datalist) return;
+
+    if (!Array.isArray(CERT_POSITIONS)) return;
+    datalist.innerHTML = CERT_POSITIONS.map(pos => `
+        <option value="${escapeHtml(pos)}"></option>
+    `).join('');
+}
+
+async function addNewQuickPositionPreset() {
+    if (!canEditCertData()) {
+        alert("Brak uprawnień do edycji listy stanowisk.");
+        return;
+    }
+
+    const input = document.getElementById('certNewPositionPresetInput');
+    if (!input) return;
+    const newPos = input.value.trim();
+
+    if (!newPos) {
+        alert("Wpisz nazwę stanowiska.");
+        input.focus();
+        return;
+    }
+
+    const exists = CERT_POSITIONS.some(p => p.toLowerCase() === newPos.toLowerCase());
+    if (exists) {
+        alert(`Stanowisko "${newPos}" już znajduje się na liście.`);
+        input.focus();
+        return;
+    }
+
+    const updated = [...CERT_POSITIONS, newPos];
+
+    try {
+        await db.collection('settings').doc('certificates').set({
+            positions: updated,
+            updatedBy: currentUser,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        CERT_POSITIONS = updated;
+        input.value = '';
+        renderQuickPositionChips();
+        renderProfessionDatalist();
+        logActivity('Dodano nowe stanowisko do listy szybkich przycisków', newPos);
+    } catch (e) {
+        console.error("Błąd zapisu nowego stanowiska:", e);
+        alert("Błąd zapisu: " + e.message);
+    }
+}
+
+async function removeQuickPositionPreset(pos, e) {
+    if (e) e.stopPropagation();
+    if (!canEditCertData()) {
+        alert("Brak uprawnień do edycji listy stanowisk.");
+        return;
+    }
+
+    if (!confirm(`Czy na pewno chcesz usunąć przycisk stanowiska "${pos}" z listy popularnych?\n\n(Uwaga: nie usunie to przypisanego stanowiska pracownikom, którzy już je posiadają).`)) {
+        return;
+    }
+
+    const updated = CERT_POSITIONS.filter(p => p.toLowerCase() !== pos.toLowerCase());
+
+    try {
+        await db.collection('settings').doc('certificates').set({
+            positions: updated,
+            updatedBy: currentUser,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        CERT_POSITIONS = updated;
+        renderQuickPositionChips();
+        renderProfessionDatalist();
+        logActivity('Usunięto stanowisko z listy szybkich przycisków', pos);
+    } catch (e) {
+        console.error("Błąd usuwania stanowiska:", e);
+        alert("Błąd zapisu: " + e.message);
+    }
+}
+
+async function resetQuickPositionPresetsToDefault() {
+    if (!canEditCertData()) return;
+    if (!confirm("Czy na pewno chcesz przywrócić domyślny zestaw popularnych przycisków stanowisk?")) {
+        return;
+    }
+
+    try {
+        await db.collection('settings').doc('certificates').set({
+            positions: DEFAULT_CERT_POSITIONS,
+            updatedBy: currentUser,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        CERT_POSITIONS = [...DEFAULT_CERT_POSITIONS];
+        renderQuickPositionChips();
+        renderProfessionDatalist();
+        logActivity('Przywrócono domyślną listę przycisków stanowisk', '');
+    } catch (e) {
+        alert("Błąd przywracania listy: " + e.message);
+    }
+}
+
 // QUICK PROFESSION MODAL
 function openQuickProfessionModal(empId, e) {
     if (e) e.stopPropagation();
@@ -4135,15 +4303,13 @@ function openQuickProfessionModal(empId, e) {
         setTimeout(() => input.focus(), 100);
     }
 
-    // Highlight selected chip
-    const currentProf = (emp.profession || '').trim().toLowerCase();
-    document.querySelectorAll('#certQuickProfessionModal .cert-prof-chip-btn').forEach(btn => {
-        if (btn.textContent.trim().toLowerCase() === currentProf) {
-            btn.classList.add('selected');
-        } else {
-            btn.classList.remove('selected');
-        }
-    });
+    // Render chips with active selection and delete buttons
+    renderQuickPositionChips();
+
+    const addRow = document.getElementById('certProfAddRow');
+    if (addRow) {
+        addRow.style.display = canEditCertData() ? 'flex' : 'none';
+    }
 
     const modal = document.getElementById('certQuickProfessionModal');
     if (modal) modal.classList.add('open');
