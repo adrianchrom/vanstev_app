@@ -170,6 +170,7 @@ function setupApp(userName) {
     initMap();
     initDataSync();
     initNotesSync();
+    initCertificatesSync();
     renderStats();
     fetchExchangeRate();
 }
@@ -2543,21 +2544,30 @@ function switchAdminTab(tab) {
     currentAdminTab = tab;
     const usersBtn = document.getElementById('adminTabUsersBtn');
     const notesBtn = document.getElementById('adminTabNotesBtn');
+    const certAuditBtn = document.getElementById('adminTabCertAuditBtn');
     const usersList = document.getElementById('adminUserList');
     const notesList = document.getElementById('adminNotesList');
+    const certAuditList = document.getElementById('adminCertAuditList');
+
+    if (usersBtn) usersBtn.classList.remove('active');
+    if (notesBtn) notesBtn.classList.remove('active');
+    if (certAuditBtn) certAuditBtn.classList.remove('active');
+    if (usersList) usersList.style.display = 'none';
+    if (notesList) notesList.style.display = 'none';
+    if (certAuditList) certAuditList.style.display = 'none';
 
     if (tab === 'users') {
         if (usersBtn) usersBtn.classList.add('active');
-        if (notesBtn) notesBtn.classList.remove('active');
         if (usersList) usersList.style.display = 'block';
-        if (notesList) notesList.style.display = 'none';
         renderAdminPanel();
-    } else {
-        if (usersBtn) usersBtn.classList.remove('active');
+    } else if (tab === 'notes') {
         if (notesBtn) notesBtn.classList.add('active');
-        if (usersList) usersList.style.display = 'none';
         if (notesList) notesList.style.display = 'block';
         renderAdminNotes();
+    } else if (tab === 'certAudit') {
+        if (certAuditBtn) certAuditBtn.classList.add('active');
+        if (certAuditList) certAuditList.style.display = 'block';
+        renderAdminCertAudit();
     }
 }
 
@@ -3251,4 +3261,996 @@ function renderAdminNotes() {
             `;
         }).join('')}
     `;
+}
+
+// ========================================================
+// MODUŁ: CERTYFIKATY I TERMINY
+// ========================================================
+
+const CERT_COLUMNS = [
+    { key: 'passport', label: 'Paszport' },
+    { key: 'trcPol', label: 'TRC POL' },
+    { key: 'trcNdl', label: 'TRC NDL' },
+    { key: 'scc', label: 'SCC' },
+    { key: 'vcaBe', label: 'VCA BE' },
+    { key: 'vca', label: 'VCA' },
+    { key: 'tuv111', label: 'TÜV 111' },
+    { key: 'tuv114', label: 'TÜV 114' },
+    { key: 'tuv135', label: 'TÜV 135' },
+    { key: 'tuv138', label: 'TÜV 138' },
+    { key: 'tuv111_141', label: 'TÜV 111/141' },
+    { key: 'tuv138_136', label: 'TÜV 138/136' }
+];
+
+const INITIAL_CERT_EMPLOYEES = [
+    { lastName: "Abiera", firstName: "Gary" },
+    { lastName: "Acabado", firstName: "Jonathan" },
+    { lastName: "Aculana", firstName: "Butz" },
+    { lastName: "Adora", firstName: "Christopher", passport: "04.04.2028", trcPol: "04.10.2026", scc: "30.01.2028", tuv135: "21.03.2027", tuv111_141: "30.07.2029" },
+    { lastName: "Aguinaldo", firstName: "Romeo Jr.", passport: "27.08.2030", trcPol: "2024", scc: "15.10.2029", tuv138_136: "22.08.2027" },
+    { lastName: "Ahmed", firstName: "Rasel" },
+    { lastName: "Alegarbes", firstName: "Areil", passport: "07.02.2035", trcPol: "31.12.2026", vca: "13.09.2035", tuv138_136: "10.10.2028" },
+    { lastName: "Amador", firstName: "Jonnel", passport: "06.06.2029", trcPol: "18.01.2029", vcaBe: "30.05.2036" },
+    { lastName: "Amin (82)", firstName: "Ruhul" },
+    { lastName: "Amin (83)", firstName: "Ruhul" },
+    { lastName: "Antone", firstName: "Ricardo", passport: "12.03.2030", trcPol: "2024", tuv135: "03.05.2029" },
+    { lastName: "Arevalo", firstName: "Brando", passport: "30.08.2031", trcPol: "17.11.2028", vcaBe: "03.09.2036" },
+    { lastName: "Atillo", firstName: "Rudyleo", passport: "28.04.2032", scc: "03.01.2029" },
+    { lastName: "Azim", firstName: "Mia" },
+    { lastName: "Bacan", firstName: "Renante Prino", passport: "19.08.2030", trcPol: "2025", scc: "06.07.2028", tuv138_136: "04.01.2027" },
+    { lastName: "Bago", firstName: "Rodelio", passport: "25.06.2029", trcPol: "2024", scc: "18.01.2029" },
+    { lastName: "Bascar", firstName: "Arnie", passport: "08.05.2028", trcPol: "26.07.2029" },
+    { lastName: "Bautizado", firstName: "Reyman" },
+    { lastName: "Bermal", firstName: "Jondy" },
+    { lastName: "Bernardino", firstName: "Archie" },
+    { lastName: "Caballes", firstName: "Minard" },
+    { lastName: "Cabugason", firstName: "Mar" },
+    { lastName: "Cepillo", firstName: "Enrico" },
+    { lastName: "Coronel", firstName: "Enrique" },
+    { lastName: "Cortez", firstName: "Glenn" },
+    { lastName: "Dacpano", firstName: "Bonifacio II" },
+    { lastName: "Dalag", firstName: "Leonardo Jr." },
+    { lastName: "Dawana", firstName: "Christian" },
+    { lastName: "Dela Cruz", firstName: "Ronald" },
+    { lastName: "Delavida", firstName: "Dennis" },
+    { lastName: "Dimaculangan", firstName: "Reynante" },
+    { lastName: "Diones", firstName: "Gilbert" },
+    { lastName: "Dipasupil", firstName: "Roland" },
+    { lastName: "Domingo", firstName: "Jose Victor" },
+    { lastName: "Esponga", firstName: "Arnel" },
+    { lastName: "Eviota", firstName: "John" },
+    { lastName: "Fajilagana", firstName: "Rema" },
+    { lastName: "Flores", firstName: "Rosalie" },
+    { lastName: "Gonzales", firstName: "Ernesto Jr" },
+    { lastName: "Haq", firstName: "Ajijul" },
+    { lastName: "Hinayon", firstName: "Celso Jr" },
+    { lastName: "Hoque", firstName: "Shafikul" },
+    { lastName: "Hossain", firstName: "Delowar" },
+    { lastName: "Iniego", firstName: "Livy" },
+    { lastName: "Islam", firstName: "Shariful" },
+    { lastName: "Islam", firstName: "Md Soriful" },
+    { lastName: "Jahid", firstName: "Mohammad" },
+    { lastName: "Jimenez", firstName: "Dennis" },
+    { lastName: "Jolapong", firstName: "Elson Jr" },
+    { lastName: "Kobir", firstName: "Md Shomon" },
+    { lastName: "Laureta", firstName: "Albert" },
+    { lastName: "Lugtu", firstName: "Arden" },
+    { lastName: "Macadat", firstName: "Junry" },
+    { lastName: "Mandaya", firstName: "Brian" },
+    { lastName: "Mango", firstName: "Kimberly Joy" },
+    { lastName: "Mansilungan", firstName: "Eugene" },
+    { lastName: "Margaja", firstName: "Garry" },
+    { lastName: "Matalog", firstName: "Lorenzo" },
+    { lastName: "Miah", firstName: "Md Nowshad" },
+    { lastName: "Molla", firstName: "Kaium" },
+    { lastName: "Ogaya", firstName: "Renante" },
+    { lastName: "Pacay", firstName: "Leo John" },
+    { lastName: "Papa", firstName: "Bernardo" },
+    { lastName: "Perez", firstName: "Roger" },
+    { lastName: "Pilapil", firstName: "Daryl" },
+    { lastName: "Rahman", firstName: "Md Sadikur" },
+    { lastName: "Rana", firstName: "Md Sohel" },
+    { lastName: "Raquiza", firstName: "Erwin" },
+    { lastName: "Sierra", firstName: "Jeson" },
+    { lastName: "Soriano", firstName: "Ariel" },
+    { lastName: "Vequizo", firstName: "Bernabie" },
+    { lastName: "Villanueva", firstName: "Jeffrey" }
+];
+
+let certEmployees = [];
+let certAuditLogs = [];
+let certTableTitle = "Certyfikaty i terminy";
+let currentCertView = 'table';
+let currentCertFilter = 'all';
+let certSearchQuery = '';
+let editingCertEmpId = null;
+let certUnsub = null;
+let certTitleUnsub = null;
+let certAuditUnsub = null;
+
+function canEditCertData(user = currentUser) {
+    const u = (user || '').toLowerCase().trim();
+    return ['admin', 'kasia', 'mirek', 'radek'].includes(u);
+}
+
+function canEditCertTitle(user = currentUser) {
+    return (user || '').toLowerCase().trim() === 'admin';
+}
+
+function parseCertDate(val) {
+    if (!val) return null;
+    const str = String(val).trim();
+    if (!str || str === '-') return null;
+
+    // DD.MM.YYYY
+    const ddmmyyyy = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(str);
+    if (ddmmyyyy) {
+        const d = parseInt(ddmmyyyy[1], 10);
+        const m = parseInt(ddmmyyyy[2], 10) - 1;
+        const y = parseInt(ddmmyyyy[3], 10);
+        return new Date(y, m, d);
+    }
+
+    // YYYY-MM-DD
+    const yyyymmdd = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(str);
+    if (yyyymmdd) {
+        const y = parseInt(yyyymmdd[1], 10);
+        const m = parseInt(yyyymmdd[2], 10) - 1;
+        const d = parseInt(yyyymmdd[3], 10);
+        return new Date(y, m, d);
+    }
+
+    // YYYY only (assume end of year)
+    const yyyy = /^(\d{4})$/.exec(str);
+    if (yyyy) {
+        const y = parseInt(yyyy[1], 10);
+        return new Date(y, 11, 31);
+    }
+
+    const parsed = new Date(str);
+    return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getCertExpiryInfo(val) {
+    if (!val || String(val).trim() === '' || String(val).trim() === '-') {
+        return { status: 'none', daysLeft: null, raw: '-', badge: '', isUrgent: false };
+    }
+
+    const raw = String(val).trim();
+    const target = parseCertDate(raw);
+    if (!target) {
+        return { status: 'none', daysLeft: null, raw: raw, badge: '', isUrgent: false };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    target.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.round((target - today) / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+        const absDays = Math.abs(diffDays);
+        return {
+            status: 'expired',
+            daysLeft: diffDays,
+            raw: raw,
+            badge: absDays === 0 ? 'Dziś wygasa' : `${absDays}d po term.`,
+            isUrgent: true
+        };
+    }
+
+    if (diffDays <= 30) {
+        return {
+            status: 'red',
+            daysLeft: diffDays,
+            raw: raw,
+            badge: diffDays === 0 ? 'Dziś' : `${diffDays}d`,
+            isUrgent: true
+        };
+    }
+
+    if (diffDays <= 60) {
+        return {
+            status: 'yellow',
+            daysLeft: diffDays,
+            raw: raw,
+            badge: `${diffDays}d`,
+            isUrgent: false
+        };
+    }
+
+    if (diffDays <= 90) {
+        return {
+            status: 'green',
+            daysLeft: diffDays,
+            raw: raw,
+            badge: '',
+            isUrgent: false
+        };
+    }
+
+    return {
+        status: 'normal',
+        daysLeft: diffDays,
+        raw: raw,
+        badge: '',
+        isUrgent: false
+    };
+}
+
+function initCertificatesSync() {
+    // Listen for custom table title
+    if (certTitleUnsub) certTitleUnsub();
+    certTitleUnsub = db.collection('settings').doc('certificates').onSnapshot(doc => {
+        if (doc.exists && doc.data() && doc.data().title) {
+            certTableTitle = doc.data().title;
+        } else {
+            certTableTitle = "Certyfikaty i terminy";
+        }
+        const titleEl = document.getElementById('certTableTitleText');
+        if (titleEl) titleEl.textContent = certTableTitle;
+    });
+
+    // Listen for employees collection
+    if (certUnsub) certUnsub();
+    certUnsub = db.collection('cert_employees').orderBy('lastName').onSnapshot(snapshot => {
+        if (snapshot.empty) {
+            // First time setup: seed initial 72 employees
+            seedInitialCertificates();
+            return;
+        }
+
+        certEmployees = [];
+        snapshot.forEach(doc => {
+            certEmployees.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Compute urgent items (<= 30 days)
+        const urgentItems = getUrgentCertificates();
+        const urgentCount = urgentItems.length;
+
+        // Update topbar alert badge
+        const topBadge = document.getElementById('certTopAlertBadge');
+        if (topBadge) {
+            if (urgentCount > 0) {
+                topBadge.textContent = urgentCount;
+                topBadge.style.display = 'inline-block';
+            } else {
+                topBadge.style.display = 'none';
+            }
+        }
+
+        // Check startup notification
+        checkStartupCertAlert(urgentItems);
+
+        // Re-render if modal open
+        const modal = document.getElementById('certModal');
+        if (modal && modal.classList.contains('open')) {
+            renderCertificates();
+        }
+    }, err => {
+        console.error("Błąd synchronizacji certyfikatów:", err);
+    });
+
+    // Listen for audit if admin
+    if (currentUser === 'Admin') {
+        if (certAuditUnsub) certAuditUnsub();
+        certAuditUnsub = db.collection('cert_audit').orderBy('timestamp', 'desc').limit(100).onSnapshot(snapshot => {
+            certAuditLogs = [];
+            snapshot.forEach(doc => {
+                certAuditLogs.push({ id: doc.id, ...doc.data() });
+            });
+            if (currentAdminTab === 'certAudit') {
+                renderAdminCertAudit();
+            }
+        });
+    }
+}
+
+async function seedInitialCertificates() {
+    console.log("Inicjalizacja domyślnej bazy pracowników certyfikatów...");
+    try {
+        const batch = db.batch();
+        const now = firebase.firestore.FieldValue.serverTimestamp();
+
+        INITIAL_CERT_EMPLOYEES.forEach((emp, index) => {
+            const docRef = db.collection('cert_employees').doc();
+            batch.set(docRef, {
+                ...emp,
+                addedBy: 'System',
+                createdAt: now,
+                order: index + 1
+            });
+        });
+
+        await batch.commit();
+
+        // Seed audit log
+        db.collection('cert_audit').add({
+            action: 'seed',
+            employeeName: 'Wgrano 72 pracowników z arkusza',
+            user: 'System',
+            timestamp: now
+        });
+
+        console.log("Pomyślnie zainicjowano bazę certyfikatów!");
+    } catch (e) {
+        console.error("Błąd seedowania bazy certyfikatów:", e);
+    }
+}
+
+function getUrgentCertificates() {
+    const results = [];
+    certEmployees.forEach(emp => {
+        CERT_COLUMNS.forEach(col => {
+            const val = emp[col.key];
+            if (val) {
+                const info = getCertExpiryInfo(val);
+                if (info.isUrgent) {
+                    results.push({
+                        empId: emp.id,
+                        empName: `${emp.lastName} ${emp.firstName}`,
+                        docKey: col.key,
+                        docLabel: col.label,
+                        val: info.raw,
+                        daysLeft: info.daysLeft,
+                        status: info.status,
+                        badge: info.badge
+                    });
+                }
+            }
+        });
+    });
+
+    // Sort by days left ascending (most urgent first)
+    results.sort((a, b) => a.daysLeft - b.daysLeft);
+    return results;
+}
+
+function checkStartupCertAlert(urgentItems) {
+    if (!urgentItems || urgentItems.length === 0) return;
+    if (sessionStorage.getItem('cert_startup_dismissed') === 'true') return;
+
+    const alertBox = document.getElementById('certStartupAlert');
+    const msgEl = document.getElementById('certStartupAlertMsg');
+    if (alertBox && msgEl) {
+        const count = urgentItems.length;
+        msgEl.textContent = `Uwaga! Masz ${count} ${count === 1 ? 'dokument/certyfikat wygasający' : count < 5 ? 'dokumenty/certyfikaty wygasające' : 'dokumentów/certyfikatów wygasających'} w ciągu 30 dni!`;
+        alertBox.style.display = 'flex';
+    }
+}
+
+function closeCertStartupAlert() {
+    sessionStorage.setItem('cert_startup_dismissed', 'true');
+    const alertBox = document.getElementById('certStartupAlert');
+    if (alertBox) alertBox.style.display = 'none';
+}
+
+// PIN MODAL
+function handleOpenCertificates() {
+    if (sessionStorage.getItem('cert_pin_unlocked') === 'true') {
+        openCertModal();
+    } else {
+        openCertPinModal();
+    }
+}
+
+function openCertPinModal() {
+    const modal = document.getElementById('certPinModal');
+    const pinInput = document.getElementById('certPinInput');
+    const pinErr = document.getElementById('certPinErr');
+    if (pinErr) pinErr.style.display = 'none';
+    if (pinInput) {
+        pinInput.value = '';
+        setTimeout(() => pinInput.focus(), 150);
+    }
+    if (modal) modal.classList.add('open');
+}
+
+function closeCertPinModal() {
+    const modal = document.getElementById('certPinModal');
+    if (modal) modal.classList.remove('open');
+}
+
+function handleCertPinKey(e) {
+    if (e.key === 'Enter') {
+        submitCertPin();
+    }
+}
+
+function submitCertPin() {
+    const pinInput = document.getElementById('certPinInput');
+    const pinErr = document.getElementById('certPinErr');
+    const box = document.querySelector('.cert-pin-box');
+    const pin = (pinInput ? pinInput.value : '').trim();
+
+    if (pin === '1410') {
+        sessionStorage.setItem('cert_pin_unlocked', 'true');
+        closeCertPinModal();
+        openCertModal();
+    } else {
+        if (pinErr) pinErr.style.display = 'block';
+        if (box) {
+            box.classList.add('shake');
+            setTimeout(() => box.classList.remove('shake'), 400);
+        }
+        if (pinInput) {
+            pinInput.value = '';
+            pinInput.focus();
+        }
+    }
+}
+
+// MAIN MODAL
+function openCertModal() {
+    const modal = document.getElementById('certModal');
+    if (!modal) return;
+
+    // Permissions visibility
+    const canEdit = canEditCertData();
+    const canTitle = canEditCertTitle();
+
+    const titleEditBtn = document.getElementById('certEditTitleBtn');
+    if (titleEditBtn) titleEditBtn.style.display = canTitle ? 'inline-block' : 'none';
+
+    const addEmpBtn = document.getElementById('certAddEmpBtn');
+    if (addEmpBtn) addEmpBtn.style.display = canEdit ? 'inline-block' : 'none';
+
+    const thActions = document.getElementById('certThActions');
+    if (thActions) thActions.style.display = canEdit ? 'table-cell' : 'none';
+
+    const titleEl = document.getElementById('certTableTitleText');
+    if (titleEl) titleEl.textContent = certTableTitle;
+
+    modal.classList.add('open');
+    renderCertificates();
+}
+
+function closeCertModal() {
+    const modal = document.getElementById('certModal');
+    if (modal) modal.classList.remove('open');
+}
+
+function switchCertView(view) {
+    currentCertView = view;
+    const tabTableBtn = document.getElementById('certTabTableViewBtn');
+    const tabRemBtn = document.getElementById('certTabRemindersViewBtn');
+    const tableView = document.getElementById('certTableView');
+    const remView = document.getElementById('certRemindersView');
+    const pills = document.getElementById('certStatusPills');
+
+    if (view === 'table') {
+        if (tabTableBtn) tabTableBtn.classList.add('active');
+        if (tabRemBtn) tabRemBtn.classList.remove('active');
+        if (tableView) tableView.style.display = 'flex';
+        if (remView) remView.style.display = 'none';
+        if (pills) pills.style.display = 'flex';
+    } else {
+        if (tabTableBtn) tabTableBtn.classList.remove('active');
+        if (tabRemBtn) tabRemBtn.classList.add('active');
+        if (tableView) tableView.style.display = 'none';
+        if (remView) remView.style.display = 'flex';
+        if (pills) pills.style.display = 'none';
+    }
+    renderCertificates();
+}
+
+function setCertFilter(filter) {
+    currentCertFilter = filter;
+    ['all', 'red', 'yellow', 'green'].forEach(f => {
+        const btn = document.getElementById('certPill' + f.charAt(0).toUpperCase() + f.slice(1));
+        if (btn) {
+            if (f === filter) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+    });
+    renderCertificates();
+}
+
+function handleCertSearch(val) {
+    certSearchQuery = (val || '').trim().toLowerCase();
+    renderCertificates();
+}
+
+function clearCertSearch() {
+    const input = document.getElementById('certSearchInput');
+    if (input) input.value = '';
+    certSearchQuery = '';
+    renderCertificates();
+}
+
+function renderCertificates() {
+    const canEdit = canEditCertData();
+    const urgentItems = getUrgentCertificates();
+
+    // Counts across all data
+    let totalRed = 0;
+    let totalYellow = 0;
+    let totalGreen = 0;
+
+    certEmployees.forEach(emp => {
+        CERT_COLUMNS.forEach(col => {
+            const val = emp[col.key];
+            if (val) {
+                const info = getCertExpiryInfo(val);
+                if (info.status === 'red' || info.status === 'expired') totalRed++;
+                else if (info.status === 'yellow') totalYellow++;
+                else if (info.status === 'green') totalGreen++;
+            }
+        });
+    });
+
+    // Update pill counts
+    const cAll = document.getElementById('certPillAllCount');
+    const cRed = document.getElementById('certPillRedCount');
+    const cYellow = document.getElementById('certPillYellowCount');
+    const cGreen = document.getElementById('certPillGreenCount');
+    const totalBadge = document.getElementById('certTotalCountBadge');
+    const remBadge = document.getElementById('certRemindersCountBadge');
+
+    if (cAll) cAll.textContent = certEmployees.length;
+    if (cRed) cRed.textContent = totalRed;
+    if (cYellow) cYellow.textContent = totalYellow;
+    if (cGreen) cGreen.textContent = totalGreen;
+    if (totalBadge) totalBadge.textContent = certEmployees.length;
+    if (remBadge) remBadge.textContent = urgentItems.length;
+
+    if (currentCertView === 'reminders') {
+        renderCertReminders(urgentItems);
+        return;
+    }
+
+    // Filter employees for Table View
+    const q = certSearchQuery;
+    const filter = currentCertFilter;
+
+    let filtered = certEmployees.filter(emp => {
+        // Query search
+        if (q) {
+            const fullName = `${emp.lastName || ''} ${emp.firstName || ''}`.toLowerCase();
+            const matchesName = fullName.includes(q);
+            const matchesDoc = CERT_COLUMNS.some(col => (emp[col.key] || '').toLowerCase().includes(q));
+            if (!matchesName && !matchesDoc) return false;
+        }
+
+        // Status filter
+        if (filter !== 'all') {
+            const hasMatchingStatus = CERT_COLUMNS.some(col => {
+                const val = emp[col.key];
+                if (!val) return false;
+                const info = getCertExpiryInfo(val);
+                if (filter === 'red') return info.status === 'red' || info.status === 'expired';
+                if (filter === 'yellow') return info.status === 'yellow';
+                if (filter === 'green') return info.status === 'green';
+                return false;
+            });
+            if (!hasMatchingStatus) return false;
+        }
+
+        return true;
+    });
+
+    const tbody = document.getElementById('certTableBody');
+    if (!tbody) return;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="${CERT_COLUMNS.length + 4}" style="text-align:center; padding:30px; color:var(--muted);">
+                    🔍 Brak pracowników spełniających wybrane kryteria.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map((emp, index) => {
+        const cellsHtml = CERT_COLUMNS.map(col => {
+            const val = emp[col.key] || '';
+            const info = getCertExpiryInfo(val);
+            let cls = `cert-date-chip status-${info.status}`;
+            if (canEdit) cls += ' clickable';
+
+            const badgeHtml = info.badge ? `<span class="cert-countdown-badge">${info.badge}</span>` : '';
+            const clickHandler = canEdit ? `onclick="openEditEmployeeModal('${emp.id}')" title="Kliknij, aby edytować dane pracownika"` : '';
+
+            return `
+                <td>
+                    <span class="${cls}" ${clickHandler}>
+                        ${escapeHtml(info.raw)}
+                        ${badgeHtml}
+                    </span>
+                </td>
+            `;
+        }).join('');
+
+        const actionsHtml = canEdit ? `
+            <td style="text-align:center;">
+                <button class="act-btn edit" onclick="openEditEmployeeModal('${emp.id}')" title="Edytuj">✏️</button>
+                <button class="act-btn del" onclick="deleteCertEmployee('${emp.id}')" title="Usuń pracownika">🗑️</button>
+            </td>
+        ` : '';
+
+        return `
+            <tr>
+                <td class="col-sticky col-lp">${index + 1}</td>
+                <td class="col-sticky col-name">${escapeHtml(emp.lastName || '')}</td>
+                <td class="col-sticky col-fname">${escapeHtml(emp.firstName || '')}</td>
+                ${cellsHtml}
+                ${actionsHtml}
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderCertReminders(urgentItems) {
+    const list = document.getElementById('certRemindersList');
+    if (!list) return;
+
+    if (!urgentItems || urgentItems.length === 0) {
+        list.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align:center; padding:40px 20px; color:var(--muted);">
+                🎉 Brak dokumentów wygasających w ciągu najbliższego miesiąca! Wszystko jest aktualne.
+            </div>
+        `;
+        return;
+    }
+
+    const canEdit = canEditCertData();
+
+    list.innerHTML = urgentItems.map(item => {
+        const isExp = item.status === 'expired';
+        const cardCls = isExp ? 'cert-reminder-card status-expired' : 'cert-reminder-card';
+        const badgeTxt = isExp ? '⚠️ Po terminie' : '⏳ Wygasa wkrótce';
+
+        return `
+            <div class="${cardCls}">
+                <div class="cert-rem-header">
+                    <div class="cert-rem-name">👤 ${escapeHtml(item.empName)}</div>
+                    <span class="cert-rem-badge">${badgeTxt} (${item.badge})</span>
+                </div>
+                <div class="cert-rem-body">
+                    <div class="cert-rem-doc">📄 ${escapeHtml(item.docLabel)}</div>
+                    <div class="cert-rem-date">${escapeHtml(item.val)}</div>
+                </div>
+                <div class="cert-rem-footer">
+                    <span>${isExp ? `Przeterminowane o ${Math.abs(item.daysLeft)} dni` : `Pozostało dni: ${item.daysLeft}`}</span>
+                    ${canEdit ? `<button class="act-btn edit" onclick="openEditEmployeeModal('${item.empId}')" style="font-size:11px;">✏️ Aktualizuj datę</button>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ADD / EDIT EMPLOYEE
+function openAddEmployeeModal() {
+    if (!canEditCertData()) {
+        alert("Brak uprawnień do dodawania pracowników.");
+        return;
+    }
+    editingCertEmpId = null;
+    document.getElementById('certEmpModalTitle').textContent = '➕ Dodaj pracownika';
+    document.getElementById('certEmpLastName').value = '';
+    document.getElementById('certEmpFirstName').value = '';
+    CERT_COLUMNS.forEach(col => {
+        const el = document.getElementById('certEmp' + col.key.charAt(0).toUpperCase() + col.key.slice(1));
+        if (el) el.value = '';
+    });
+    const err = document.getElementById('certEmpFormErr');
+    if (err) err.style.display = 'none';
+
+    document.getElementById('certEmployeeModal').classList.add('open');
+}
+
+function openEditEmployeeModal(empId) {
+    if (!canEditCertData()) {
+        alert("Brak uprawnień do edycji pracowników.");
+        return;
+    }
+    const emp = certEmployees.find(e => e.id === empId);
+    if (!emp) return;
+
+    editingCertEmpId = empId;
+    document.getElementById('certEmpModalTitle').textContent = `✏️ Edycja: ${emp.lastName} ${emp.firstName}`;
+    document.getElementById('certEmpLastName').value = emp.lastName || '';
+    document.getElementById('certEmpFirstName').value = emp.firstName || '';
+
+    CERT_COLUMNS.forEach(col => {
+        const el = document.getElementById('certEmp' + col.key.charAt(0).toUpperCase() + col.key.slice(1));
+        if (el) el.value = emp[col.key] || '';
+    });
+
+    const err = document.getElementById('certEmpFormErr');
+    if (err) err.style.display = 'none';
+
+    document.getElementById('certEmployeeModal').classList.add('open');
+}
+
+function closeCertEmployeeModal() {
+    editingCertEmpId = null;
+    document.getElementById('certEmployeeModal').classList.remove('open');
+}
+
+async function saveCertEmployee() {
+    if (!canEditCertData()) return;
+
+    const lastName = document.getElementById('certEmpLastName').value.trim();
+    const firstName = document.getElementById('certEmpFirstName').value.trim();
+    const err = document.getElementById('certEmpFormErr');
+
+    if (!lastName || !firstName) {
+        if (err) {
+            err.textContent = 'Podaj imię i nazwisko pracownika.';
+            err.style.display = 'block';
+        }
+        return;
+    }
+
+    const empData = {
+        lastName,
+        firstName,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: currentUser
+    };
+
+    CERT_COLUMNS.forEach(col => {
+        const el = document.getElementById('certEmp' + col.key.charAt(0).toUpperCase() + col.key.slice(1));
+        if (el) empData[col.key] = el.value.trim();
+    });
+
+    try {
+        if (editingCertEmpId) {
+            // Update
+            await db.collection('cert_employees').doc(editingCertEmpId).update(empData);
+            logActivity('Zaktualizowano pracownika w certyfikatach', `${lastName} ${firstName}`);
+        } else {
+            // New employee
+            empData.addedBy = currentUser;
+            empData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            empData.order = certEmployees.length + 1;
+
+            const docRef = await db.collection('cert_employees').add(empData);
+
+            // Add dedicated audit record for admin
+            await db.collection('cert_audit').add({
+                action: 'add_employee',
+                employeeId: docRef.id,
+                employeeName: `${lastName} ${firstName}`,
+                user: currentUser,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            logActivity('Dodano pracownika do certyfikatów', `${lastName} ${firstName}`);
+        }
+
+        closeCertEmployeeModal();
+    } catch (e) {
+        if (err) {
+            err.textContent = 'Błąd zapisu: ' + e.message;
+            err.style.display = 'block';
+        }
+    }
+}
+
+async function deleteCertEmployee(empId) {
+    if (!canEditCertData()) return;
+    const emp = certEmployees.find(e => e.id === empId);
+    if (!emp) return;
+
+    if (!confirm(`Czy na pewno chcesz usunąć pracownika ${emp.lastName} ${emp.firstName} z listy certyfikatów?`)) {
+        return;
+    }
+
+    try {
+        await db.collection('cert_employees').doc(empId).delete();
+
+        // Audit entry
+        db.collection('cert_audit').add({
+            action: 'delete_employee',
+            employeeName: `${emp.lastName} ${emp.firstName}`,
+            user: currentUser,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        logActivity('Usunięto pracownika z certyfikatów', `${emp.lastName} ${emp.firstName}`);
+    } catch (e) {
+        alert("Błąd usuwania: " + e.message);
+    }
+}
+
+// EDIT TITLE MODAL (ADMIN)
+function openEditTableTitle() {
+    if (!canEditCertTitle()) return;
+    const input = document.getElementById('certNewTitleInput');
+    if (input) input.value = certTableTitle;
+    document.getElementById('certEditTitleModal').classList.add('open');
+}
+
+function closeEditTableTitle() {
+    document.getElementById('certEditTitleModal').classList.remove('open');
+}
+
+async function saveTableTitle() {
+    if (!canEditCertTitle()) return;
+    const input = document.getElementById('certNewTitleInput');
+    const newTitle = (input ? input.value : '').trim();
+    if (!newTitle) return;
+
+    try {
+        await db.collection('settings').doc('certificates').set({
+            title: newTitle,
+            updatedBy: currentUser,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        certTableTitle = newTitle;
+        const titleEl = document.getElementById('certTableTitleText');
+        if (titleEl) titleEl.textContent = newTitle;
+
+        logActivity('Zmieniono nazwę tabeli certyfikatów', newTitle);
+        closeEditTableTitle();
+    } catch (e) {
+        alert("Błąd zapisu nazwy: " + e.message);
+    }
+}
+
+// ADMIN CHANGE TRACKING TAB
+function renderAdminCertAudit() {
+    const container = document.getElementById('adminCertAuditList');
+    if (!container) return;
+
+    if (currentUser !== 'Admin') {
+        container.innerHTML = '<div style="color:var(--danger); padding:10px;">Brak uprawnień.</div>';
+        return;
+    }
+
+    if (!certAuditLogs || certAuditLogs.length === 0) {
+        container.innerHTML = '<div style="color:var(--muted); padding:20px; text-align:center;">Brak wpisów w rejestrze dodanych pracowników.</div>';
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="admin-cert-audit-wrap">
+            <h3 style="margin-bottom:12px; color:var(--text); font-size:14px;">📜 Rejestr dodanych i zmodyfikowanych pracowników w Certyfikatach</h3>
+            ${certAuditLogs.map(log => {
+                const timeStr = log.timestamp ? fmtTime(log.timestamp.toDate()) : 'Brak daty';
+                let actionBadge = '';
+                if (log.action === 'add_employee') {
+                    actionBadge = `<span style="background:rgba(16,185,129,0.15); color:var(--success); border:1px solid rgba(16,185,129,0.3); padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px;">➕ Dodano pracownika</span>`;
+                } else if (log.action === 'delete_employee') {
+                    actionBadge = `<span style="background:rgba(239,68,68,0.15); color:var(--danger); border:1px solid rgba(239,68,68,0.3); padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px;">🗑️ Usunięto</span>`;
+                } else {
+                    actionBadge = `<span style="background:rgba(59,130,246,0.15); color:var(--blue); border:1px solid rgba(59,130,246,0.3); padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px;">ℹ️ Inicjalizacja</span>`;
+                }
+
+                return `
+                    <div class="admin-cert-audit-item">
+                        <div>
+                            ${actionBadge}
+                            <span class="admin-cert-audit-emp" style="margin-left:8px;">${escapeHtml(log.employeeName || 'Nieznany')}</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <span class="admin-cert-audit-user">👤 ${escapeHtml(log.user || 'System')}</span>
+                            <span class="admin-cert-audit-date">🕒 ${timeStr}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+// EXPORT TO EXCEL
+async function exportCertificatesToExcel() {
+    if (typeof ExcelJS === 'undefined') {
+        alert("Biblioteka ExcelJS nie została jeszcze załadowana.");
+        return;
+    }
+
+    try {
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Certyfikaty');
+
+        // Title row
+        sheet.addRow([certTableTitle]);
+        sheet.mergeCells('A1:O1');
+        const titleRow = sheet.getRow(1);
+        titleRow.font = { size: 14, bold: true, color: { argb: 'FFE8621A' } };
+        titleRow.alignment = { vertical: 'middle', horizontal: 'center' };
+        titleRow.height = 30;
+
+        // Header row
+        const headers = ['Lp.', 'Nazwisko', 'Imię', ...CERT_COLUMNS.map(c => c.label)];
+        const headerRow = sheet.addRow(headers);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.height = 24;
+        headerRow.eachCell(cell => {
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF1E293B' }
+            };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+        });
+
+        // Data rows
+        certEmployees.forEach((emp, idx) => {
+            const rowData = [
+                idx + 1,
+                emp.lastName || '',
+                emp.firstName || '',
+                ...CERT_COLUMNS.map(col => emp[col.key] || '')
+            ];
+
+            const row = sheet.addRow(rowData);
+            row.height = 20;
+
+            row.eachCell((cell, colNumber) => {
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+                };
+
+                if (colNumber > 3) {
+                    // Document date cell formatting
+                    const val = cell.value;
+                    const info = getCertExpiryInfo(val);
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+                    if (info.status === 'red' || info.status === 'expired') {
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FFFEE2E2' }
+                        };
+                        cell.font = { bold: true, color: { argb: 'FFDC2626' } };
+                    } else if (info.status === 'yellow') {
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FFFEF3C7' }
+                        };
+                        cell.font = { bold: true, color: { argb: 'FFB45309' } };
+                    } else if (info.status === 'green') {
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FFD1FAE5' }
+                        };
+                        cell.font = { bold: true, color: { argb: 'FF059669' } };
+                    }
+                } else {
+                    cell.alignment = { vertical: 'middle', horizontal: colNumber === 1 ? 'center' : 'left' };
+                }
+            });
+        });
+
+        // Set column widths
+        sheet.columns.forEach((column, i) => {
+            if (i === 0) column.width = 6;
+            else if (i === 1) column.width = 18;
+            else if (i === 2) column.width = 16;
+            else column.width = 14;
+        });
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `VanStev_Certyfikaty_${todayStr}.xlsx`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    } catch (e) {
+        alert("Błąd eksportu do pliku Excel: " + e.message);
+    }
 }

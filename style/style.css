@@ -2339,3 +2339,786 @@ body.light-mode .caregiver-badge {
     align-items: center;
     gap: 8px;
 }
+
+/* ========================================================
+   MODUŁ: CERTYFIKATY I TERMINY
+   ======================================================== */
+
+/* Topbar button & Alert Badge */
+.tb-cert-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, rgba(234, 88, 12, 0.12), rgba(249, 115, 22, 0.18));
+    border: 1px solid rgba(234, 88, 12, 0.35);
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    position: relative;
+}
+
+.tb-cert-btn:hover {
+    background: linear-gradient(135deg, rgba(234, 88, 12, 0.2), rgba(249, 115, 22, 0.3));
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.2);
+}
+
+.cert-btn-icon {
+    font-size: 14px;
+}
+
+.cert-alert-badge {
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 12px;
+    min-width: 18px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+    animation: certPulse 2s infinite ease-in-out;
+}
+
+@keyframes certPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); box-shadow: 0 0 10px rgba(239, 68, 68, 0.6); }
+}
+
+/* PIN Modal */
+.cert-pin-box {
+    width: 360px;
+    max-width: 90%;
+    padding: 28px;
+    text-align: center;
+}
+
+.cert-pin-inputs-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 10px 0;
+}
+
+.cert-pin-input {
+    width: 180px;
+    height: 48px;
+    font-size: 26px;
+    letter-spacing: 12px;
+    text-align: center;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-weight: 700;
+    transition: all 0.2s;
+}
+
+.cert-pin-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.15);
+}
+
+.cert-pin-box.shake {
+    animation: pinShake 0.4s ease-in-out;
+}
+
+@keyframes pinShake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-8px); }
+    40%, 80% { transform: translateX(8px); }
+}
+
+/* Main Certificates Modal */
+.cert-main-box {
+    width: 1380px;
+    max-width: 98vw;
+    height: 92vh;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    background: var(--card);
+}
+
+.cert-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 14px;
+    flex-shrink: 0;
+}
+
+.cert-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cert-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cert-main-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+}
+
+.cert-title-edit-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 6px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--muted);
+}
+
+.cert-title-edit-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(234, 88, 12, 0.08);
+}
+
+.cert-subtitle {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.cert-header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cert-action-btn.excel-btn {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25);
+}
+
+.cert-action-btn.excel-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(16, 185, 129, 0.35);
+}
+
+/* Toolbar & Tabs */
+.cert-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    gap: 12px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.cert-nav-tabs {
+    display: flex;
+    gap: 6px;
+    background: var(--card2);
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+
+.cert-nav-tab {
+    padding: 6px 14px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cert-nav-tab.active {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.25);
+}
+
+.cert-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    justify-content: flex-end;
+}
+
+.cert-search-box {
+    display: flex;
+    align-items: center;
+    position: relative;
+    max-width: 320px;
+    width: 100%;
+}
+
+.cert-search-box input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 28px 7px 30px;
+    font-size: 12px;
+    color: var(--text);
+    transition: all 0.2s;
+}
+
+.cert-search-box input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
+}
+
+.cert-search-icon {
+    position: absolute;
+    left: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    pointer-events: none;
+}
+
+.cert-search-clear {
+    position: absolute;
+    right: 8px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.cert-add-emp-btn {
+    padding: 7px 14px;
+    font-size: 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Status Filter Pills */
+.cert-status-pills {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.cert-pill {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cert-pill:hover {
+    border-color: var(--text);
+    color: var(--text);
+}
+
+.cert-pill.active {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+}
+
+.cert-pill.pill-red.active {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+.cert-pill.pill-yellow.active {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    border-color: #f59e0b;
+}
+
+.cert-pill.pill-green.active {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+    border-color: var(--success);
+}
+
+/* Table container & scroll */
+.cert-view-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.cert-table-scroll-wrap {
+    flex: 1;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    position: relative;
+}
+
+.cert-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.cert-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--card2);
+    color: var(--text);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.4px;
+    padding: 10px 12px;
+    border-bottom: 2px solid var(--border);
+    border-right: 1px solid var(--border);
+    text-align: center;
+}
+
+.cert-table thead th.col-lp,
+.cert-table thead th.col-name,
+.cert-table thead th.col-fname {
+    text-align: left;
+}
+
+/* Sticky First 3 Columns */
+.cert-table th.col-sticky.col-lp,
+.cert-table td.col-sticky.col-lp {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background: var(--card);
+    width: 44px;
+    min-width: 44px;
+    text-align: center;
+}
+
+.cert-table thead th.col-sticky.col-lp {
+    z-index: 15;
+    background: var(--card2);
+}
+
+.cert-table th.col-sticky.col-name,
+.cert-table td.col-sticky.col-name {
+    position: sticky;
+    left: 44px;
+    z-index: 5;
+    background: var(--card);
+    min-width: 140px;
+    font-weight: 600;
+}
+
+.cert-table thead th.col-sticky.col-name {
+    z-index: 15;
+    background: var(--card2);
+}
+
+.cert-table th.col-sticky.col-fname,
+.cert-table td.col-sticky.col-fname {
+    position: sticky;
+    left: 184px;
+    z-index: 5;
+    background: var(--card);
+    min-width: 120px;
+    border-right: 2px solid var(--border);
+}
+
+.cert-table thead th.col-sticky.col-fname {
+    z-index: 15;
+    background: var(--card2);
+    border-right: 2px solid var(--border);
+}
+
+.cert-table tbody tr {
+    transition: background 0.15s;
+}
+
+.cert-table tbody tr:hover td {
+    background-color: rgba(234, 88, 12, 0.04);
+}
+
+.cert-table tbody tr:hover td.col-sticky {
+    background-color: var(--card2);
+}
+
+.cert-table tbody td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    text-align: center;
+    color: var(--text);
+}
+
+.cert-table tbody td.col-sticky.col-name,
+.cert-table tbody td.col-sticky.col-fname {
+    text-align: left;
+}
+
+/* Statuses inside cells */
+.cert-date-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: inherit;
+    transition: transform 0.1s;
+    min-width: 90px;
+}
+
+.cert-date-chip.clickable {
+    cursor: pointer;
+}
+
+.cert-date-chip.clickable:hover {
+    transform: scale(1.04);
+}
+
+.cert-date-chip.status-none {
+    color: var(--muted);
+    opacity: 0.6;
+}
+
+/* Green: 61 - 90 days */
+.cert-date-chip.status-green {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+/* Yellow: 31 - 60 days + Countdown */
+.cert-date-chip.status-yellow {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+/* Red: <= 30 days or expired + Countdown */
+.cert-date-chip.status-red {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.45);
+    font-weight: 700;
+}
+
+.cert-date-chip.status-expired {
+    background: rgba(239, 68, 68, 0.25);
+    color: #dc2626;
+    border: 1.5px solid #dc2626;
+    font-weight: 800;
+}
+
+.cert-countdown-badge {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    margin-left: 2px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.status-yellow .cert-countdown-badge {
+    background: rgba(245, 158, 11, 0.25);
+    color: #b45309;
+}
+
+.status-red .cert-countdown-badge,
+.status-expired .cert-countdown-badge {
+    background: rgba(239, 68, 68, 0.3);
+    color: #b91c1c;
+}
+
+/* Cell Legend */
+.cert-table-legend {
+    display: flex;
+    gap: 12px;
+    padding: 10px 4px 0 4px;
+    font-size: 11px;
+    color: var(--muted);
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.legend-chip {
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--card2);
+}
+
+/* Reminders View */
+.cert-reminders-header {
+    margin-bottom: 12px;
+    padding: 4px;
+}
+
+.cert-reminders-header h3 {
+    margin: 0 0 4px 0;
+    color: var(--text);
+    font-size: 16px;
+}
+
+.cert-reminders-header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.cert-reminders-list {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 12px;
+    padding: 4px;
+}
+
+.cert-reminder-card {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-left: 5px solid var(--danger);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    transition: transform 0.15s;
+}
+
+.cert-reminder-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+}
+
+.cert-reminder-card.status-expired {
+    border-left-color: #dc2626;
+    background: rgba(239, 68, 68, 0.04);
+}
+
+.cert-rem-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cert-rem-name {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.cert-rem-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+}
+
+.cert-rem-body {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.cert-rem-doc {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.cert-rem-date {
+    font-weight: 700;
+    color: var(--danger);
+}
+
+.cert-rem-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+/* Add / Edit Employee Modal Form */
+.cert-emp-modal-box {
+    width: 580px;
+    max-width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.cert-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.cert-form-section-title {
+    grid-column: 1 / -1;
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--accent);
+    margin-top: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Startup Alert Toast */
+.cert-startup-alert {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 99999;
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    color: #fff;
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    border-radius: 14px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 20px rgba(239, 68, 68, 0.2);
+    cursor: pointer;
+    animation: slideInUp 0.4s ease-out;
+    max-width: 420px;
+}
+
+@keyframes slideInUp {
+    from { transform: translateY(40px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.cert-startup-alert:hover {
+    transform: translateY(-2px);
+    border-color: var(--danger);
+}
+
+.cert-startup-alert-icon {
+    font-size: 26px;
+    animation: certPulse 2s infinite ease-in-out;
+}
+
+.cert-startup-alert-content {
+    flex: 1;
+}
+
+.cert-startup-alert-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: #f87171;
+    margin-bottom: 2px;
+}
+
+.cert-startup-alert-msg {
+    font-size: 11px;
+    color: #cbd5e1;
+    line-height: 1.4;
+}
+
+.cert-startup-alert-btn {
+    background: var(--danger);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.cert-startup-alert-btn:hover {
+    background: #dc2626;
+    transform: scale(1.05);
+}
+
+.cert-startup-alert-close {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.cert-startup-alert-close:hover {
+    color: #fff;
+}
+
+/* Admin Audit Tab */
+.admin-cert-audit-wrap {
+    padding: 6px 0;
+}
+
+.admin-cert-audit-item {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+}
+
+.admin-cert-audit-user {
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.admin-cert-audit-emp {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.admin-cert-audit-date {
+    font-size: 11px;
+    color: var(--muted);
+}

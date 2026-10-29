@@ -10,7 +10,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@800;900&family=Poppins:wght@500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style/style.css?v=1.3.3">
+    <link rel="stylesheet" href="style/style.css?v=1.3.4">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -341,8 +341,13 @@
     <!-- ===== MAIN APP ===== -->
     <div id="app">
         <div class="topbar">
-            <div class="tb-logo">
+            <div class="tb-logo" style="display:flex; align-items:center; gap:12px;">
                 <span class="logo-text tb-logo-text">VAN STEV</span>
+                <button class="tb-cert-btn" id="tbCertBtn" onclick="handleOpenCertificates()" title="Certyfikaty i terminy ważności">
+                    <span class="cert-btn-icon">📜</span>
+                    <span class="cert-btn-text">Certyfikaty i terminy</span>
+                    <span class="cert-alert-badge" id="certTopAlertBadge" style="display:none;">0</span>
+                </button>
             </div>
             <div class="tb-search">
                 <div class="search-container">
@@ -688,10 +693,12 @@
             <div class="admin-nav-tabs">
                 <button class="admin-tab-btn active" id="adminTabUsersBtn" onclick="switchAdminTab('users')">👥 Użytkownicy i Aktywność</button>
                 <button class="admin-tab-btn" id="adminTabNotesBtn" onclick="switchAdminTab('notes')">📝 Wszystkie Notatki (<span id="adminTotalNotesCount">0</span>)</button>
+                <button class="admin-tab-btn" id="adminTabCertAuditBtn" onclick="switchAdminTab('certAudit')">📜 Rejestr Certyfikatów</button>
             </div>
             <div class="admin-tab-content-wrap">
                 <div id="adminUserList" style="display:block;"></div>
                 <div id="adminNotesList" style="display:none;"></div>
+                <div id="adminCertAuditList" style="display:none;"></div>
             </div>
             <div class="btn-row" style="margin-top:16px; flex-shrink:0;">
                 <button class="btn-secondary" onclick="closeAdmin()" style="width:100%;">Zamknij</button>
@@ -699,11 +706,237 @@
         </div>
     </div>
 
+    <!-- ===== CERTIFICATES PIN MODAL ===== -->
+    <div id="certPinModal" class="modal-overlay">
+        <div class="modal-box cert-pin-box">
+            <div class="modal-title" style="justify-content:center; border-bottom:none; margin-bottom:6px;">
+                <span style="font-size:32px;">🔐</span>
+            </div>
+            <h3 style="margin-bottom:6px; font-size:18px; text-align:center;">Certyfikaty i terminy</h3>
+            <p style="font-size:12px; color:var(--muted); text-align:center; margin-bottom:18px;">
+                Wprowadź 4-cyfrowy kod PIN, aby uzyskać dostęp
+            </p>
+            <div class="cert-pin-inputs-wrap">
+                <input type="password" maxlength="4" id="certPinInput" class="cert-pin-input" placeholder="••••" autocomplete="off" inputmode="numeric" onkeydown="handleCertPinKey(event)" />
+            </div>
+            <div class="cert-pin-err" id="certPinErr" style="display:none; color:var(--danger); font-size:12px; text-align:center; margin-top:8px;">
+                ❌ Nieprawidłowy kod PIN. Spróbuj ponownie.
+            </div>
+            <div class="btn-row" style="margin-top:20px;">
+                <button class="btn-primary" onclick="submitCertPin()" style="flex:1;">Odblokuj</button>
+                <button class="btn-secondary" onclick="closeCertPinModal()" style="flex:1;">Anuluj</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== CERTIFICATES MAIN MODAL ===== -->
+    <div id="certModal" class="modal-overlay">
+        <div class="modal-box cert-main-box">
+            <!-- Modal Header -->
+            <div class="cert-modal-header">
+                <div class="cert-header-left">
+                    <div class="cert-title-wrap">
+                        <span style="font-size:24px;">📜</span>
+                        <h2 id="certTableTitleText" class="cert-main-title">Certyfikaty i terminy</h2>
+                        <button id="certEditTitleBtn" class="cert-title-edit-btn" onclick="openEditTableTitle()" title="Edytuj nazwę tabeli (Tylko Admin)" style="display:none;">✏️</button>
+                    </div>
+                    <div class="cert-subtitle">Ewidencja ważności dokumentów i certyfikatów pracowników</div>
+                </div>
+                <div class="cert-header-right">
+                    <button class="cert-action-btn excel-btn" onclick="exportCertificatesToExcel()" title="Eksportuj do pliku Excel">
+                        📗 Pobierz Excel
+                    </button>
+                    <button class="modal-close" onclick="closeCertModal()">×</button>
+                </div>
+            </div>
+
+            <!-- Modal Nav Tabs & Controls -->
+            <div class="cert-toolbar">
+                <div class="cert-nav-tabs">
+                    <button class="cert-nav-tab active" id="certTabTableViewBtn" onclick="switchCertView('table')">
+                        📋 Tabela (<span id="certTotalCountBadge">0</span>)
+                    </button>
+                    <button class="cert-nav-tab" id="certTabRemindersViewBtn" onclick="switchCertView('reminders')">
+                        🔔 Przypomnienia (<span id="certRemindersCountBadge">0</span>)
+                    </button>
+                </div>
+                <div class="cert-toolbar-actions">
+                    <div class="cert-search-box">
+                        <span class="cert-search-icon">🔍</span>
+                        <input type="text" id="certSearchInput" placeholder="Szukaj pracownika, dokumentu, daty..." oninput="handleCertSearch(this.value)" />
+                        <button class="cert-search-clear" onclick="clearCertSearch()">✕</button>
+                    </div>
+                    <button id="certAddEmpBtn" class="btn-primary cert-add-emp-btn" onclick="openAddEmployeeModal()" style="display:none;">
+                        ➕ Dodaj pracownika
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status Filter Pills -->
+            <div class="cert-status-pills" id="certStatusPills">
+                <button class="cert-pill active" id="certPillAll" onclick="setCertFilter('all')">Wszyscy (<span id="certPillAllCount">0</span>)</button>
+                <button class="cert-pill pill-red" id="certPillRed" onclick="setCertFilter('red')">🔴 Wygasające / Wygasłe (≤ 30 dni) (<span id="certPillRedCount">0</span>)</button>
+                <button class="cert-pill pill-yellow" id="certPillYellow" onclick="setCertFilter('yellow')">🟡 Uwaga (31 - 60 dni) (<span id="certPillYellowCount">0</span>)</button>
+                <button class="cert-pill pill-green" id="certPillGreen" onclick="setCertFilter('green')">🟢 Zbliżające się (61 - 90 dni) (<span id="certPillGreenCount">0</span>)</button>
+            </div>
+
+            <!-- Table View -->
+            <div id="certTableView" class="cert-view-container active">
+                <div class="cert-table-scroll-wrap">
+                    <table class="cert-table" id="certMainTable">
+                        <thead>
+                            <tr>
+                                <th class="col-sticky col-lp">Lp.</th>
+                                <th class="col-sticky col-name">Nazwisko</th>
+                                <th class="col-sticky col-fname">Imię</th>
+                                <th class="col-doc">Paszport</th>
+                                <th class="col-doc">TRC POL</th>
+                                <th class="col-doc">TRC NDL</th>
+                                <th class="col-doc">SCC</th>
+                                <th class="col-doc">VCA BE</th>
+                                <th class="col-doc">VCA</th>
+                                <th class="col-doc">TÜV 111</th>
+                                <th class="col-doc">TÜV 114</th>
+                                <th class="col-doc">TÜV 135</th>
+                                <th class="col-doc">TÜV 138</th>
+                                <th class="col-doc">TÜV 111/141</th>
+                                <th class="col-doc">TÜV 138/136</th>
+                                <th class="col-actions" id="certThActions" style="display:none;">Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody id="certTableBody">
+                            <!-- Rows injected by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="cert-table-legend">
+                    <span class="legend-chip red">🔴 Czerwony: Wygasa za ≤ 30 dni lub wygasł (powiadomienie)</span>
+                    <span class="legend-chip yellow">🟡 Żółty: Wygasa za 31 - 60 dni (~2 m-ce) + odliczanie</span>
+                    <span class="legend-chip green">🟢 Zielony: Wygasa za 61 - 90 dni (~3 m-ce)</span>
+                </div>
+            </div>
+
+            <!-- Reminders View -->
+            <div id="certRemindersView" class="cert-view-container" style="display:none;">
+                <div class="cert-reminders-header">
+                    <h3>🔔 Najbliższe wygaśnięcia dokumentów i certyfikatów</h3>
+                    <p>Wszystkie dokumenty wygasające w ciągu miesiąca (≤ 30 dni) lub po terminie.</p>
+                </div>
+                <div id="certRemindersList" class="cert-reminders-list">
+                    <!-- Cards injected by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== ADD / EDIT EMPLOYEE MODAL ===== -->
+    <div id="certEmployeeModal" class="modal-overlay">
+        <div class="modal-box cert-emp-modal-box">
+            <div class="modal-title">
+                <span id="certEmpModalTitle">➕ Dodaj pracownika</span>
+                <button class="modal-close" onclick="closeCertEmployeeModal()">×</button>
+            </div>
+            <div class="cert-form-grid">
+                <div class="form-group">
+                    <label>Nazwisko *</label>
+                    <input type="text" id="certEmpLastName" placeholder="np. Kowalski" />
+                </div>
+                <div class="form-group">
+                    <label>Imię *</label>
+                    <input type="text" id="certEmpFirstName" placeholder="np. Jan" />
+                </div>
+                <div class="cert-form-section-title">📅 Daty ważności dokumentów i certyfikatów</div>
+                <div class="form-group">
+                    <label>Paszport</label>
+                    <input type="text" id="certEmpPassport" placeholder="DD.MM.RRRR lub RRRR" />
+                </div>
+                <div class="form-group">
+                    <label>TRC POL</label>
+                    <input type="text" id="certEmpTrcPol" placeholder="DD.MM.RRRR lub RRRR" />
+                </div>
+                <div class="form-group">
+                    <label>TRC NDL</label>
+                    <input type="text" id="certEmpTrcNdl" placeholder="DD.MM.RRRR lub RRRR" />
+                </div>
+                <div class="form-group">
+                    <label>SCC</label>
+                    <input type="text" id="certEmpScc" placeholder="DD.MM.RRRR lub RRRR" />
+                </div>
+                <div class="form-group">
+                    <label>VCA BE</label>
+                    <input type="text" id="certEmpVcaBe" placeholder="DD.MM.RRRR lub RRRR" />
+                </div>
+                <div class="form-group">
+                    <label>VCA</label>
+                    <input type="text" id="certEmpVca" placeholder="DD.MM.RRRR lub RRRR" />
+                </div>
+                <div class="form-group">
+                    <label>TÜV 111</label>
+                    <input type="text" id="certEmpTuv111" placeholder="DD.MM.RRRR lub RRRR" />
+                </div>
+                <div class="form-group">
+                    <label>TÜV 114</label>
+                    <input type="text" id="certEmpTuv114" placeholder="DD.MM.RRRR lub RRRR" />
+                </div>
+                <div class="form-group">
+                    <label>TÜV 135</label>
+                    <input type="text" id="certEmpTuv135" placeholder="DD.MM.RRRR lub RRRR" />
+                </div>
+                <div class="form-group">
+                    <label>TÜV 138</label>
+                    <input type="text" id="certEmpTuv138" placeholder="DD.MM.RRRR lub RRRR" />
+                </div>
+                <div class="form-group">
+                    <label>TÜV 111/141</label>
+                    <input type="text" id="certEmpTuv111_141" placeholder="DD.MM.RRRR lub RRRR" />
+                </div>
+                <div class="form-group">
+                    <label>TÜV 138/136</label>
+                    <input type="text" id="certEmpTuv138_136" placeholder="DD.MM.RRRR lub RRRR" />
+                </div>
+            </div>
+            <div id="certEmpFormErr" style="color:var(--danger);font-size:12px;margin-top:8px;display:none;"></div>
+            <div class="btn-row" style="margin-top:16px;">
+                <button class="btn-primary" onclick="saveCertEmployee()">💾 Zapisz</button>
+                <button class="btn-secondary" onclick="closeCertEmployeeModal()">Anuluj</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== EDIT TABLE TITLE MODAL (ADMIN ONLY) ===== -->
+    <div id="certEditTitleModal" class="modal-overlay">
+        <div class="modal-box" style="width:400px;">
+            <div class="modal-title">
+                <span>✏️ Edycja nazwy tabeli</span>
+                <button class="modal-close" onclick="closeEditTableTitle()">×</button>
+            </div>
+            <div class="form-group" style="margin-top:10px;">
+                <label>Nazwa tabeli certyfikatów</label>
+                <input type="text" id="certNewTitleInput" placeholder="np. Certyfikaty i terminy ważności" />
+            </div>
+            <div class="btn-row" style="margin-top:16px;">
+                <button class="btn-primary" onclick="saveTableTitle()">💾 Zapisz nazwę</button>
+                <button class="btn-secondary" onclick="closeEditTableTitle()">Anuluj</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== STARTUP EXPIRATION ALERT ===== -->
+    <div id="certStartupAlert" class="cert-startup-alert" style="display:none;" onclick="handleOpenCertificates()">
+        <div class="cert-startup-alert-icon">⚠️</div>
+        <div class="cert-startup-alert-content">
+            <div class="cert-startup-alert-title">Wygasające dokumenty i certyfikaty!</div>
+            <div class="cert-startup-alert-msg" id="certStartupAlertMsg">Masz dokumenty wymagające odnowienia w ciągu 30 dni.</div>
+        </div>
+        <button class="cert-startup-alert-btn">Zobacz ➔</button>
+        <button class="cert-startup-alert-close" onclick="event.stopPropagation(); closeCertStartupAlert()">✕</button>
+    </div>
+
     <!-- Firebase SDK (Compat mode for simple script integration) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-    <script src="app.js?v=1.3.3"></script>
+    <script src="app.js?v=1.3.4"></script>
 </body>
 
 </html>
