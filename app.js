@@ -3524,6 +3524,20 @@ function initCertificatesSync() {
     renderCertEmployeeFormFields();
 
     // Listen for employees collection
+    const PL_TO_EN_PROFESSIONS = {
+        'Spawacz': 'Welder',
+        'Spawacz TIG': 'TIG Welder',
+        'Spawacz MAG': 'MAG Welder',
+        'Monter': 'Fitter',
+        'Monter rurociągów': 'Pipe Fitter',
+        'Ślusarz': 'Locksmith',
+        'Elektryk': 'Electrician',
+        'Izoler': 'Insulator',
+        'Monter rusztowań': 'Scaffolder',
+        'Pomocnik': 'Construction Worker',
+        'Mechanik': 'Mechanic'
+    };
+
     if (certUnsub) certUnsub();
     certUnsub = db.collection('cert_employees').orderBy('lastName').onSnapshot(snapshot => {
         if (snapshot.empty) {
@@ -3534,7 +3548,16 @@ function initCertificatesSync() {
 
         certEmployees = [];
         snapshot.forEach(doc => {
-            certEmployees.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            let prof = (data.profession || '').trim();
+            if (prof && PL_TO_EN_PROFESSIONS[prof]) {
+                const enProf = PL_TO_EN_PROFESSIONS[prof];
+                prof = enProf;
+                if (canEditCertData()) {
+                    db.collection('cert_employees').doc(doc.id).update({ profession: enProf }).catch(() => {});
+                }
+            }
+            certEmployees.push({ id: doc.id, ...data, profession: prof });
         });
 
         // Ensure newly defined initial employees are present in Firestore
@@ -3883,9 +3906,9 @@ function updateProfessionFilterDropdown() {
 
     const sortedProfs = Object.keys(profCounts).sort((a, b) => a.localeCompare(b, 'pl'));
 
-    let html = `<option value="">👔 Wszyscy pracownicy (dowolny zawód)</option>`;
+    let html = `<option value="">👔 Wszyscy pracownicy (dowolne stanowisko)</option>`;
     if (emptyCount > 0) {
-        html += `<option value="__empty__">⚠️ Bez zawodu (${emptyCount})</option>`;
+        html += `<option value="__empty__">⚠️ Bez stanowiska (${emptyCount})</option>`;
     }
 
     sortedProfs.forEach(p => {
@@ -4030,9 +4053,9 @@ function renderCertificates() {
         ` : '';
 
         const profBadge = emp.profession
-            ? `<span class="cert-prof-tag has-prof ${canEdit ? 'clickable' : ''}" onclick="${canEdit ? `openQuickProfessionModal('${emp.id}', event)` : `filterByProfession('${escapeHtml(emp.profession)}', event)`}" title="${canEdit ? 'Kliknij, aby zmienić zawód' : 'Kliknij, aby przefiltrować po tym zawodzie'}">${escapeHtml(emp.profession)}</span>`
+            ? `<span class="cert-prof-tag has-prof ${canEdit ? 'clickable' : ''}" onclick="${canEdit ? `openQuickProfessionModal('${emp.id}', event)` : `filterByProfession('${escapeHtml(emp.profession)}', event)`}" title="${canEdit ? 'Kliknij, aby zmienić stanowisko' : 'Kliknij, aby przefiltrować po tym stanowisku'}">${escapeHtml(emp.profession)}</span>`
             : (canEdit
-                ? `<span class="cert-prof-tag empty clickable" onclick="openQuickProfessionModal('${emp.id}', event)" title="Kliknij, aby przypisać zawód pracownikowi">+ zawód</span>`
+                ? `<span class="cert-prof-tag empty clickable" onclick="openQuickProfessionModal('${emp.id}', event)" title="Kliknij, aby przypisać stanowisko pracownikowi">+ stanowisko</span>`
                 : '');
 
         return `
@@ -4104,7 +4127,7 @@ function openQuickProfessionModal(empId, e) {
 
     editingQuickProfEmpId = empId;
     const title = document.getElementById('certQuickProfTitle');
-    if (title) title.textContent = `👔 Zawód: ${emp.lastName} ${emp.firstName}`;
+    if (title) title.textContent = `👔 Stanowisko: ${emp.lastName} ${emp.firstName}`;
 
     const input = document.getElementById('certQuickProfCustomInput');
     if (input) {
@@ -4152,10 +4175,10 @@ async function saveQuickProfession(presetVal) {
         });
         const emp = certEmployees.find(x => x.id === editingQuickProfEmpId);
         const empName = emp ? `${emp.lastName} ${emp.firstName}` : editingQuickProfEmpId;
-        logActivity('Zaktualizowano zawód pracownika', `${empName}: ${val || '(brak)'}`);
+        logActivity('Zaktualizowano stanowisko pracownika', `${empName}: ${val || '(brak)'}`);
         closeQuickProfessionModal();
     } catch (err) {
-        alert("Błąd zapisu zawodu: " + err.message);
+        alert("Błąd zapisu stanowiska: " + err.message);
     }
 }
 
@@ -4818,7 +4841,7 @@ async function exportCertificatesToExcel() {
         const sheet = workbook.addWorksheet('Certyfikaty');
 
         // Headers
-        const headers = ['Lp.', 'Nazwisko', 'Zawód', 'Imię', ...CERT_COLUMNS.map(c => c.label)];
+        const headers = ['Lp.', 'Nazwisko', 'Stanowisko / Position', 'Imię', ...CERT_COLUMNS.map(c => c.label)];
 
         // Title row
         sheet.addRow([certTableTitle]);

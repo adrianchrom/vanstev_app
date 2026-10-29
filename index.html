@@ -10,7 +10,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@800;900&family=Poppins:wght@500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style/style.css?v=1.3.8">
+    <link rel="stylesheet" href="style/style.css?v=1.3.9">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -763,12 +763,12 @@
                 <div class="cert-toolbar-actions">
                     <div class="cert-search-box">
                         <span class="cert-search-icon">🔍</span>
-                        <input type="text" id="certSearchInput" placeholder="Szukaj nazwiska, zawodu, daty..." oninput="handleCertSearch(this.value)" />
+                        <input type="text" id="certSearchInput" placeholder="Szukaj nazwiska, stanowiska, daty..." oninput="handleCertSearch(this.value)" />
                         <button class="cert-search-clear" onclick="clearCertSearch()">✕</button>
                     </div>
                     <div class="cert-profession-filter-wrap">
-                        <select id="certProfessionFilter" class="cert-prof-filter-select" onchange="handleCertProfessionFilter(this.value)" title="Filtruj pracowników po zawodzie">
-                            <option value="">👔 Wszystkie zawody</option>
+                        <select id="certProfessionFilter" class="cert-prof-filter-select" onchange="handleCertProfessionFilter(this.value)" title="Filtruj pracowników po stanowisku">
+                            <option value="">👔 Wszystkie stanowiska</option>
                         </select>
                     </div>
                     <button id="certAddColBtn" class="cert-add-col-btn" onclick="openAddColumnModal()" style="display:none;" title="Dodaj nową kolumnę dokumentu (Tylko Admin)">
@@ -837,20 +837,23 @@
                     <input type="text" id="certEmpFirstName" placeholder="np. Jan" />
                 </div>
                 <div class="form-group" style="grid-column: 1 / -1;">
-                    <label>Zawód / Stanowisko</label>
-                    <input type="text" id="certEmpProfession" list="certProfessionDatalist" placeholder="Wybierz lub wpisz zawód (np. Spawacz, Monter, Elektryk...)" />
+                    <label>Stanowisko / Zawód (Position)</label>
+                    <input type="text" id="certEmpProfession" list="certProfessionDatalist" placeholder="Wybierz lub wpisz stanowisko (np. Welder, Pipe Fitter, Construction Worker...)" />
                     <datalist id="certProfessionDatalist">
-                        <option value="Spawacz"></option>
-                        <option value="Spawacz TIG"></option>
-                        <option value="Spawacz MAG"></option>
-                        <option value="Monter"></option>
-                        <option value="Monter rurociągów"></option>
-                        <option value="Ślusarz"></option>
-                        <option value="Elektryk"></option>
-                        <option value="Izoler"></option>
-                        <option value="Monter rusztowań"></option>
-                        <option value="Pomocnik"></option>
-                        <option value="Mechanik"></option>
+                        <option value="Welder"></option>
+                        <option value="TIG Welder"></option>
+                        <option value="MAG Welder"></option>
+                        <option value="Pipe Fitter"></option>
+                        <option value="Fitter"></option>
+                        <option value="Steel Fitter"></option>
+                        <option value="Locksmith"></option>
+                        <option value="Electrician"></option>
+                        <option value="Insulator"></option>
+                        <option value="Scaffolder"></option>
+                        <option value="Construction Worker"></option>
+                        <option value="Mechanic"></option>
+                        <option value="Rigger"></option>
+                        <option value="Sandblaster"></option>
                     </datalist>
                 </div>
                 <div class="cert-form-section-title">📅 Daty ważności dokumentów i certyfikatów</div>
@@ -931,38 +934,41 @@
 
     <!-- ===== QUICK PROFESSION MODAL ===== -->
     <div id="certQuickProfessionModal" class="modal-overlay">
-        <div class="modal-box" style="width:420px;">
+        <div class="modal-box" style="width:440px;">
             <div class="modal-title">
-                <span id="certQuickProfTitle">👔 Wybierz zawód</span>
+                <span id="certQuickProfTitle">👔 Wybierz stanowisko (Position)</span>
                 <button class="modal-close" onclick="closeQuickProfessionModal()">×</button>
             </div>
             <div style="font-size:13px; color:var(--muted); margin: 6px 0 12px 0;">
-                Kliknij jeden z popularnych zawodów lub wpisz dowolny własny poniżej:
+                Kliknij jedno z popularnych stanowisk lub wpisz dowolne własne poniżej:
             </div>
             
             <!-- Quick Preset Chips -->
             <div class="cert-prof-chips-grid">
-                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Spawacz')">Spawacz</button>
-                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Spawacz TIG')">Spawacz TIG</button>
-                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Spawacz MAG')">Spawacz MAG</button>
-                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Monter')">Monter</button>
-                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Monter rurociągów')">Monter rurociągów</button>
-                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Ślusarz')">Ślusarz</button>
-                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Elektryk')">Elektryk</button>
-                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Izoler')">Izoler</button>
-                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Monter rusztowań')">Monter rusztowań</button>
-                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Pomocnik')">Pomocnik</button>
-                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Mechanik')">Mechanik</button>
+                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Welder')">Welder</button>
+                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('TIG Welder')">TIG Welder</button>
+                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('MAG Welder')">MAG Welder</button>
+                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Pipe Fitter')">Pipe Fitter</button>
+                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Fitter')">Fitter</button>
+                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Steel Fitter')">Steel Fitter</button>
+                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Locksmith')">Locksmith</button>
+                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Electrician')">Electrician</button>
+                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Insulator')">Insulator</button>
+                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Scaffolder')">Scaffolder</button>
+                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Construction Worker')">Construction Worker</button>
+                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Mechanic')">Mechanic</button>
+                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Rigger')">Rigger</button>
+                <button class="cert-prof-chip-btn" onclick="selectQuickProfPreset('Sandblaster')">Sandblaster</button>
             </div>
 
             <div class="form-group" style="margin-top:16px;">
-                <label>Wpisz własny zawód / stanowisko</label>
-                <input type="text" id="certQuickProfCustomInput" placeholder="np. Monter wentylacji, Piaskarz..." onkeydown="if(event.key==='Enter') saveQuickProfession()" />
+                <label>Wpisz własne stanowisko (Custom Position)</label>
+                <input type="text" id="certQuickProfCustomInput" placeholder="np. Welder, Pipe Fitter, Construction Worker..." onkeydown="if(event.key==='Enter') saveQuickProfession()" />
             </div>
 
             <div class="btn-row" style="margin-top:18px;">
                 <button class="btn-primary" onclick="saveQuickProfession()">💾 Zapisz</button>
-                <button class="btn-secondary" onclick="clearQuickProfession()" style="color:var(--danger);" title="Usuń przypisany zawód">Wyczyść</button>
+                <button class="btn-secondary" onclick="clearQuickProfession()" style="color:var(--danger);" title="Usuń przypisane stanowisko">Wyczyść</button>
                 <button class="btn-secondary" onclick="closeQuickProfessionModal()">Anuluj</button>
             </div>
         </div>
@@ -983,7 +989,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-    <script src="app.js?v=1.3.8"></script>
+    <script src="app.js?v=1.3.9"></script>
 </body>
 
 </html>
