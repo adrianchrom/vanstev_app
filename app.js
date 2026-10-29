@@ -4213,6 +4213,8 @@ function renderAdminCertAudit() {
                     actionBadge = `<span style="background:rgba(139,92,246,0.15); color:#a855f7; border:1px solid rgba(139,92,246,0.3); padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px;">📑 Dodano kolumnę</span>`;
                 } else if (log.action === 'delete_column') {
                     actionBadge = `<span style="background:rgba(239,68,68,0.15); color:var(--danger); border:1px solid rgba(239,68,68,0.3); padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px;">🗑️ Usunięto kolumnę</span>`;
+                } else if (log.action === 'edit_column') {
+                    actionBadge = `<span style="background:rgba(234,179,8,0.15); color:var(--accent); border:1px solid rgba(234,179,8,0.3); padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px;">✏️ Zmiana nazwy</span>`;
                 } else {
                     actionBadge = `<span style="background:rgba(59,130,246,0.15); color:var(--blue); border:1px solid rgba(59,130,246,0.3); padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px;">ℹ️ Inicjalizacja</span>`;
                 }
@@ -4362,6 +4364,99 @@ async function deleteCertColumn(colKey, event) {
     }
 }
 
+// EDIT COLUMN NAME (ADMIN ONLY)
+function openEditColumnNameModal(colKey, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    if (!canAddCertColumn()) {
+        alert("Tylko administrator (Admin) może edytować nazwy kolumn.");
+        return;
+    }
+
+    const col = CERT_COLUMNS.find(c => c.key === colKey);
+    if (!col) return;
+
+    const modal = document.getElementById('certEditColumnModal');
+    const input = document.getElementById('certEditColNameInput');
+    const keyInput = document.getElementById('certEditColKeyInput');
+    const err = document.getElementById('certEditColErr');
+
+    if (input) input.value = col.label;
+    if (keyInput) keyInput.value = col.key;
+    if (err) err.style.display = 'none';
+
+    if (modal) {
+        modal.classList.add('open');
+        setTimeout(() => input && input.focus(), 150);
+    }
+}
+
+function closeEditColumnModal() {
+    const modal = document.getElementById('certEditColumnModal');
+    if (modal) modal.classList.remove('open');
+}
+
+async function saveEditedCertColumn() {
+    if (!canAddCertColumn()) return;
+    const input = document.getElementById('certEditColNameInput');
+    const keyInput = document.getElementById('certEditColKeyInput');
+    const err = document.getElementById('certEditColErr');
+
+    const colKey = keyInput ? keyInput.value : '';
+    const newLabel = (input ? input.value : '').trim();
+
+    if (!newLabel) {
+        if (err) {
+            err.textContent = 'Nazwa kolumny nie może być pusta.';
+            err.style.display = 'block';
+        }
+        return;
+    }
+
+    const col = CERT_COLUMNS.find(c => c.key === colKey);
+    if (!col) return;
+
+    if (CERT_COLUMNS.some(c => c.key !== colKey && c.label.toLowerCase() === newLabel.toLowerCase())) {
+        if (err) {
+            err.textContent = 'Kolumna o takiej nazwie już istnieje.';
+            err.style.display = 'block';
+        }
+        return;
+    }
+
+    const oldLabel = col.label;
+    col.label = newLabel;
+
+    try {
+        await db.collection('settings').doc('certificates').set({
+            columns: CERT_COLUMNS,
+            updatedBy: currentUser,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        renderCertTableHeader();
+        renderCertEmployeeFormFields();
+        renderCertificates();
+
+        await db.collection('cert_audit').add({
+            action: 'edit_column',
+            columnName: `${oldLabel} ➔ ${newLabel}`,
+            user: currentUser,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        logActivity('Zmieniono nazwę kolumny w certyfikatach', `${oldLabel} ➔ ${newLabel}`);
+        closeEditColumnModal();
+    } catch (e) {
+        if (err) {
+            err.textContent = 'Błąd zapisu: ' + e.message;
+            err.style.display = 'block';
+        }
+    }
+}
+
 // MOVE COLUMN (LEFT / RIGHT & DRAG-AND-DROP)
 let draggedCertColKey = null;
 
@@ -4491,6 +4586,10 @@ function renderCertTableHeader() {
             ? `<button class="cert-col-del-btn" onclick="deleteCertColumn('${col.key}', event)" title="Usuń kolumnę ${escapeHtml(col.label)}">✕</button>`
             : '';
 
+        const editBtn = isAdmin
+            ? `<button class="cert-col-edit-btn" onclick="openEditColumnNameModal('${col.key}', event)" title="Edytuj nazwę kolumny ${escapeHtml(col.label)}">✏️</button>`
+            : '';
+
         let reorderBtns = '';
         if (isAdmin) {
             const isFirst = index === 0;
@@ -4507,12 +4606,16 @@ function renderCertTableHeader() {
             ? `draggable="true" ondragstart="handleCertColDragStart(event, '${col.key}')" ondragover="handleCertColDragOver(event)" ondragleave="handleCertColDragLeave(event)" ondrop="handleCertColDrop(event, '${col.key}')" ondragend="handleCertColDragEnd(event)"`
             : '';
 
+        const labelClick = isAdmin ? `onclick="openEditColumnNameModal('${col.key}', event)" title="Kliknij, aby edytować nazwę kolumny"` : '';
+        const labelCls = isAdmin ? 'cert-th-label clickable' : 'cert-th-label';
+
         return `
             <th class="col-doc ${isAdmin ? 'col-draggable' : ''}" data-col="${col.key}" ${dragAttrs} title="${isAdmin ? 'Przeciągnij kolumnę lub użyj strzałek ◀ ▶, aby przesunąć' : ''}">
                 <div class="cert-th-content">
-                    <span class="cert-th-label">${escapeHtml(col.label)}</span>
+                    <span class="${labelCls}" ${labelClick}>${escapeHtml(col.label)}</span>
                     <div class="cert-th-actions">
                         ${reorderBtns}
+                        ${editBtn}
                         ${delBtn}
                     </div>
                 </div>

@@ -10,7 +10,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@800;900&family=Poppins:wght@500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style/style.css?v=1.3.6">
+    <link rel="stylesheet" href="style/style.css?v=1.3.7">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -884,6 +884,29 @@
         </div>
     </div>
 
+    <!-- ===== EDIT COLUMN MODAL (ADMIN ONLY) ===== -->
+    <div id="certEditColumnModal" class="modal-overlay">
+        <div class="modal-box" style="width:420px;">
+            <div class="modal-title">
+                <span>✏️ Edycja nazwy kolumny</span>
+                <button class="modal-close" onclick="closeEditColumnModal()">×</button>
+            </div>
+            <div style="font-size:13px; color:var(--muted); margin: 6px 0 14px 0;">
+                Zmień wyświetlaną nazwę kolumny. Wszystkie wprowadzone wcześniej daty i dane zostaną zachowane.
+            </div>
+            <div class="form-group">
+                <label>Nazwa kolumny / dokumentu *</label>
+                <input type="text" id="certEditColNameInput" placeholder="np. Paszport, Badania, Uprawnienia..." />
+                <input type="hidden" id="certEditColKeyInput" />
+            </div>
+            <div id="certEditColErr" style="color:var(--danger);font-size:12px;margin-top:8px;display:none;"></div>
+            <div class="btn-row" style="margin-top:18px;">
+                <button class="btn-primary" onclick="saveEditedCertColumn()">💾 Zapisz nazwę</button>
+                <button class="btn-secondary" onclick="closeEditColumnModal()">Anuluj</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== STARTUP EXPIRATION ALERT ===== -->
     <div id="certStartupAlert" class="cert-startup-alert" style="display:none;" onclick="handleOpenCertificates()">
         <div class="cert-startup-alert-icon">⚠️</div>
@@ -899,7 +922,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-    <script src="app.js?v=1.3.6"></script>
+    <script src="app.js?v=1.3.7"></script>
 </body>
 
 </html>

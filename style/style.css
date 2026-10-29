@@ -3214,6 +3214,34 @@ body.light-mode .caregiver-badge {
     background: rgba(232, 98, 26, 0.15) !important;
 }
 
+.cert-col-edit-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 10px;
+    padding: 1px 3px;
+    border-radius: 4px;
+    opacity: 0.6;
+    transition: all 0.15s ease;
+    line-height: 1;
+}
+
+.cert-col-edit-btn:hover {
+    opacity: 1;
+    color: var(--accent);
+    background: rgba(232, 98, 26, 0.15);
+}
+
+.cert-th-label.clickable {
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.cert-th-label.clickable:hover {
+    color: var(--accent);
+}
+
 .cert-col-del-btn {
     background: none;
     border: none;
