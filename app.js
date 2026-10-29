@@ -3371,8 +3371,10 @@ let certAuditLogs = [];
 let certTableTitle = "Certyfikaty i terminy";
 let currentCertView = 'table';
 let currentCertFilter = 'all';
+let currentCertProfession = '';
 let certSearchQuery = '';
 let editingCertEmpId = null;
+let editingQuickProfEmpId = null;
 let certUnsub = null;
 let certTitleUnsub = null;
 let certAuditUnsub = null;
@@ -3672,6 +3674,7 @@ function getUrgentCertificates() {
                     results.push({
                         empId: emp.id,
                         empName: `${emp.lastName} ${emp.firstName}`,
+                        profession: emp.profession || '',
                         docKey: col.key,
                         docLabel: col.label,
                         val: info.raw,
@@ -3848,9 +3851,63 @@ function clearCertSearch() {
     renderCertificates();
 }
 
+function handleCertProfessionFilter(val) {
+    currentCertProfession = val || '';
+    renderCertificates();
+}
+
+function filterByProfession(prof, e) {
+    if (e) e.stopPropagation();
+    currentCertProfession = prof || '';
+    const select = document.getElementById('certProfessionFilter');
+    if (select) select.value = currentCertProfession;
+    renderCertificates();
+}
+
+function updateProfessionFilterDropdown() {
+    const select = document.getElementById('certProfessionFilter');
+    if (!select) return;
+
+    // Collect all unique professions and counts from certEmployees
+    const profCounts = {};
+    let emptyCount = 0;
+
+    certEmployees.forEach(emp => {
+        const p = (emp.profession || '').trim();
+        if (!p) {
+            emptyCount++;
+        } else {
+            profCounts[p] = (profCounts[p] || 0) + 1;
+        }
+    });
+
+    const sortedProfs = Object.keys(profCounts).sort((a, b) => a.localeCompare(b, 'pl'));
+
+    let html = `<option value="">👔 Wszyscy pracownicy (dowolny zawód)</option>`;
+    if (emptyCount > 0) {
+        html += `<option value="__empty__">⚠️ Bez zawodu (${emptyCount})</option>`;
+    }
+
+    sortedProfs.forEach(p => {
+        html += `<option value="${escapeHtml(p)}">${escapeHtml(p)} (${profCounts[p]})</option>`;
+    });
+
+    const prevVal = currentCertProfession;
+    select.innerHTML = html;
+    if (prevVal && (sortedProfs.includes(prevVal) || prevVal === '__empty__')) {
+        select.value = prevVal;
+    } else {
+        select.value = '';
+        currentCertProfession = '';
+    }
+}
+
 function renderCertificates() {
     const canEdit = canEditCertData();
     const urgentItems = getUrgentCertificates();
+
+    // Populate or sync profession filter dropdown
+    updateProfessionFilterDropdown();
 
     // Counts across all data
     let totalRed = 0;
@@ -3894,12 +3951,24 @@ function renderCertificates() {
     const filter = currentCertFilter;
 
     let filtered = certEmployees.filter(emp => {
-        // Query search
+        // Query search (matches name, profession, or certificate date text)
         if (q) {
             const fullName = `${emp.lastName || ''} ${emp.firstName || ''}`.toLowerCase();
+            const prof = (emp.profession || '').toLowerCase();
             const matchesName = fullName.includes(q);
+            const matchesProf = prof.includes(q);
             const matchesDoc = CERT_COLUMNS.some(col => (emp[col.key] || '').toLowerCase().includes(q));
-            if (!matchesName && !matchesDoc) return false;
+            if (!matchesName && !matchesProf && !matchesDoc) return false;
+        }
+
+        // Profession filter
+        if (currentCertProfession) {
+            const empProf = (emp.profession || '').trim();
+            if (currentCertProfession === '__empty__') {
+                if (empProf !== '') return false;
+            } else {
+                if (empProf.toLowerCase() !== currentCertProfession.toLowerCase()) return false;
+            }
         }
 
         // Status filter
@@ -3960,10 +4029,21 @@ function renderCertificates() {
             </td>
         ` : '';
 
+        const profBadge = emp.profession
+            ? `<span class="cert-prof-tag has-prof ${canEdit ? 'clickable' : ''}" onclick="${canEdit ? `openQuickProfessionModal('${emp.id}', event)` : `filterByProfession('${escapeHtml(emp.profession)}', event)`}" title="${canEdit ? 'Kliknij, aby zmienić zawód' : 'Kliknij, aby przefiltrować po tym zawodzie'}">${escapeHtml(emp.profession)}</span>`
+            : (canEdit
+                ? `<span class="cert-prof-tag empty clickable" onclick="openQuickProfessionModal('${emp.id}', event)" title="Kliknij, aby przypisać zawód pracownikowi">+ zawód</span>`
+                : '');
+
         return `
             <tr>
                 <td class="col-sticky col-lp">${index + 1}</td>
-                <td class="col-sticky col-name">${escapeHtml(emp.lastName || '')}</td>
+                <td class="col-sticky col-name">
+                    <div class="cert-name-cell">
+                        <span class="cert-emp-lastname">${escapeHtml(emp.lastName || '')}</span>
+                        ${profBadge}
+                    </div>
+                </td>
                 <td class="col-sticky col-fname">${escapeHtml(emp.firstName || '')}</td>
                 ${cellsHtml}
                 ${actionsHtml}
@@ -3995,7 +4075,10 @@ function renderCertReminders(urgentItems) {
         return `
             <div class="${cardCls}">
                 <div class="cert-rem-header">
-                    <div class="cert-rem-name">👤 ${escapeHtml(item.empName)}</div>
+                    <div class="cert-rem-name">
+                        👤 ${escapeHtml(item.empName)}
+                        ${item.profession ? `<span class="cert-prof-tag has-prof" style="margin-left:6px; font-size:10px; font-weight:600;">${escapeHtml(item.profession)}</span>` : ''}
+                    </div>
                     <span class="cert-rem-badge">${badgeTxt} (${item.badge})</span>
                 </div>
                 <div class="cert-rem-body">
@@ -4011,6 +4094,75 @@ function renderCertReminders(urgentItems) {
     }).join('');
 }
 
+// QUICK PROFESSION MODAL
+function openQuickProfessionModal(empId, e) {
+    if (e) e.stopPropagation();
+    if (!canEditCertData()) return;
+
+    const emp = certEmployees.find(x => x.id === empId);
+    if (!emp) return;
+
+    editingQuickProfEmpId = empId;
+    const title = document.getElementById('certQuickProfTitle');
+    if (title) title.textContent = `👔 Zawód: ${emp.lastName} ${emp.firstName}`;
+
+    const input = document.getElementById('certQuickProfCustomInput');
+    if (input) {
+        input.value = emp.profession || '';
+        setTimeout(() => input.focus(), 100);
+    }
+
+    // Highlight selected chip
+    const currentProf = (emp.profession || '').trim().toLowerCase();
+    document.querySelectorAll('#certQuickProfessionModal .cert-prof-chip-btn').forEach(btn => {
+        if (btn.textContent.trim().toLowerCase() === currentProf) {
+            btn.classList.add('selected');
+        } else {
+            btn.classList.remove('selected');
+        }
+    });
+
+    const modal = document.getElementById('certQuickProfessionModal');
+    if (modal) modal.classList.add('open');
+}
+
+function closeQuickProfessionModal() {
+    editingQuickProfEmpId = null;
+    const modal = document.getElementById('certQuickProfessionModal');
+    if (modal) modal.classList.remove('open');
+}
+
+async function selectQuickProfPreset(val) {
+    if (!editingQuickProfEmpId) return;
+    const input = document.getElementById('certQuickProfCustomInput');
+    if (input) input.value = val;
+    await saveQuickProfession(val);
+}
+
+async function saveQuickProfession(presetVal) {
+    if (!editingQuickProfEmpId || !canEditCertData()) return;
+    const input = document.getElementById('certQuickProfCustomInput');
+    const val = (presetVal !== undefined ? presetVal : (input ? input.value : '')).trim();
+
+    try {
+        await db.collection('cert_employees').doc(editingQuickProfEmpId).update({
+            profession: val,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedBy: currentUser
+        });
+        const emp = certEmployees.find(x => x.id === editingQuickProfEmpId);
+        const empName = emp ? `${emp.lastName} ${emp.firstName}` : editingQuickProfEmpId;
+        logActivity('Zaktualizowano zawód pracownika', `${empName}: ${val || '(brak)'}`);
+        closeQuickProfessionModal();
+    } catch (err) {
+        alert("Błąd zapisu zawodu: " + err.message);
+    }
+}
+
+async function clearQuickProfession() {
+    await saveQuickProfession('');
+}
+
 // ADD / EDIT EMPLOYEE
 function openAddEmployeeModal() {
     if (!canEditCertData()) {
@@ -4021,6 +4173,8 @@ function openAddEmployeeModal() {
     document.getElementById('certEmpModalTitle').textContent = '➕ Dodaj pracownika';
     document.getElementById('certEmpLastName').value = '';
     document.getElementById('certEmpFirstName').value = '';
+    const profEl = document.getElementById('certEmpProfession');
+    if (profEl) profEl.value = '';
     renderCertEmployeeFormFields();
     CERT_COLUMNS.forEach(col => {
         const el = document.getElementById('certEmp_' + col.key);
@@ -4044,6 +4198,8 @@ function openEditEmployeeModal(empId) {
     document.getElementById('certEmpModalTitle').textContent = `✏️ Edycja: ${emp.lastName} ${emp.firstName}`;
     document.getElementById('certEmpLastName').value = emp.lastName || '';
     document.getElementById('certEmpFirstName').value = emp.firstName || '';
+    const profEl = document.getElementById('certEmpProfession');
+    if (profEl) profEl.value = emp.profession || '';
     renderCertEmployeeFormFields();
     CERT_COLUMNS.forEach(col => {
         const el = document.getElementById('certEmp_' + col.key);
@@ -4066,6 +4222,7 @@ async function saveCertEmployee() {
 
     const lastName = document.getElementById('certEmpLastName').value.trim();
     const firstName = document.getElementById('certEmpFirstName').value.trim();
+    const profession = (document.getElementById('certEmpProfession')?.value || '').trim();
     const err = document.getElementById('certEmpFormErr');
 
     if (!lastName || !firstName) {
@@ -4079,6 +4236,7 @@ async function saveCertEmployee() {
     const empData = {
         lastName,
         firstName,
+        profession,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: currentUser
     };
@@ -4660,7 +4818,7 @@ async function exportCertificatesToExcel() {
         const sheet = workbook.addWorksheet('Certyfikaty');
 
         // Headers
-        const headers = ['Lp.', 'Nazwisko', 'Imię', ...CERT_COLUMNS.map(c => c.label)];
+        const headers = ['Lp.', 'Nazwisko', 'Zawód', 'Imię', ...CERT_COLUMNS.map(c => c.label)];
 
         // Title row
         sheet.addRow([certTableTitle]);
@@ -4694,6 +4852,7 @@ async function exportCertificatesToExcel() {
             const rowData = [
                 idx + 1,
                 emp.lastName || '',
+                emp.profession || '',
                 emp.firstName || '',
                 ...CERT_COLUMNS.map(col => emp[col.key] || '')
             ];
@@ -4709,7 +4868,7 @@ async function exportCertificatesToExcel() {
                     right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
                 };
 
-                if (colNumber > 3) {
+                if (colNumber > 4) {
                     // Document date cell formatting
                     const val = cell.value;
                     const info = getCertExpiryInfo(val);
@@ -4748,6 +4907,7 @@ async function exportCertificatesToExcel() {
             if (i === 0) column.width = 6;
             else if (i === 1) column.width = 18;
             else if (i === 2) column.width = 16;
+            else if (i === 3) column.width = 16;
             else column.width = 14;
         });
 

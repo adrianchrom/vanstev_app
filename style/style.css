@@ -2738,7 +2738,8 @@ body.light-mode .caregiver-badge {
     left: 44px;
     z-index: 5;
     background: var(--card);
-    min-width: 140px;
+    width: 175px;
+    min-width: 175px;
     font-weight: 600;
 }
 
@@ -2750,10 +2751,10 @@ body.light-mode .caregiver-badge {
 .cert-table th.col-sticky.col-fname,
 .cert-table td.col-sticky.col-fname {
     position: sticky;
-    left: 184px;
+    left: 219px;
     z-index: 5;
     background: var(--card);
-    min-width: 120px;
+    min-width: 110px;
     border-right: 2px solid var(--border);
 }
 
@@ -3266,4 +3267,128 @@ body.light-mode .caregiver-badge {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
+}
+
+/* Profession Tag & Filter Styles */
+.cert-name-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    width: 100%;
+}
+
+.cert-emp-lastname {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cert-prof-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 6px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    line-height: 1.2;
+    flex-shrink: 0;
+}
+
+.cert-prof-tag.has-prof {
+    background: rgba(139, 92, 246, 0.16);
+    color: #c084fc;
+    border: 1px solid rgba(139, 92, 246, 0.35);
+}
+
+.cert-prof-tag.has-prof:hover {
+    background: rgba(139, 92, 246, 0.28);
+    border-color: #a855f7;
+    transform: translateY(-1px);
+}
+
+.cert-prof-tag.empty {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--muted);
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    font-size: 9px;
+    opacity: 0.65;
+}
+
+.cert-prof-tag.empty:hover {
+    opacity: 1;
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(232, 98, 26, 0.12);
+}
+
+body.light-mode .cert-prof-tag.has-prof {
+    background: rgba(124, 58, 237, 0.12);
+    color: #7c3aed;
+    border: 1px solid rgba(124, 58, 237, 0.3);
+}
+
+.cert-profession-filter-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.cert-prof-filter-select {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s ease;
+    min-width: 170px;
+    height: 36px;
+    font-family: inherit;
+}
+
+.cert-prof-filter-select:hover,
+.cert-prof-filter-select:focus {
+    border-color: var(--accent);
+}
+
+.cert-prof-chips-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.cert-prof-chip-btn {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+}
+
+.cert-prof-chip-btn:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: #a855f7;
+    color: #c084fc;
+    transform: translateY(-1px);
+}
+
+.cert-prof-chip-btn.selected {
+    background: #8b5cf6;
+    border-color: #8b5cf6;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
 }
