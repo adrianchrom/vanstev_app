@@ -2834,37 +2834,54 @@ body.light-mode .caregiver-badge {
 /* Red: <= 30 days or expired + Countdown */
 .cert-date-chip.status-red {
     background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
+    color: #f87171;
     border: 1px solid rgba(239, 68, 68, 0.45);
     font-weight: 700;
 }
 
 .cert-date-chip.status-expired {
     background: rgba(239, 68, 68, 0.25);
-    color: #dc2626;
+    color: #fca5a5;
     border: 1.5px solid #dc2626;
     font-weight: 800;
 }
 
+body.light-mode .cert-date-chip.status-red {
+    color: #dc2626;
+}
+
+body.light-mode .cert-date-chip.status-expired {
+    color: #b91c1c;
+}
+
 .cert-countdown-badge {
     display: inline-block;
-    font-size: 9px;
-    padding: 1px 4px;
+    font-size: 9.5px;
+    padding: 1px 5px;
     border-radius: 4px;
-    margin-left: 2px;
+    margin-left: 3px;
     font-weight: 700;
-    line-height: 1;
+    line-height: 1.2;
+    vertical-align: middle;
 }
 
 .status-yellow .cert-countdown-badge {
     background: rgba(245, 158, 11, 0.25);
+    color: #fbbf24;
+}
+
+body.light-mode .status-yellow .cert-countdown-badge {
     color: #b45309;
 }
 
-.status-red .cert-countdown-badge,
+.status-red .cert-countdown-badge {
+    background: #dc2626;
+    color: #ffffff !important;
+}
+
 .status-expired .cert-countdown-badge {
-    background: rgba(239, 68, 68, 0.3);
-    color: #b91c1c;
+    background: #dc2626;
+    color: #ffffff !important;
 }
 
 /* Cell Legend */
@@ -2953,6 +2970,16 @@ body.light-mode .caregiver-badge {
     border-radius: 6px;
     background: rgba(239, 68, 68, 0.15);
     color: var(--danger);
+}
+
+.cert-reminder-card.status-expired .cert-rem-badge {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.cert-reminder-card.status-expired .cert-rem-footer span:first-child {
+    color: #ef4444;
+    font-weight: 700;
 }
 
 .cert-rem-body {
