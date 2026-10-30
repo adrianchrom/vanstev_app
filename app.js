@@ -3582,10 +3582,15 @@ function initCertificatesSync() {
     };
 
     if (certUnsub) certUnsub();
-    certUnsub = db.collection('cert_employees').orderBy('lastName').onSnapshot(snapshot => {
+    certUnsub = db.collection('cert_employees').orderBy('lastName').onSnapshot(async snapshot => {
         if (snapshot.empty) {
-            // First time setup: seed initial 72 employees
-            seedInitialCertificates();
+            // Check if already seeded before (avoid re-seeding if user intentionally emptied the list)
+            const setDoc = await db.collection('settings').doc('certificates').get().catch(() => null);
+            if (!setDoc || !setDoc.exists || !setDoc.data().seeded) {
+                seedInitialCertificates();
+            }
+            certEmployees = [];
+            renderCertificates();
             return;
         }
 
@@ -3602,9 +3607,6 @@ function initCertificatesSync() {
             }
             certEmployees.push({ id: doc.id, ...data, profession: prof });
         });
-
-        // Ensure newly defined initial employees are present in Firestore
-        syncMissingCertEmployees(certEmployees);
 
         // Compute urgent items (<= 30 days)
         const urgentItems = getUrgentCertificates();
@@ -3651,25 +3653,41 @@ function initCertificatesSync() {
 async function seedInitialCertificates() {
     console.log("Inicjalizacja domyślnej bazy pracowników certyfikatów...");
     try {
+        // Sprawdź czy jakieś osoby były wcześniej trwale usunięte
+        const deletedSnap = await db.collection('cert_deleted').get().catch(() => null);
+        const deletedKeys = new Set();
+        if (deletedSnap && !deletedSnap.empty) {
+            deletedSnap.forEach(d => deletedKeys.add(d.id));
+        }
+
         const batch = db.batch();
         const now = firebase.firestore.FieldValue.serverTimestamp();
 
-        INITIAL_CERT_EMPLOYEES.forEach((emp, index) => {
+        let orderIdx = 1;
+        INITIAL_CERT_EMPLOYEES.forEach(emp => {
+            const normKey = `${(emp.lastName || '').toLowerCase().trim()}_${(emp.firstName || '').toLowerCase().trim()}`
+                .replace(/[\/\.#$\[\]\s]/g, '_');
+            if (deletedKeys.has(normKey)) return; // Nigdy nie przywracaj trwale usuniętych osób!
+
             const docRef = db.collection('cert_employees').doc();
             batch.set(docRef, {
                 ...emp,
                 addedBy: 'System',
                 createdAt: now,
-                order: index + 1
+                order: orderIdx++
             });
         });
+
+        // Oznacz w ustawieniach, że baza została zainicjowana, aby nie powtarzać seedowania przy pustej liście
+        const setRef = db.collection('settings').doc('certificates');
+        batch.set(setRef, { seeded: true }, { merge: true });
 
         await batch.commit();
 
         // Seed audit log
         db.collection('cert_audit').add({
             action: 'seed',
-            employeeName: 'Wgrano 72 pracowników z arkusza',
+            employeeName: `Inicjalizacja bazy certyfikatów (${orderIdx - 1} pracowników)`,
             user: 'System',
             timestamp: now
         });
@@ -3677,55 +3695,6 @@ async function seedInitialCertificates() {
         console.log("Pomyślnie zainicjowano bazę certyfikatów!");
     } catch (e) {
         console.error("Błąd seedowania bazy certyfikatów:", e);
-    }
-}
-
-let isSyncingMissingEmps = false;
-async function syncMissingCertEmployees(existingList) {
-    if (isSyncingMissingEmps || !existingList || existingList.length === 0) return;
-
-    const missing = INITIAL_CERT_EMPLOYEES.filter(initEmp => {
-        const initLast = (initEmp.lastName || '').toLowerCase().trim();
-        const initFirst = (initEmp.firstName || '').toLowerCase().trim();
-        return !existingList.some(e =>
-            (e.lastName || '').toLowerCase().trim() === initLast &&
-            (e.firstName || '').toLowerCase().trim() === initFirst
-        );
-    });
-
-    if (missing.length === 0) return;
-
-    isSyncingMissingEmps = true;
-    try {
-        console.log(`Wykryto ${missing.length} brakujących pracowników w Firestore. Dodawanie...`);
-        const batch = db.batch();
-        const now = firebase.firestore.FieldValue.serverTimestamp();
-        let nextOrder = existingList.length + 1;
-
-        missing.forEach(emp => {
-            const docRef = db.collection('cert_employees').doc();
-            batch.set(docRef, {
-                ...emp,
-                addedBy: 'System',
-                createdAt: now,
-                order: nextOrder++
-            });
-        });
-
-        await batch.commit();
-
-        await db.collection('cert_audit').add({
-            action: 'add_employee',
-            employeeName: `Dodano ${missing.length} pracowników (${missing.map(m => `${m.lastName} ${m.firstName}`).join(', ')})`,
-            user: 'System',
-            timestamp: now
-        });
-
-        console.log(`Pomyślnie zsynchronizowano ${missing.length} pracowników do bazy!`);
-    } catch (e) {
-        console.error("Błąd synchronizacji brakujących pracowników:", e);
-    } finally {
-        isSyncingMissingEmps = false;
     }
 }
 
@@ -4466,24 +4435,44 @@ async function deleteCertEmployee(empId) {
     const emp = certEmployees.find(e => e.id === empId);
     if (!emp) return;
 
-    if (!confirm(`Czy na pewno chcesz usunąć pracownika ${emp.lastName} ${emp.firstName} z listy certyfikatów?`)) {
+    const fullName = `${emp.lastName || ''} ${emp.firstName || ''}`.trim();
+    if (!confirm(`Czy na pewno chcesz usunąć pracownika ${fullName} z listy certyfikatów?`)) {
         return;
     }
 
     try {
+        // Optimistic UI update: natychmiastowe usunięcie z widoku bez migotania
+        certEmployees = certEmployees.filter(e => e.id !== empId);
+        renderCertificates();
+
+        // 1. Trwałe usunięcie z bazy Firestore
         await db.collection('cert_employees').doc(empId).delete();
 
-        // Audit entry
+        // 2. Trwałe zapisanie w cert_deleted, aby nigdy nie został przywrócony
+        const normKey = `${(emp.lastName || '').toLowerCase().trim()}_${(emp.firstName || '').toLowerCase().trim()}`
+            .replace(/[\/\.#$\[\]\s]/g, '_');
+        if (normKey) {
+            db.collection('cert_deleted').doc(normKey).set({
+                lastName: emp.lastName || '',
+                firstName: emp.firstName || '',
+                deletedBy: currentUser,
+                deletedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).catch(err => console.warn("Nie udało się zapisać w cert_deleted:", err));
+        }
+
+        // 3. Wpis w historii zmian (audit)
         db.collection('cert_audit').add({
             action: 'delete_employee',
-            employeeName: `${emp.lastName} ${emp.firstName}`,
+            employeeName: fullName,
             user: currentUser,
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        logActivity('Usunięto pracownika z certyfikatów', `${emp.lastName} ${emp.firstName}`);
+        logActivity('Usunięto pracownika z certyfikatów', fullName);
     } catch (e) {
+        console.error("Błąd usuwania pracownika:", e);
         alert("Błąd usuwania: " + e.message);
+        renderCertificates();
     }
 }
 
